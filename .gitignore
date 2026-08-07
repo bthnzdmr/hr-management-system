@@ -1,0 +1,60 @@
+# Bu dosyadaki desenler, Git'in takip etmeyecegi dosyalari belirler.
+# Iki temel kural uygulanir:
+#   1) Uretilebilir olan commit edilmez  (bir komutla geri geliyorsa saklamaya gerek yok)
+#   2) Kisisel veya gizli olan commit edilmez
+#
+# Not: Sonunda / olan desen sadece klasorle eslesir.
+#      Icinde / olmayan desen HER derinlikte arar; bu yuzden "target/" yeterlidir,
+#      "*/target/" yazmak gerekmez (o yalnizca bir seviye asagiyi yakalar).
+#      Bir desenin ne yaptigini test etmek icin: git check-ignore -v <dosya>
+
+# ---------- Derleme ciktilari (uretilebilir) ----------
+# Her Java servisinin kendi target/ klasoru olur; tek satir hepsini kapsar.
+target/
+build/
+*.class
+
+# *.jar bilerek eklenmedi: Maven Wrapper kullanilirsa
+# .mvn/wrapper/maven-wrapper.jar da yok sayilir ve proje calismaz hale gelir.
+# Uretilen jar zaten target/ icinde oldugu icin ayrica gerekmiyor.
+
+# ---------- Frontend (Faz 5'te gelecek) ----------
+node_modules/
+dist/
+.vite/
+
+# ---------- Ortam degiskenleri ve sirlar ----------
+# Git gecmisi kalicidir: commit edilen bir parola sonraki commit'te silinse bile
+# eski commit'te okunabilir kalir. Sizan sir, degistirilmesi gereken sirdir.
+.env
+.env.local
+.env.*.local
+
+# Ornek dosya commit EDILIR: hangi degiskenlerin gerektigini gosterir,
+# gercek degerleri icermez. ! isareti "bunu yok sayma" demektir.
+!.env.example
+
+# ---------- Gelistirme araci yapilandirmasi (kisisel) ----------
+# .claude/ makineye ozel mutlak yollar icerir.
+# CLAUDE.md proje konvansiyonlarini tutar ancak depoya dahil edilmiyor;
+# repoda gorunmesi gereken mimari ve gerekce anlatimlari README.md'de.
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+
+# ---------- IDE ve editor ayarlari (kisisel) ----------
+.idea/
+.vscode/
+*.iml
+.settings/
+.project
+.classpath
+
+# ---------- Loglar (uretilebilir) ----------
+*.log
+logs/
+
+# ---------- Isletim sistemi artiklari ----------
+Thumbs.db
+Desktop.ini
+.DS_Store

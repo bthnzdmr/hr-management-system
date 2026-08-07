@@ -1,0 +1,39 @@
+# Gelistirme altyapisi: tek komutla ayaga kalkar -> "docker compose up -d"
+# Bu dosya UYGULAMALARI degil, uygulamalarin ihtiyaci olan servisleri calistirir:
+#   - RabbitMQ    : iki backend arasindaki mesaj kuyrugu
+#   - PostgreSQL  : Personel Service'in veritabani
+#   - MailHog     : gercek mail sunucusu yerine sahte SMTP (mailleri tarayicidan gorursun)
+
+services:
+
+  rabbitmq:
+    image: rabbitmq:3.13-management   # "management" surumu web panel de getirir
+    container_name: personel-rabbitmq
+    ports:
+      - "5672:5672"     # uygulamalarin baglandigi AMQP portu
+      - "15672:15672"   # web panel  -> http://localhost:15672  (kullanici/parola: guest/guest)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  postgres:
+    image: postgres:16
+    container_name: personel-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: personel_db
+      POSTGRES_USER: personel
+      POSTGRES_PASSWORD: personel123
+    volumes:
+      - postgres-data:/var/lib/postgresql/data   # veriler konteyner silinse de kalsin
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: personel-mailhog
+    ports:
+      - "1025:1025"     # SMTP portu -> Notification Service buraya mail atar
+      - "8025:8025"     # web arayuz -> http://localhost:8025  (giden mailleri burada gorursun)
+
+volumes:
+  postgres-data:
