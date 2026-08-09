@@ -23,6 +23,8 @@
         <java.version>17</java.version>
         <!-- Spring Cloud ayri bir surum ailesidir; kendi tablosu asagida import ediliyor. -->
         <spring-cloud.version>2023.0.1</spring-cloud.version>
+        <!-- springdoc Spring Boot ekibinin urunu degil; parent'in surum tablosunda yok. -->
+        <springdoc.version>2.5.0</springdoc.version>
     </properties>
 
     <dependencies>
@@ -73,6 +75,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- 7) OpenAPI/Swagger: belge koddan uretilir, elle yazilmaz. -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
 
         <!-- Test: JUnit 5, Mockito, AssertJ, MockMvc.

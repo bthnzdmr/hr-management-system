@@ -315,7 +315,12 @@ Hatalar RFC 7807 (`ProblemDetail`) biçiminde döner.
 }
 ```
 
-🚧 Swagger arayüzü Faz 1.13'te http://localhost:8080/swagger-ui.html adresinde yayınlanacak.
+### Swagger
+
+Etkileşimli API arayüzü: http://localhost:8080/swagger-ui.html
+OpenAPI belgesi (JSON): http://localhost:8080/v3/api-docs
+
+Belge controller ve DTO sınıflarından üretilir; elle güncellenmez.
 
 ---
 
