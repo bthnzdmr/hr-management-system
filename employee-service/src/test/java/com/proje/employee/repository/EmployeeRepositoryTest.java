@@ -37,6 +37,10 @@ class EmployeeRepositoryTest {
 
     @BeforeEach
     void setUp() {
+        // Test, veritabaninin onceki durumuna bagimli olmamali.
+        // @DataJpaTest transaction icinde calisip geri aldigi icin bu silme kalici degil.
+        employeeRepository.deleteAllInBatch();
+
         List<Department> departments = departmentRepository.findAll();
 
         for (int i = 0; i < 5; i++) {

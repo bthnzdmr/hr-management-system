@@ -44,6 +44,10 @@ class EmployeeMapperTest {
 
     @BeforeEach
     void setUp() {
+        // Test, veritabaninin onceki durumuna bagimli olmamali.
+        // @DataJpaTest transaction icinde calisip geri aldigi icin bu silme kalici degil.
+        employeeRepository.deleteAllInBatch();
+
         Department department = departmentRepository.findAll().get(0);
 
         Employee yonetici = new Employee("Grace", "Hopper", "grace@example.com",
