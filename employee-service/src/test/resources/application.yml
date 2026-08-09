@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/employee_db}
+    username: ${DB_USERNAME:employee}
+    password: ${DB_PASSWORD:employee123}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        # Sorgu sayaci: testte kac SQL cumlesi calistigini olcebilmek icin.
+        generate_statistics: true
+
+  flyway:
+    enabled: true
+
+eureka:
+  client:
+    enabled: false
