@@ -2,11 +2,13 @@ package com.proje.employee.service;
 
 import com.proje.employee.dto.EmployeeCreateRequest;
 import com.proje.employee.dto.EmployeeResponse;
+import com.proje.employee.dto.EmployeeUpdateRequest;
 import com.proje.employee.entity.Department;
 import com.proje.employee.entity.Employee;
 import com.proje.employee.exception.DepartmentNotFoundException;
 import com.proje.employee.exception.EmailAlreadyExistsException;
 import com.proje.employee.exception.EmployeeNotFoundException;
+import com.proje.employee.exception.ManagerCycleException;
 import com.proje.employee.mapper.EmployeeMapper;
 import com.proje.employee.repository.DepartmentRepository;
 import com.proje.employee.repository.EmployeeRepository;
@@ -18,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -122,5 +125,108 @@ class EmployeeServiceTest {
         assertThatThrownBy(() -> employeeService.getById(42L))
                 .isInstanceOf(EmployeeNotFoundException.class)
                 .hasMessageContaining("42");
+    }
+
+    private Employee calisan(Long id, String email, Department department) {
+        Employee e = new Employee("Ad", "Soyad", email, department,
+                "Engineer", LocalDate.of(2024, 1, 1));
+        ReflectionTestUtils.setField(e, "id", id);
+        return e;
+    }
+
+    private EmployeeUpdateRequest guncelleme(String email, Long departmentId, Long managerId) {
+        return new EmployeeUpdateRequest("Ad", "Soyad", email, null,
+                departmentId, managerId, "Engineer",
+                LocalDate.of(2024, 1, 1), null);
+    }
+
+    @Test
+    @DisplayName("Kisi kendi yoneticisi yapilamaz")
+    void kendiYoneticisiOlamaz() {
+        Department department = new Department("Sales");
+        Employee ada = calisan(1L, "ada@example.com", department);
+
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+
+        assertThatThrownBy(() ->
+                employeeService.update(1L, guncelleme("ada@example.com", 1L, 1L)))
+                .isInstanceOf(ManagerCycleException.class);
+    }
+
+    @Test
+    @DisplayName("A -> B -> A dongusu reddedilir (veritabani kisitinin goremedigi durum)")
+    void dolayliDonguReddedilir() {
+        Department department = new Department("Sales");
+        Employee ada = calisan(1L, "ada@example.com", department);
+        Employee grace = calisan(2L, "grace@example.com", department);
+
+        // Grace'in yoneticisi zaten Ada. Simdi Ada'nin yoneticisini Grace yapmaya
+        // calisiyoruz -> Ada -> Grace -> Ada dongusu olusur.
+        grace.setManager(ada);
+
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+        when(employeeRepository.findById(2L)).thenReturn(Optional.of(grace));
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+
+        assertThatThrownBy(() ->
+                employeeService.update(1L, guncelleme("ada@example.com", 1L, 2L)))
+                .isInstanceOf(ManagerCycleException.class);
+    }
+
+    @Test
+    @DisplayName("Dongu olusturmayan yonetici atamasi kabul edilir")
+    void gecerliYoneticiAtamasiKabulEdilir() {
+        Department department = new Department("Sales");
+        Employee ada = calisan(1L, "ada@example.com", department);
+        Employee grace = calisan(2L, "grace@example.com", department);
+
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+        when(employeeRepository.findById(2L)).thenReturn(Optional.of(grace));
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+
+        employeeService.update(1L, guncelleme("ada@example.com", 1L, 2L));
+
+        assertThat(ada.getManager()).isSameAs(grace);
+    }
+
+    @Test
+    @DisplayName("Email degismediyse tekillik kontrolu yapilmaz")
+    void ayniEmailIleGuncellemeGecer() {
+        Department department = new Department("Sales");
+        Employee ada = calisan(1L, "ada@example.com", department);
+
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+
+        employeeService.update(1L, guncelleme("ada@example.com", 1L, null));
+
+        verify(employeeRepository, never()).existsByEmail(any());
+    }
+
+    @Test
+    @DisplayName("Baskasina ait email ile guncelleme reddedilir")
+    void baskasininEmailiIleGuncellemeReddedilir() {
+        Department department = new Department("Sales");
+        Employee ada = calisan(1L, "ada@example.com", department);
+
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+        when(employeeRepository.existsByEmail("grace@example.com")).thenReturn(true);
+
+        assertThatThrownBy(() ->
+                employeeService.update(1L, guncelleme("grace@example.com", 1L, null)))
+                .isInstanceOf(EmailAlreadyExistsException.class);
+    }
+
+    @Test
+    @DisplayName("Pasiflestirme kaydi silmez, active alanini false yapar")
+    void pasiflestirmeKaydiSilmez() {
+        Employee ada = calisan(1L, "ada@example.com", new Department("Sales"));
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+
+        employeeService.deactivate(1L);
+
+        assertThat(ada.isActive()).isFalse();
+        verify(employeeRepository, never()).delete(any());
     }
 }

@@ -26,6 +26,11 @@ public class GlobalExceptionHandler {
         return problem(HttpStatus.CONFLICT, "Email already registered", ex.getMessage());
     }
 
+    @ExceptionHandler(ManagerCycleException.class)
+    public ProblemDetail handleManagerCycle(ManagerCycleException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Invalid manager assignment", ex.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
         List<FieldErrorDetail> errors = ex.getBindingResult().getFieldErrors().stream()
