@@ -35,6 +35,9 @@ eureka:
     prefer-ip-address: true
 
 logging:
+  # %X{...} MDC'den okur. Istek disinda uretilen loglarda (acilis gibi) bos kalir.
+  pattern:
+    level: "%5p [%X{correlationId:-________}]"
   level:
     org.hibernate.SQL: debug
     com.proje.employee: debug
