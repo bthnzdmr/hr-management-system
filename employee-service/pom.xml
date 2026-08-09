@@ -69,6 +69,12 @@
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
 
+        <!-- 6) AOP: kesisen ilgileri (sure olcumu, loglama) is kodundan ayirmak icin. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- Test: JUnit 5, Mockito, AssertJ, MockMvc.
              test kapsami: yalnizca test derlerken ve calisirken kullanilir,
              uretim jar'ina girmez. -->

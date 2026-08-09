@@ -37,3 +37,4 @@ eureka:
 logging:
   level:
     org.hibernate.SQL: debug
+    com.proje.employee: debug
