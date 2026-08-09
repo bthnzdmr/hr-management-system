@@ -44,7 +44,7 @@ Sistem iki işi yapar:
                         │  HTTP (JSON) + JWT
                         ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│  PERSONEL SERVICE (Spring Boot)      :8080               🚧      │
+│  EMPLOYEE SERVICE (Spring Boot)      :8080               🚧      │
 │  • REST uçları (listele, ekle, güncelle, sil)                    │
 │  • Doğrulama, yetkilendirme, iş kuralları                        │
 │  • Verinin tek gerçek kaynağı (source of truth)                  │
@@ -60,7 +60,7 @@ Sistem iki işi yapar:
                         ┌────────────────────────────────────────┐
                         │  NOTIFICATION SERVICE   :8081    🚧    │
                         │  • Kuyruktan olayı okur                │
-                        │  • Feign ile Personel'den detay çeker ─┼──► :8080
+                        │  • Feign ile Employee'den detay çeker ─┼──► :8080
                         │  • Mail şablonunu doldurup gönderir    │
                         └───────────────┬────────────────────────┘
                                         │ SMTP
@@ -81,7 +81,7 @@ Sistem iki işi yapar:
 | Parça | Görevi | Durum |
 |---|---|---|
 | **React Frontend** | Kullanıcının gördüğü arayüz | 🚧 Faz 5 |
-| **Personel Service** | Verinin sahibi; tüm iş kurallarının uygulandığı yer | 🚧 Faz 1 |
+| **Employee Service** | Verinin sahibi; tüm iş kurallarının uygulandığı yer | 🚧 Faz 1 |
 | **PostgreSQL** | Personel verisinin kalıcı olarak saklandığı yer | ✅ |
 | **RabbitMQ** | İki servis arasında mesaj taşıyan aracı | ✅ |
 | **Notification Service** | Olayı dinleyip mail hazırlayan ve gönderen servis | 🚧 Faz 4 |
@@ -97,7 +97,7 @@ Bir personelin departmanının değiştirildiği senaryo, baştan sona:
 ```
  1. Kullanıcı formda değişikliği yapar, Kaydet'e basar
         ↓
- 2. React → Axios → PUT /api/personel/42        (header'da JWT)
+ 2. React → Axios → PUT /api/employees/42       (header'da JWT)
         ↓
  3. Spring Security filtresi: token geçerli mi? Bu kullanıcı yazma yetkisine sahip mi?
         ↓  evet
@@ -107,15 +107,15 @@ Bir personelin departmanının değiştirildiği senaryo, baştan sona:
         ↓
  6. PostgreSQL'e UPDATE atılır → transaction COMMIT olur   ← veri artık kalıcı
         ↓
- 7. ANCAK ŞİMDİ: RabbitMQ'ya "personel.updated" olayı bırakılır
+ 7. ANCAK ŞİMDİ: RabbitMQ'ya "employee.updated" olayı bırakılır
         ↓
- 8. Personel Service kullanıcıya 200 OK döner   ← kullanıcı mail için beklemez
+ 8. Employee Service kullanıcıya 200 OK döner   ← kullanıcı mail için beklemez
         ↓  (paralel, milisaniyeler sonra)
  9. Notification Service kuyruktan mesajı alır
         ↓
 10. "Bu olayı daha önce işledim mi?" kontrolü    (idempotency)
         ↓  hayır
-11. Feign ile Personel Service'e sorar: 42 numaralı personelin detayları?
+11. Feign ile Employee Service'e sorar: 42 numaralı personelin detayları?
         ↓
 12. Mail şablonunu doldurur, MailHog'a gönderir
         ↓
@@ -142,21 +142,21 @@ Bu sistemde iki iş var ve önem düzeyleri farklı: personel kaydını güncell
 
 Somut olarak: mail gönderimi `@Transactional` bir metodun içinde yapılsaydı ve mail sunucusu çökseydi, fırlayan `RuntimeException` transaction'ı geri alır ve personel güncellemesi de iptal olurdu. Yani *mail sunucusu kapalı olduğu için departman değiştirilemezdi*. Hatayı yakalayıp yutsaydık bu sefer veri kaydolur ama kullanıcı hata mesajı görür, işlemin başarısız olduğunu sanıp tekrar dener ve mükerrer kayıt oluşurdu. İki seçenek de kabul edilemez.
 
-Buradaki hastalığın adı **bağlılık (coupling)**: bir servisin çalışabilirliğinin, ilgisiz bir bileşenin çalışabilirliğine bağlanması. Kuyruk bu bağı koparır — Personel Service mail sunucusunu hiç tanımaz, mesajı kuyruğa bırakıp işini bitirir. Notification Service çökse bile mesaj kuyrukta bekler, servis ayağa kalkınca işlenir.
+Buradaki hastalığın adı **bağlılık (coupling)**: bir servisin çalışabilirliğinin, ilgisiz bir bileşenin çalışabilirliğine bağlanması. Kuyruk bu bağı koparır — Employee Service mail sunucusunu hiç tanımaz, mesajı kuyruğa bırakıp işini bitirir. Notification Service çökse bile mesaj kuyrukta bekler, servis ayağa kalkınca işlenir.
 
 **Ne zaman kullanılmaz:** Küçük ölçekli projelerde, tek kişilik veya küçük ekiplerde, servis sınırlarının henüz netleşmediği erken aşamalarda, bağımsız ölçekleme ihtiyacı yokken ve log/trace altyapısı kurulmamışken mikroservis net bir kayıptır. Sınırları yanlış çizmenin maliyeti de asimetriktir: monolitte iki sınıfın yerini değiştirmek bir IDE işlemidir, iki servis arasında aynı iş API sürümleme, veri taşıma ve iki ayrı dağıtım gerektirir. Bu yüzden makul varsayılan "önce monolit"tir — bir monoliti sonradan bölmek, yanlış bölünmüş servisleri birleştirmekten çok daha kolaydır.
 
 ### 4.2 Neden mesaj kuyruğu, senkron REST çağrısı yerine?
 
-İki ayrı servis olması tek başına kuyruğu gerektirmez — Personel Service, Notification Service'i doğrudan HTTP ile de çağırabilirdi. Kuyruk üç sebeple tercih edildi.
+İki ayrı servis olması tek başına kuyruğu gerektirmez — Employee Service, Notification Service'i doğrudan HTTP ile de çağırabilirdi. Kuyruk üç sebeple tercih edildi.
 
 **1. Erişilebilirlik bağlılığı.** Senkron çağrıda Notification Service çökmüşse istek başarısız olur ve `@Transactional` metottan yayılan hata personel güncellemesini de geri alır. Ayrıca tersi durum daha da kötüdür: HTTP çağrısı başarılı olup sonraki bir adım patlarsa veritabanı geri alınır ama **gönderilmiş mail geri alınamaz**. Ağ üzerinden yapılmış bir işlemin geri alınamaması, dağıtık transaction probleminin özüdür.
 
 **2. Gecikme.** Senkron çağrıda cevap gelmeden sıradaki satır çalışmaz; kullanıcı bütün zincirin bitmesini bekler. Kuyruğa mesaj bırakmak birkaç milisaniye sürer, mail gönderimi ise saniyeler alabilir.
 
-**3. Tüketici bağımsızlığı — asıl sebep budur.** Senkron REST'te Personel Service, mesajı **kime** gönderdiğini bilmek zorundadır. Yarın SMS ve denetim kaydı servisleri eklenirse Personel Service'in koduna üç ayrı istemci, üç adres, üç timeout ve üç hata yönetimi girer; her yeni tüketici için bu servis değiştirilip yeniden dağıtılır. Kuyrukta ise Personel Service sadece **ne olduğunu** duyurur; yeni tüketiciler kuyruğa kendileri abone olur ve üretici tarafta tek satır değişmez.
+**3. Tüketici bağımsızlığı — asıl sebep budur.** Senkron REST'te Employee Service, mesajı **kime** gönderdiğini bilmek zorundadır. Yarın SMS ve denetim kaydı servisleri eklenirse Employee Service'in koduna üç ayrı istemci, üç adres, üç timeout ve üç hata yönetimi girer; her yeni tüketici için bu servis değiştirilip yeniden dağıtılır. Kuyrukta ise Employee Service sadece **ne olduğunu** duyurur; yeni tüketiciler kuyruğa kendileri abone olur ve üretici tarafta tek satır değişmez.
 
-Bu ayrım mesajın adında da görünür: olay `personel.updated` diye adlandırılmıştır, `mailGonder` diye değil. Bir **olgu** bildirilir, bir **emir** verilmez — komut alıcısını bilmeyi gerektirir, olay gerektirmez. Desenin adı **yayınla/abone ol (publish/subscribe)**.
+Bu ayrım mesajın adında da görünür: olay `employee.updated` diye adlandırılmıştır, `mailGonder` diye değil. Bir **olgu** bildirilir, bir **emir** verilmez — komut alıcısını bilmeyi gerektirir, olay gerektirmez. Desenin adı **yayınla/abone ol (publish/subscribe)**.
 
 **Bedeli:** Kuyruk bedava değildir. Sistem **nihai tutarlılığa (eventual consistency)** geçer — veri güncellendiği an mail henüz gitmemiştir. Ayrıca mesaj tekrar teslim edilebilir (bkz. 4.5), sıralama garantisi sınırlıdır ve hata ayıklamak tek bir çağrı yığınını okumaktan zordur.
 
@@ -178,7 +178,7 @@ Sabit adres yazmanın üç sorunu var.
 
 **1. Adres ortama göre değişir.** `http://localhost:8080` yalnızca geliştirme makinesinde geçerlidir; gerçek bir sunucuda veya konteyner ağında anlamını yitirir. Yapılandırmayı her ortam için ayrı tutmak gerekir.
 
-**2. Yük dengelemesi mümkün olmaz.** Sabit adres tek bir hedef demektir. Personel Service'in üç kopyası çalışsa bile, adresi koduna gömen istemci her isteği aynı kopyaya gönderir; diğer ikisi hiç iş almaz. Yük dağıtımı için birinin **tüm kopyaların listesini** tutması gerekir — Eureka bu listeyi tutar, Feign de `lb://` önekiyle listeden seçim yapar.
+**2. Yük dengelemesi mümkün olmaz.** Sabit adres tek bir hedef demektir. Employee Service'in üç kopyası çalışsa bile, adresi koduna gömen istemci her isteği aynı kopyaya gönderir; diğer ikisi hiç iş almaz. Yük dağıtımı için birinin **tüm kopyaların listesini** tutması gerekir — Eureka bu listeyi tutar, Feign de `lb://` önekiyle listeden seçim yapar.
 
 **3. Değişiklik yeniden başlatma gerektirir.** Adres değiştiğinde ilgili `application.yml` düzenlenir ve servis yeniden başlatılır; bu sırada servis kapalıdır. Aynı adresi kullanan servis sayısı kadar bu işlem tekrarlanır. Eureka'da ise kayıt ve silme işini servislerin kendisi yapar: yeni kopya açılınca kendini kaydeder, çöken kopyanın kalp atışı (heartbeat) kesilince listeden düşer. Hiçbir dosya düzenlenmez.
 
@@ -238,10 +238,10 @@ Bu, 4.2'deki fikrin kardeşidir: yayınla/abone ol deseni "kime gönderdiğini b
 | Servis | Port | Adres | Durum |
 |---|---|---|---|
 | Eureka Server | 8761 | http://localhost:8761 | ✅ |
-| Personel Service | 8080 | http://localhost:8080 | 🚧 Faz 1 |
+| Employee Service | 8080 | http://localhost:8080 | 🚧 Faz 1 |
 | Notification Service | 8081 | http://localhost:8081 | 🚧 Faz 4 |
 | Frontend (React) | 5173 | http://localhost:5173 | 🚧 Faz 5 |
-| PostgreSQL | 5432 | `personel_db` / `personel` / `personel123` | ✅ |
+| PostgreSQL | 5432 | `employee_db` / `employee` / `employee123` | ✅ |
 | RabbitMQ (AMQP) | 5672 | uygulamaların bağlandığı port | ✅ |
 | RabbitMQ paneli | 15672 | http://localhost:15672 — `guest` / `guest` | ✅ |
 | MailHog (SMTP) | 1025 | Notification Service buraya mail atar | ✅ |
@@ -290,7 +290,7 @@ mvn spring-boot:run
 
 Açılması yaklaşık 15–20 saniye sürer. Ardından http://localhost:8761 adresinde panel açılmalı, "Instances currently registered with Eureka" listesi henüz boş olmalıdır — kaydolacak servis yazılmadı.
 
-### 3. Personel Service'i başlat 🚧
+### 3. Employee Service'i başlat 🚧
 
 Faz 1 tamamlandığında bu bölüm doldurulacak.
 
@@ -322,7 +322,7 @@ docker compose down     # konteynerleri siler, volume'daki veri yine korunur
 | Faz | İçerik | Neden bu sırada | Durum |
 |---|---|---|---|
 | **0** | Git deposu, `.gitignore`, altyapı, Eureka | Kod yazmadan önce geri dönülebilir bir zemin gerekir | 🔄 kısmen |
-| **1** | Personel Service: JPA, Flyway, REST, validation, hata yönetimi, AOP, Swagger, testler | Diğer her şey bu servisin verisine ve API'sine bağlı | 🚧 |
+| **1** | Employee Service: JPA, Flyway, REST, validation, hata yönetimi, AOP, Swagger, testler | Diğer her şey bu servisin verisine ve API'sine bağlı | 🚧 |
 | **2** | Spring Security: JWT, rol bazlı yetkilendirme | Korunacak uçlar önce var olmalı | 🚧 |
 | **3** | RabbitMQ olay yayını (üretici taraf) | Yayınlanacak bir değişiklik önce var olmalı | 🚧 |
 | **4** | Notification Service: tüketici, idempotency, Feign, mail | Dinlenecek mesaj önce var olmalı | 🚧 |
@@ -345,7 +345,7 @@ HR Management System/
 │   └── src/main/
 │       ├── java/com/proje/eureka/EurekaServerApplication.java
 │       └── resources/application.yml
-├── personel-service/           🚧  Faz 1
+├── employee-service/           🚧  Faz 1
 ├── notification-service/       🚧  Faz 4
 └── frontend/                   🚧  Faz 5
 ```
