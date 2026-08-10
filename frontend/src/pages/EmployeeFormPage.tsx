@@ -1,19 +1,22 @@
 import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { SyntheticEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Alert, Box, Button, Card, CardContent, CircularProgress, Grid, Stack, TextField, Typography,
+  Alert, Box, Button, Card, CardContent, CircularProgress, Grid, MenuItem, Stack, TextField,
+  Typography,
 } from '@mui/material';
 import { employeeApi } from '../api/employees';
+import { departmentApi } from '../api/departments';
 import { errorMessage } from '../api/client';
-import type { EmployeeCreateRequest } from '../types/api';
+import type { Department, EmployeeCreateRequest } from '../types/api';
 
 const EMPTY_FORM: EmployeeCreateRequest = {
   firstName: '',
   lastName: '',
   email: '',
   phone: null,
-  departmentId: 1,
+  // 0 "henuz secilmedi" demektir; gecerli bir departman id'si degildir.
+  departmentId: 0,
   managerId: null,
   jobTitle: '',
   hireDate: '',
@@ -26,9 +29,21 @@ export function EmployeeFormPage() {
   const isEdit = Boolean(id);
 
   const [form, setForm] = useState<EmployeeCreateRequest>(EMPTY_FORM);
-  const [loading, setLoading] = useState(isEdit);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Departmanlar hem yeni kayitta hem duzenlemede gerekli.
+  useEffect(() => {
+    departmentApi
+      .list()
+      .then(setDepartments)
+      .catch((err) => setError(errorMessage(err)))
+      .finally(() => {
+        if (!id) setLoading(false);
+      });
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
@@ -58,7 +73,7 @@ export function EmployeeFormPage() {
     value: EmployeeCreateRequest[K],
   ) => setForm((current) => ({ ...current, [field]: value }));
 
-  const handleSubmit = async (event: FormEvent) => {
+  const handleSubmit = async (event: SyntheticEvent) => {
     event.preventDefault();
     setError(null);
     setSubmitting(true);
@@ -125,9 +140,17 @@ export function EmployeeFormPage() {
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="Department ID" type="number" value={form.departmentId} required fullWidth
+                  select label="Department" required fullWidth
+                  value={form.departmentId ? String(form.departmentId) : ''}
                   onChange={(e) => update('departmentId', Number(e.target.value))}
-                />
+                  helperText={departments.length === 0 ? 'No departments available' : ' '}
+                >
+                  {departments.map((department) => (
+                    <MenuItem key={department.id} value={String(department.id)}>
+                      {department.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField

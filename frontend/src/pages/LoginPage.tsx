@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { FormEvent } from 'react';
+import type { SyntheticEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Alert, Box, Button, Card, CardContent, Stack, TextField, Typography } from '@mui/material';
 import { useAuth } from '../auth/AuthContext';
@@ -19,7 +19,7 @@ export function LoginPage() {
     return <Navigate to="/employees" replace />;
   }
 
-  const handleSubmit = async (event: FormEvent) => {
+  const handleSubmit = async (event: SyntheticEvent) => {
     event.preventDefault();
     setError(null);
     setSubmitting(true);

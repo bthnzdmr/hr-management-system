@@ -359,6 +359,13 @@ Backend'in bu kaynağa CORS izni vermesi gerekir (`CORS_ALLOWED_ORIGINS`).
 | `USER` | Personel listesi (salt okunur) |
 | `ADMIN` | Liste + oluştur, güncelle, pasifleştir |
 
+Testler:
+
+```bash
+cd frontend
+npm test
+```
+
 ### Durdurma
 
 ```bash
@@ -380,6 +387,11 @@ Taban adres: `http://localhost:8080`
 | `POST` | `/api/employees` | Yeni kayıt | `ADMIN` | `201` + `Location` |
 | `PUT` | `/api/employees/{id}` | Güncelleme | `ADMIN` | `200` |
 | `DELETE` | `/api/employees/{id}` | Pasifleştirme (kayıt silinmez) | `ADMIN` | `204` |
+| `GET` | `/api/departments` | Aktif departmanlar, isme göre sıralı | giriş yapmış | `200` |
+
+Departman listesi sayfasızdır: sayısı kurumsal olarak sınırlı bir referans
+verisidir ve seçim kutusunu doldurmak için kullanılır. Büyüyebilen listelerde
+(personel gibi) sayfalama zorunludur.
 
 Yetki kuralı **okuma / yazma** ayrımına dayanır: okumak için giriş yapmış olmak
 yeterlidir, veri değiştiren her uç `ADMIN` rolü ister. Kural yazılmamış bir uç
@@ -517,7 +529,7 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesi, outbox yazıcı ve relay
 │       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
 │       ├── main/resources/db/migration/   V1__ V2__ V3__ V4__
-│       └── test/               56 test
+│       └── test/               63 test
 ├── notification-service/       ✅  olayları dinleyip mail gönderen servis
 │   ├── pom.xml
 │   └── src/
@@ -539,7 +551,8 @@ HR Management System/
         ├── store/              Redux Toolkit: liste durumu, sayfalama
         ├── pages/              Giriş, liste, form ekranları
         ├── components/         Ortak yerleşim
-        └── types/              Backend sözleşmesinin TypeScript karşılığı
+        ├── types/              Backend sözleşmesinin TypeScript karşılığı
+        └── *.test.ts(x)        26 test (Vitest + Testing Library)
 ```
 
 Her Java servisinin **kendi `pom.xml`'i** vardır; ortak bir üst pom kullanılmaz. Mikroservislerin bağımsız derlenip bağımsız dağıtılabilmesi bu mimarinin amacıdır, ortak bir üst pom onları sürüm olarak birbirine bağlardı.
