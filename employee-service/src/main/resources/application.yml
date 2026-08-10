@@ -58,6 +58,11 @@ app:
     email: ${ADMIN_EMAIL:}
     password: ${ADMIN_PASSWORD:}
 
+  # Notification Service'in kullandigi okuma yetkili servis hesabi.
+  service-account:
+    email: ${SERVICE_ACCOUNT_EMAIL:}
+    password: ${SERVICE_ACCOUNT_PASSWORD:}
+
   jwt:
     # Varsayilan YOK: tanimsizsa uygulama acilmaz. Bu anahtari bilen kendine
     # istedigi rolde token uretebilir, dolayisiyla depoya asla girmez.

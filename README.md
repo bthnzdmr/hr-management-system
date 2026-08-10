@@ -58,9 +58,10 @@ Sistem iki işi yapar:
                                              │ mesajı tüketir
                                              ▼
                         ┌────────────────────────────────────────┐
-                        │  NOTIFICATION SERVICE   :8081    🚧    │
-                        │  • Kuyruktan olayı okur                │
-                        │  • Feign ile Employee'den detay çeker ─┼──► :8080
+                        │  NOTIFICATION SERVICE   :8081    ✅    │
+                        │  • Kuyruktan olayı okur, mükerrer mi   │
+                        │    diye kendi veritabanına bakar       │
+                        │  • Feign ile yöneticiyi sorar (CC) ────┼──► :8080
                         │  • Mail şablonunu doldurup gönderir    │
                         └───────────────┬────────────────────────┘
                                         │ SMTP
@@ -177,17 +178,19 @@ Gerekçeleri proje kurallarında kayıtlıdır.
 
 ## 5. Servisler ve Portlar
 
-| Servis               | Port  | Adres                                      | Durum    |
-| -------------------- | ----- | ------------------------------------------ | -------- |
-| Eureka Server        | 8761  | http://localhost:8761                      | ✅       |
-| Employee Service     | 8080  | http://localhost:8080                      | ✅       |
-| Notification Service | 8081  | http://localhost:8081                      | 🚧 Faz 4 |
-| Frontend (React)     | 5173  | http://localhost:5173                      | 🚧 Faz 5 |
-| PostgreSQL           | 5432  | `employee_db` / `employee` / `employee123` | ✅       |
-| RabbitMQ (AMQP)      | 5672  | uygulamaların bağlandığı port              | ✅       |
-| RabbitMQ paneli      | 15672 | http://localhost:15672 — `guest` / `guest` | ✅       |
-| MailHog (SMTP)       | 1025  | Notification Service buraya mail atar      | ✅       |
-| MailHog paneli       | 8025  | http://localhost:8025                      | ✅       |
+| Servis               | Port  | Adres                                        | Durum    |
+| -------------------- | ----- | -------------------------------------------- | -------- |
+| Eureka Server        | 8761  | http://localhost:8761                        | ✅       |
+| Employee Service     | 8080  | http://localhost:8080                        | ✅       |
+| Notification Service | 8081  | http://localhost:8081                        | ✅       |
+| Frontend (React)     | 5173  | http://localhost:5173                        | 🚧 Faz 5 |
+| PostgreSQL           | 5432  | `employee_db` ve `notification_db`           | ✅       |
+| RabbitMQ (AMQP)      | 5672  | uygulamaların bağlandığı port                | ✅       |
+| RabbitMQ paneli      | 15672 | http://localhost:15672                       | ✅       |
+| MailHog (SMTP)       | 1025  | Notification Service buraya mail atar        | ✅       |
+| MailHog paneli       | 8025  | http://localhost:8025                        | ✅       |
+
+Kimlik bilgileri depoda yazmaz; hepsi `.env` dosyasından gelir (bkz. bölüm 6).
 
 **Portlar nerede tanımlı?**
 
@@ -308,9 +311,33 @@ dolayısıyla hem altyapının çalışıyor hem de ortam değişkenlerinin yuka
 kabuğa yüklenmiş olması gerekir. Testler transaction içinde çalışıp geri alındığı
 için geliştirme veritabanını kirletmez.
 
-### 5. Notification Service'i başlat 🚧
+### 5. Notification Service'i başlat ✅
 
-Faz 4 tamamlandığında bu bölüm doldurulacak.
+Ortam değişkenleri Employee Service ile aynıdır; aynı kabukta çalıştırılabilir.
+
+```bash
+cd notification-service
+mvn spring-boot:run
+```
+
+Servisin dışarıya açılan bir REST API'si yoktur; yalnızca kuyruğu dinler.
+Doğrulama:
+
+```bash
+curl http://localhost:8081/actuator/health     # {"status":"UP"}
+```
+
+Bir personel oluşturup http://localhost:8025 adresinde mailin geldiğini görebilirsin.
+Personelin yöneticisi varsa mail ona da CC'lenir.
+
+> `notification_db` veritabanı, PostgreSQL konteyneri **ilk kez** kurulurken
+> [docker/postgres-init/](docker/postgres-init/) altındaki betikle oluşturulur.
+> Konteyner daha önce kurulmuşsa bir kez elle oluşturmak gerekir:
+>
+> ```bash
+> docker exec -e PGPASSWORD=$DB_PASSWORD hr-postgres \
+>   psql -U $DB_USERNAME -d $POSTGRES_DB -c "CREATE DATABASE notification_db;"
+> ```
 
 ### 6. Frontend'i başlat 🚧
 
@@ -438,8 +465,8 @@ Belge controller ve DTO sınıflarından üretilir; elle güncellenmez.
 | **0** | Git deposu, `.gitignore`, altyapı, Eureka                                             | Kod yazmadan önce geri dönülebilir bir zemin gerekir | ✅        |
 | **1** | Employee Service: JPA, Flyway, REST, validation, hata yönetimi, AOP, Swagger, testler | Diğer her şey bu servisin verisine ve API'sine bağlı | ✅        |
 | **2** | Spring Security: JWT, rol bazlı yetkilendirme                                         | Korunacak uçlar önce var olmalı                      | ✅        |
-| **3** | RabbitMQ olay yayını (üretici taraf)                                                  | Yayınlanacak bir değişiklik önce var olmalı          | 🚧        |
-| **4** | Notification Service: tüketici, idempotency, Feign, mail                              | Dinlenecek mesaj önce var olmalı                     | 🚧        |
+| **3** | Olay yayını: transactional outbox, publisher confirms                                 | Yayınlanacak bir değişiklik önce var olmalı          | ✅        |
+| **4** | Notification Service: tüketici, idempotency, DLQ, Feign, mail                         | Dinlenecek mesaj önce var olmalı                     | ✅        |
 | **5** | React + TypeScript arayüz                                                             | Çağrılacak API önce stabil olmalı                    | 🚧        |
 | **6** | Uçtan uca test, Dockerfile'lar, dokümantasyon                                         | Parçaların tamamı hazır olmalı                       | 🚧        |
 
@@ -452,6 +479,8 @@ Genel kural: **veriyi üreten, tüketenden önce gelir.**
 ```
 HR Management System/
 ├── docker-compose.yml          ✅  altyapı tanımı (RabbitMQ, PostgreSQL, MailHog)
+├── .env.example                ✅  ortam değişkeni şablonu (.env buradan kopyalanır)
+├── docker/postgres-init/       ✅  ilk kurulumda çalışan veritabanı betikleri
 ├── README.md                   ✅  bu dosya
 ├── eureka-server/              ✅  servis keşif sunucusu
 │   ├── pom.xml
@@ -469,10 +498,23 @@ HR Management System/
 │       │   ├── dto/            API sözleşmesi
 │       │   ├── mapper/         entity ↔ dto çevirisi
 │       │   ├── exception/      hata sınıfları + merkezî yakalayıcı
+│       │   ├── event/          olay sözleşmesi, outbox yazıcı ve relay
 │       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
-│       ├── main/resources/db/migration/   V1__ V2__ V3__
-│       └── test/               45 test
-├── notification-service/       🚧  Faz 4
+│       ├── main/resources/db/migration/   V1__ V2__ V3__ V4__
+│       └── test/               56 test
+├── notification-service/       ✅  olayları dinleyip mail gönderen servis
+│   ├── pom.xml
+│   └── src/
+│       ├── main/java/com/proje/notification/
+│       │   ├── listener/       kuyruk dinleyicisi, idempotency kontrolü
+│       │   ├── service/        mail hazırlama, yönetici sorgulama
+│       │   ├── client/         Feign istemcileri ve servis token'ı
+│       │   ├── entity/         işlenen olay kaydı
+│       │   ├── repository/     veritabanı erişimi
+│       │   ├── event/          olay sözleşmesinin tüketici tarafı
+│       │   └── config/         kuyruk, DLX ve DLQ tanımları
+│       ├── main/resources/db/migration/   V1__
+│       └── test/               15 test
 └── frontend/                   🚧  Faz 5
 ```
 
