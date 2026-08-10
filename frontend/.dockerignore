@@ -1,0 +1,8 @@
+# Build baglamina girmeyecekler. node_modules ozellikle onemli: yuz binlerce
+# dosya iceren bu klasor gonderilirse build dakikalarca surer ve zaten
+# imaj icinde npm ci ile yeniden kurulur.
+node_modules/
+dist/
+.vite/
+Dockerfile
+.dockerignore

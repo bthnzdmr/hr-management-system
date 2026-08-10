@@ -1,0 +1,26 @@
+# Cok asamali build: derleme araclari uretim imajina girmez.
+
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /build
+
+# pom.xml once kopyalanir: bagimliliklar degismedigi surece Docker bu katmani
+# onbellekten alir ve kod her degistiginde yeniden indirmez.
+COPY pom.xml .
+RUN mvn -B -q dependency:go-offline
+
+COPY src ./src
+# Testler burada calistirilmaz: veritabani ve RabbitMQ gerektiriyorlar.
+RUN mvn -B -q clean package -DskipTests
+
+
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+
+RUN addgroup -S app && adduser -S -G app app
+USER app
+
+COPY --from=build --chown=app:app /build/target/*.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

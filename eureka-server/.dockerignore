@@ -1,0 +1,9 @@
+# Build baglamina girmeyecekler: Docker bu klasoru daemon'a gonderir,
+# gereksiz dosya hem yavaslatir hem de imaja sizma riski yaratir.
+target/
+.mvn/
+*.iml
+.idea/
+.vscode/
+Dockerfile
+.dockerignore
