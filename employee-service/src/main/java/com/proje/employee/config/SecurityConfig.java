@@ -87,6 +87,11 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 
+                        // Maas kurali GENEL okuma kuralindan ONCE gelmek zorunda:
+                        // Spring Security ilk eslesen kurali uygular. Sonra yazilsaydi
+                        // "/api/employees/**" once eslesir ve maas USER'a acik kalirdi.
+                        .requestMatchers(HttpMethod.GET, "/api/employees/*/salary").hasRole("ADMIN")
+
                         // Yazma uclari yalnizca yoneticiye.
                         .requestMatchers(HttpMethod.POST, "/api/employees/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/employees/**").hasRole("ADMIN")

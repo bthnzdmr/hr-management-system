@@ -3,6 +3,7 @@ package com.proje.employee.service;
 import com.proje.employee.dto.EmployeeCreateRequest;
 import com.proje.employee.dto.EmployeeResponse;
 import com.proje.employee.dto.EmployeeUpdateRequest;
+import com.proje.employee.dto.SalaryUpdateRequest;
 import com.proje.employee.entity.Department;
 import com.proje.employee.entity.Employee;
 import com.proje.employee.event.EmployeeEvent;
@@ -64,7 +65,7 @@ class EmployeeServiceTest {
     private EmployeeUpdateRequest updateRequest(String email, Long departmentId, Long managerId) {
         return new EmployeeUpdateRequest("Ada", "Lovelace", email, null,
                 departmentId, managerId, "Engineer",
-                LocalDate.of(2024, 1, 1), null);
+                LocalDate.of(2024, 1, 1));
     }
 
     private Employee employeeWithId(Long id, String email, Department department) {
@@ -222,6 +223,60 @@ class EmployeeServiceTest {
         assertThatThrownBy(() ->
                 employeeService.update(1L, updateRequest("grace@example.com", 1L, null)))
                 .isInstanceOf(EmailAlreadyExistsException.class);
+    }
+
+    @Test
+    @DisplayName("A general update cannot touch the salary")
+    void generalUpdateLeavesSalaryUntouched() {
+        // Bu testin varlik sebebi gercek bir veri kaybi hatasidir: maas genel
+        // istegin parcasiyken, onu okuyamayan istemci her guncellemede siliyordu.
+        Department department = new Department("Sales");
+        Employee ada = employeeWithId(1L, "ada@example.com", department);
+        ada.setSalary(new BigDecimal("95000.00"));
+
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+
+        employeeService.update(1L, updateRequest("ada@example.com", 1L, null));
+
+        assertThat(ada.getSalary()).isEqualByComparingTo("95000.00");
+    }
+
+    @Test
+    @DisplayName("Reads the salary through its own endpoint")
+    void readsSalaryThroughItsOwnEndpoint() {
+        Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
+        ada.setSalary(new BigDecimal("95000.00"));
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+
+        assertThat(employeeService.getSalary(1L).salary()).isEqualByComparingTo("95000.00");
+    }
+
+    @Test
+    @DisplayName("Updating the salary publishes an event that does not carry it")
+    void salaryUpdatePublishesEventWithoutSalary() {
+        Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
+        ada.setSalary(new BigDecimal("95000.00"));
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+
+        employeeService.updateSalary(1L, new SalaryUpdateRequest(new BigDecimal("110000.00")));
+
+        assertThat(ada.getSalary()).isEqualByComparingTo("110000.00");
+
+        EmployeeEvent event = capturePublishedEvent();
+        assertThat(event.eventType()).isEqualTo(EmployeeEventType.UPDATED);
+        // Olay maasi tasimaz: bildirim maili sifresiz SMTP uzerinden gidiyor.
+        assertThat(event.toString()).doesNotContain("110000");
+    }
+
+    @Test
+    @DisplayName("Rejects a salary update for a missing employee")
+    void rejectsSalaryUpdateForMissingEmployee() {
+        when(employeeRepository.findById(42L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+                employeeService.updateSalary(42L, new SalaryUpdateRequest(new BigDecimal("1.00"))))
+                .isInstanceOf(EmployeeNotFoundException.class);
     }
 
     @Test

@@ -1,5 +1,7 @@
 import { api } from './client';
-import type { Employee, EmployeeCreateRequest, EmployeeUpdateRequest, Page } from '../types/api';
+import type {
+  Employee, EmployeeCreateRequest, EmployeeUpdateRequest, Page, SalaryResponse, SalaryUpdateRequest,
+} from '../types/api';
 
 const BASE = '/api/employees';
 
@@ -19,4 +21,12 @@ export const employeeApi = {
 
   // Silmez, pasiflestirir: gecmis veri korunur ve manager_id referanslari kirilmaz.
   deactivate: (id: number) => api.delete<void>(`${BASE}/${id}`).then(() => undefined),
+
+  // Maas ayri bir alt kaynaktir ve yalnizca ADMIN erisebilir; genel personel
+  // cevabinda hic donmez.
+  getSalary: (id: number) =>
+    api.get<SalaryResponse>(`${BASE}/${id}/salary`).then((r) => r.data),
+
+  updateSalary: (id: number, request: SalaryUpdateRequest) =>
+    api.put<SalaryResponse>(`${BASE}/${id}/salary`, request).then((r) => r.data),
 };

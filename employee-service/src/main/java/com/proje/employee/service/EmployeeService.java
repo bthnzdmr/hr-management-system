@@ -3,6 +3,8 @@ package com.proje.employee.service;
 import com.proje.employee.dto.EmployeeCreateRequest;
 import com.proje.employee.dto.EmployeeResponse;
 import com.proje.employee.dto.EmployeeUpdateRequest;
+import com.proje.employee.dto.SalaryResponse;
+import com.proje.employee.dto.SalaryUpdateRequest;
 import com.proje.employee.entity.Department;
 import com.proje.employee.entity.Employee;
 import com.proje.employee.event.EmployeeEvent;
@@ -112,7 +114,6 @@ public class EmployeeService {
         employee.setDepartment(department);
         employee.setJobTitle(request.jobTitle());
         employee.setHireDate(request.hireDate());
-        employee.setSalary(request.salary());
         employee.setManager(resolveManager(employee, request.managerId()));
 
         publish(EmployeeEventType.UPDATED, employee);
@@ -120,6 +121,35 @@ public class EmployeeService {
         // save() cagrilmadi: entity transaction icinde yonetiliyor, degisiklikler
         // commit sirasinda otomatik yazilir (dirty checking).
         return employeeMapper.toResponse(employee);
+    }
+
+    /**
+     * Maas yalnizca bu iki metotla okunur ve yazilir.
+     *
+     * Genel guncelleme maasa hic dokunmaz; boylece maasi okuyamayan bir
+     * istemcinin onu yanlislikla silmesi mumkun degildir. Yetki kontrolu uc
+     * seviyesindedir (SecurityConfig), bu yuzden servis cagiranin rolunu bilmez.
+     */
+    @Transactional(readOnly = true)
+    public SalaryResponse getSalary(Long id) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new EmployeeNotFoundException(id));
+
+        return new SalaryResponse(employee.getId(), employee.getSalary());
+    }
+
+    @Transactional
+    public SalaryResponse updateSalary(Long id, SalaryUpdateRequest request) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new EmployeeNotFoundException(id));
+
+        employee.setSalary(request.salary());
+
+        // Kayit degistigi icin olay yayinlanir. Olay maasi TASIMAZ; personel
+        // yalnizca kaydinin guncellendigini ogrenir.
+        publish(EmployeeEventType.UPDATED, employee);
+
+        return new SalaryResponse(employee.getId(), employee.getSalary());
     }
 
     @Transactional

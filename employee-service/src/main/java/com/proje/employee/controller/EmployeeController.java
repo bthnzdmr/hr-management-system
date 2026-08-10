@@ -3,6 +3,8 @@ package com.proje.employee.controller;
 import com.proje.employee.dto.EmployeeCreateRequest;
 import com.proje.employee.dto.EmployeeResponse;
 import com.proje.employee.dto.EmployeeUpdateRequest;
+import com.proje.employee.dto.SalaryResponse;
+import com.proje.employee.dto.SalaryUpdateRequest;
 import com.proje.employee.service.EmployeeService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -66,5 +68,19 @@ public class EmployeeController {
     public ResponseEntity<Void> deactivate(@PathVariable Long id) {
         employeeService.deactivate(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // Maas ayri bir alt kaynaktir: genel personel cevabinda donmez ve genel
+    // guncelleme onu tasimaz. Yetki SecurityConfig'te uc bazinda ADMIN'e kisitli.
+    @GetMapping("/{id}/salary")
+    public SalaryResponse getSalary(@PathVariable Long id) {
+        return employeeService.getSalary(id);
+    }
+
+    @PutMapping("/{id}/salary")
+    public SalaryResponse updateSalary(@PathVariable Long id,
+                                       @Valid @RequestBody SalaryUpdateRequest request) {
+
+        return employeeService.updateSalary(id, request);
     }
 }

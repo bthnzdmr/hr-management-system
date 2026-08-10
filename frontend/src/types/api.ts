@@ -45,7 +45,22 @@ export interface EmployeeCreateRequest {
   salary: string | null;
 }
 
-export type EmployeeUpdateRequest = EmployeeCreateRequest;
+/**
+ * Maas BILEREK yok.
+ *
+ * Genel guncelleme maasi tasisaydi, onu okuyamayan bu arayuz her kayitta null
+ * gonderip silerdi -- gercekten yasanan bir hataydi. Maas kendi ucuyle yonetilir.
+ */
+export type EmployeeUpdateRequest = Omit<EmployeeCreateRequest, 'salary'>;
+
+export interface SalaryResponse {
+  employeeId: number;
+  salary: string | null;
+}
+
+export interface SalaryUpdateRequest {
+  salary: string;
+}
 
 /** Spring Data'nin Page cevabinin kullandigimiz alanlari. */
 export interface Page<T> {

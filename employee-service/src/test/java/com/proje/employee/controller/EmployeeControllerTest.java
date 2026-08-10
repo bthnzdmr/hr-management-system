@@ -7,6 +7,7 @@ import com.proje.employee.config.SecurityConfig;
 import com.proje.employee.config.SecurityProblemWriter;
 import com.proje.employee.dto.EmployeeCreateRequest;
 import com.proje.employee.dto.EmployeeResponse;
+import com.proje.employee.dto.SalaryResponse;
 import com.proje.employee.exception.EmailAlreadyExistsException;
 import com.proje.employee.exception.EmployeeNotFoundException;
 import com.proje.employee.service.EmployeeService;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -165,5 +167,55 @@ class EmployeeControllerTest {
                 .andExpect(status().isForbidden());
 
         verify(employeeService, never()).deactivate(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    @DisplayName("USER role cannot read a salary even though it may read employees")
+    void userRoleCannotReadSalary() throws Exception {
+        // Bu test kural SIRASINI korur: "/api/employees/*/salary" kurali genel
+        // "/api/employees/**" okuma kuralindan once gelmezse maas USER'a acilir.
+        // Notification Service USER rolundedir; bu kural onu da disarida tutar.
+        mockMvc.perform(get("/api/employees/1/salary"))
+                .andExpect(status().isForbidden());
+
+        verify(employeeService, never()).getSalary(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("ADMIN role reads the salary through its own endpoint")
+    void adminRoleReadsSalary() throws Exception {
+        when(employeeService.getSalary(1L))
+                .thenReturn(new SalaryResponse(1L, new BigDecimal("95000.00")));
+
+        mockMvc.perform(get("/api/employees/1/salary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.employeeId").value(1))
+                .andExpect(jsonPath("$.salary").value(95000.00));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("Rejects a salary update with a missing amount")
+    void rejectsSalaryUpdateWithoutAmount() throws Exception {
+        mockMvc.perform(put("/api/employees/1/salary")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        verify(employeeService, never()).updateSalary(any(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    @DisplayName("USER role cannot update a salary")
+    void userRoleCannotUpdateSalary() throws Exception {
+        mockMvc.perform(put("/api/employees/1/salary")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"salary\":1.00}"))
+                .andExpect(status().isForbidden());
+
+        verify(employeeService, never()).updateSalary(any(), any());
     }
 }

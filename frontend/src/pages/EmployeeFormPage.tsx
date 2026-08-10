@@ -30,6 +30,9 @@ export function EmployeeFormPage() {
 
   const [form, setForm] = useState<EmployeeCreateRequest>(EMPTY_FORM);
   const [departments, setDepartments] = useState<Department[]>([]);
+  // Maas ayri uca yazildigi icin degisip degismedigini bilmemiz gerekiyor:
+  // degismediyse gereksiz bir istek ve gereksiz bir olay uretmeyiz.
+  const [initialSalary, setInitialSalary] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,9 +51,9 @@ export function EmployeeFormPage() {
   useEffect(() => {
     if (!id) return;
 
-    employeeApi
-      .getById(Number(id))
-      .then((employee) =>
+    // Maas ayri uctan gelir; genel personel cevabinda yer almaz.
+    Promise.all([employeeApi.getById(Number(id)), employeeApi.getSalary(Number(id))])
+      .then(([employee, salary]) => {
         setForm({
           firstName: employee.firstName,
           lastName: employee.lastName,
@@ -60,10 +63,10 @@ export function EmployeeFormPage() {
           managerId: employee.managerId,
           jobTitle: employee.jobTitle,
           hireDate: employee.hireDate,
-          // Maas cevapta hic donmuyor; duzenlemede bos birakilir.
-          salary: null,
-        }),
-      )
+          salary: salary.salary,
+        });
+        setInitialSalary(salary.salary);
+      })
       .catch((err) => setError(errorMessage(err)))
       .finally(() => setLoading(false));
   }, [id]);
@@ -80,7 +83,13 @@ export function EmployeeFormPage() {
 
     try {
       if (isEdit) {
-        await employeeApi.update(Number(id), form);
+        // salary bilerek ayriliyor: genel guncelleme onu tasimaz.
+        const { salary, ...employeeFields } = form;
+        await employeeApi.update(Number(id), employeeFields);
+
+        if (salary !== null && salary !== initialSalary) {
+          await employeeApi.updateSalary(Number(id), { salary });
+        }
       } else {
         await employeeApi.create(form);
       }
@@ -175,6 +184,7 @@ export function EmployeeFormPage() {
                 <TextField
                   label="Salary" type="number" value={form.salary ?? ''} fullWidth
                   onChange={(e) => update('salary', e.target.value || null)}
+                  helperText={isEdit ? 'Saved separately; admins only' : ' '}
                 />
               </Grid>
             </Grid>
