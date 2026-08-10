@@ -6,11 +6,12 @@ spring:
     name: employee-service
 
   datasource:
-    # ${DEGISKEN:varsayilan}: once ortam degiskenine bakar, yoksa varsayilani kullanir.
-    # Varsayilanlar yalnizca yerel gelistirme icindir; gercek ortamda disaridan verilir.
+    # Adres bilgilerinin varsayilani olabilir: yanlissa baglanti reddedilir, yani
+    # gurultulu basarisiz olur. Kimlik bilgilerinin varsayilani YOKTUR -- varsayilan
+    # sessiz bir geri dusustur ve yanlis kimlikle calismaya devam edilmesine yol acar.
     url: ${DB_URL:jdbc:postgresql://localhost:5432/employee_db}
-    username: ${DB_USERNAME:employee}
-    password: ${DB_PASSWORD:employee123}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
     hikari:
       # Timeout yazilmazsa varsayilan 30 sn'dir; veritabani erisilemezken saglik
@@ -33,6 +34,16 @@ spring:
   flyway:
     enabled: true
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+    # correlated: her mesajin onayi kendi CorrelationData'sina duser, boylece
+    # hangi mesajin kabul edildigi tek tek bilinir. Onaysiz gonderimde
+    # "sokete yazildi" ile "broker aldi" ayirt edilemez.
+    publisher-confirm-type: correlated
+
 eureka:
   client:
     service-url:
@@ -52,6 +63,17 @@ app:
     # istedigi rolde token uretebilir, dolayisiyla depoya asla girmez.
     secret: ${JWT_SECRET}
     validity-minutes: ${JWT_VALIDITY_MINUTES:15}
+
+  outbox:
+    # Yayin gecikmesinin ust siniri: olay en gec bu sure sonra gonderilir.
+    poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:2000}
+    # Tek turda kilitlenecek satir sayisi; kilit suresini sinirli tutar.
+    batch-size: ${OUTBOX_BATCH_SIZE:100}
+    # Broker'in reddettigi mesaj icin ust sinir. Erisilemezlik bu sayaci
+    # artirmaz; yalnizca mesajin kendi kusuru sayilir.
+    max-attempts: ${OUTBOX_MAX_ATTEMPTS:5}
+    # Ag sinirini gecen her islem gibi onay beklemenin de suresi vardir.
+    confirm-timeout-ms: ${OUTBOX_CONFIRM_TIMEOUT_MS:5000}
 
 management:
   endpoints:

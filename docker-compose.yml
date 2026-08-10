@@ -1,5 +1,8 @@
 # Gelistirme altyapisi: tek komutla ayaga kalkar -> "docker compose up -d"
 # Uygulamalari degil, uygulamalarin ihtiyac duydugu servisleri calistirir.
+#
+# Kimlik bilgileri .env dosyasindan okunur (Docker Compose bunu kendiliginden yapar).
+# .env depoda yoktur; .env.example dosyasini kopyalayarak olusturulur.
 
 services:
 
@@ -8,10 +11,10 @@ services:
     container_name: hr-rabbitmq
     ports:
       - "5672:5672"     # AMQP
-      - "15672:15672"   # web panel -> http://localhost:15672 (guest/guest)
+      - "15672:15672"   # web panel -> http://localhost:15672
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?RABBITMQ_USERNAME tanimli degil, .env dosyasini olustur}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD tanimli degil, .env dosyasini olustur}
 
   postgres:
     image: postgres:16
@@ -19,9 +22,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: employee_db
-      POSTGRES_USER: employee
-      POSTGRES_PASSWORD: employee123
+      POSTGRES_DB: ${POSTGRES_DB:-employee_db}
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME tanimli degil, .env dosyasini olustur}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD tanimli degil, .env dosyasini olustur}
     volumes:
       - postgres-data:/var/lib/postgresql/data
 

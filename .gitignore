@@ -29,6 +29,7 @@ dist/
 .env
 .env.local
 .env.*.local
+application-local.yml
 
 # Ornek dosya commit EDILIR: hangi degiskenlerin gerektigini gosterir,
 # gercek degerleri icermez. ! isareti "bunu yok sayma" demektir.

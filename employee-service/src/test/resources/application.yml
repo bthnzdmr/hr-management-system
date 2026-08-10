@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/employee_db}
-    username: ${DB_USERNAME:employee}
-    password: ${DB_PASSWORD:employee123}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
   jpa:
     hibernate:
@@ -16,6 +16,19 @@ spring:
   flyway:
     enabled: true
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+
 eureka:
   client:
     enabled: false
+
+# Test icin sabit anahtar: gercek sir degil, yalnizca JwtService'in
+# ayaga kalkabilmesi icin gereken 32+ baytlik bir deger.
+app:
+  jwt:
+    secret: dGVzdC1vbmx5LWtleS1ub3QtYS1yZWFsLXNlY3JldC0zMisNCg==
+    validity-minutes: 15
