@@ -40,6 +40,13 @@ eureka:
   instance:
     prefer-ip-address: true
 
+# Ilk yonetici hesabi. Varsayilan YOK: tanimli degilse hesap olusturulmaz.
+# Parola koda veya migration'a yazilmaz.
+app:
+  admin:
+    email: ${ADMIN_EMAIL:}
+    password: ${ADMIN_PASSWORD:}
+
 management:
   endpoints:
     web:
