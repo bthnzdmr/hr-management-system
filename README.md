@@ -48,12 +48,12 @@ Sistem iki işi yapar:
 │  • JWT ile kimlik doğrulama, rol bazlı yetkilendirme             │
 │  • Doğrulama, iş kuralları, merkezî hata yönetimi                │
 │  • Verinin tek gerçek kaynağı (source of truth)                  │
-└──────┬────────────────────────────────────┬──────────────────────┘
-       │ SQL                                │ olay mesajı (fire-and-forget)
-       ▼                                    ▼
-┌──────────────┐                    ┌──────────────────┐
-│ PostgreSQL   │  ✅                │   RabbitMQ       │  ✅  :5672
-│   :5432      │                    │  (mesaj kuyruğu) │
+└──────┬───────────────────────────────────────────────────────────┘
+       │ SQL: personel satırı + outbox satırı, tek transaction
+       ▼
+┌──────────────┐   OutboxRelay      ┌──────────────────┐
+│ PostgreSQL   │  ✅  ─────────────►│   RabbitMQ       │  ✅  :5672
+│   :5432      │   (periyodik)      │  (mesaj kuyruğu) │
 └──────────────┘                    └────────┬─────────┘
                                              │ mesajı tüketir
                                              ▼
@@ -105,26 +105,30 @@ Bir personelin departmanının değiştirildiği senaryo, baştan sona:
         ↓  evet
  5. Service: iş kuralları çalışır                (@Transactional başlar)
         ↓
- 6. PostgreSQL'e UPDATE atılır → transaction COMMIT olur   ← veri artık kalıcı
+ 6. PostgreSQL'e iki INSERT/UPDATE atılır: personel satırı ve outbox satırı
         ↓
- 7. ANCAK ŞİMDİ: RabbitMQ'ya "employee.updated" olayı bırakılır
+ 7. Transaction COMMIT olur  ← ikisi birlikte kalıcı olur, RabbitMQ hiç devrede değil
         ↓
  8. Employee Service kullanıcıya 200 OK döner   ← kullanıcı mail için beklemez
-        ↓  (paralel, milisaniyeler sonra)
- 9. Notification Service kuyruktan mesajı alır
+        ↓  (paralel, saniyeler içinde)
+ 9. OutboxRelay outbox'taki gönderilmemiş satırı okur
         ↓
-10. "Bu olayı daha önce işledim mi?" kontrolü    (idempotency)
+10. RabbitMQ'ya "employee.updated" olarak yayınlar, broker onaylayınca işaretler
+        ↓
+11. Notification Service kuyruktan mesajı alır
+        ↓
+12. "Bu olayı daha önce işledim mi?" kontrolü    (idempotency)
         ↓  hayır
-11. Feign ile Employee Service'e sorar: 42 numaralı personelin detayları?
+13. Feign ile Employee Service'e sorar: 42 numaralı personelin detayları?
         ↓
-12. Mail şablonunu doldurur, MailHog'a gönderir
+14. Mail şablonunu doldurur, MailHog'a gönderir
         ↓
-13. Mail http://localhost:8025 adresinden görüntülenir
+15. Mail http://localhost:8025 adresinden görüntülenir
 ```
 
-Bu akışta üç kritik tasarım kararı gizli: mesajın commit'ten *sonra* yayınlanması,
-kullanıcının maili beklememesi, ve aynı mesajın iki kez gelebilmesi. Gerekçeleri
-proje kurallarında kayıtlıdır.
+Bu akışta üç kritik tasarım kararı gizli: olayın iş verisiyle aynı transaction'a
+yazılması, kullanıcının maili beklememesi, ve aynı mesajın iki kez gelebilmesi.
+Gerekçeleri proje kurallarında kayıtlıdır.
 
 ---
 
@@ -203,43 +207,25 @@ proje kurallarında kayıtlıdır.
 | Docker Desktop | Çalışır durumda                             |
 | Node.js        | 22+ (yalnızca frontend için, Faz 5)         |
 
-### 1. Altyapıyı başlat ✅
+### 1. Ortam değişkenlerini hazırla ✅
+
+Kimlik bilgilerinin depoda karşılığı yoktur ve varsayılanları da yoktur; tanımsız
+bırakılırsa uygulama açılmaz. Şablonu kopyalayıp doldur:
 
 ```bash
-docker compose up -d
+cp .env.example .env
 ```
-
-Bu komut üç konteyner başlatır: RabbitMQ, PostgreSQL, MailHog. Uygulama servislerini **başlatmaz** — onlar konteynerde değil, doğrudan makinede çalışır.
-
-Doğrulama:
-
-```bash
-docker compose ps
-```
-
-Üçü de `running` durumunda görünmelidir.
-
-### 2. Eureka Server'ı başlat ✅
-
-```bash
-cd eureka-server
-mvn spring-boot:run
-```
-
-Açılması yaklaşık 15–20 saniye sürer. Ardından http://localhost:8761 adresinde panel açılmalıdır.
-
-### 3. Employee Service'i başlat ✅
-
-Servis üç ortam değişkeni bekler. Hiçbirinin varsayılanı yoktur — sırlar depoya
-girmediği için elle verilmeleri gerekir.
 
 | Değişken | Ne için | Zorunlu mu |
 |---|---|---|
-| `JWT_SECRET` | Token imzalama anahtarı, **base64**, en az 32 bayt | Evet, yoksa uygulama açılmaz |
-| `ADMIN_EMAIL` | İlk yönetici hesabının e-postası | Hayır, verilmezse hesap oluşturulmaz |
-| `ADMIN_PASSWORD` | İlk yönetici hesabının parolası | Hayır |
+| `POSTGRES_DB` | Veritabanı adı | Hayır, varsayılan `employee_db` |
+| `DB_USERNAME` / `DB_PASSWORD` | PostgreSQL kimlik bilgileri | Evet |
+| `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | RabbitMQ kimlik bilgileri | Evet |
+| `JWT_SECRET` | Token imzalama anahtarı, **base64**, en az 32 bayt | Evet |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | İlk yönetici hesabı | Hayır, verilmezse hesap oluşturulmaz |
 
-Anahtar üretmek için:
+Değerleri sen seçersin; konteynerler ilk açılışta bu değerlerle kurulur.
+`JWT_SECRET` üretmek için:
 
 ```bash
 # Linux / macOS
@@ -251,11 +237,54 @@ openssl rand -base64 48
 [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Max 256 }))
 ```
 
-Çalıştırma:
+> `ADMIN_PASSWORD` yalnızca hesap **ilk kez** oluşturulurken kullanılır. Hesap
+> zaten varsa değer yok sayılır; parola değiştirmek için hesabı silmek gerekir.
+
+### 2. Altyapıyı başlat ✅
 
 ```bash
-cd employee-service
-JWT_SECRET="<uretilen-anahtar>" ADMIN_EMAIL="admin@example.com" ADMIN_PASSWORD="<parola>" mvn spring-boot:run
+docker compose up -d
+```
+
+Bu komut üç konteyner başlatır: RabbitMQ, PostgreSQL, MailHog. `.env` dosyasını
+Docker Compose kendiliğinden okur. Uygulama servislerini **başlatmaz** — onlar
+konteynerde değil, doğrudan makinede çalışır.
+
+Doğrulama:
+
+```bash
+docker compose ps
+```
+
+Üçü de `running` durumunda görünmelidir.
+
+### 3. Eureka Server'ı başlat ✅
+
+```bash
+cd eureka-server
+mvn spring-boot:run
+```
+
+Açılması yaklaşık 15–20 saniye sürer. Ardından http://localhost:8761 adresinde panel açılmalıdır.
+
+### 4. Employee Service'i başlat ✅
+
+Maven, Docker Compose'un aksine `.env` dosyasını kendiliğinden okumaz; değerlerin
+kabuğa yüklenmesi gerekir.
+
+```bash
+# Linux / macOS
+set -a && source .env && set +a
+cd employee-service && mvn spring-boot:run
+```
+
+```powershell
+# Windows PowerShell
+Get-Content .env | Where-Object { $_ -match '^\s*[^#].*=' } | ForEach-Object {
+    $name, $value = $_.Split('=', 2)
+    [Environment]::SetEnvironmentVariable($name.Trim(), $value.Trim(), 'Process')
+}
+cd employee-service; mvn spring-boot:run
 ```
 
 Açılışta Flyway şemayı oluşturur, yönetici hesabı yoksa oluşturulur ve servis
@@ -274,13 +303,16 @@ cd employee-service
 mvn test
 ```
 
-Veri katmanı testleri `docker compose` ile ayağa kalkan PostgreSQL'i kullanır, dolayısıyla altyapının çalışıyor olması gerekir. Testler transaction içinde çalışıp geri alındığı için geliştirme veritabanını kirletmez.
+Veri katmanı testleri `docker compose` ile ayağa kalkan PostgreSQL'i kullanır,
+dolayısıyla hem altyapının çalışıyor hem de ortam değişkenlerinin yukarıdaki gibi
+kabuğa yüklenmiş olması gerekir. Testler transaction içinde çalışıp geri alındığı
+için geliştirme veritabanını kirletmez.
 
-### 4. Notification Service'i başlat 🚧
+### 5. Notification Service'i başlat 🚧
 
 Faz 4 tamamlandığında bu bölüm doldurulacak.
 
-### 5. Frontend'i başlat 🚧
+### 6. Frontend'i başlat 🚧
 
 Faz 5 tamamlandığında bu bölüm doldurulacak.
 

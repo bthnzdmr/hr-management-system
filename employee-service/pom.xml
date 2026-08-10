@@ -118,6 +118,12 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- 11) RabbitMQ: olaylarin yayinlanmasi. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
         <!-- Test: JUnit 5, Mockito, AssertJ, MockMvc.
              test kapsami: yalnizca test derlerken ve calisirken kullanilir,
              uretim jar'ina girmez. -->

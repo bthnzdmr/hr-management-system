@@ -5,6 +5,9 @@ import com.proje.employee.dto.EmployeeResponse;
 import com.proje.employee.dto.EmployeeUpdateRequest;
 import com.proje.employee.entity.Department;
 import com.proje.employee.entity.Employee;
+import com.proje.employee.event.EmployeeEvent;
+import com.proje.employee.event.EmployeeEventType;
+import com.proje.employee.event.OutboxWriter;
 import com.proje.employee.exception.DepartmentNotFoundException;
 import com.proje.employee.exception.EmailAlreadyExistsException;
 import com.proje.employee.exception.EmployeeNotFoundException;
@@ -17,6 +20,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.UUID;
+
 @Service
 public class EmployeeService {
 
@@ -26,13 +32,16 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final DepartmentRepository departmentRepository;
     private final EmployeeMapper employeeMapper;
+    private final OutboxWriter outboxWriter;
 
     public EmployeeService(EmployeeRepository employeeRepository,
                            DepartmentRepository departmentRepository,
-                           EmployeeMapper employeeMapper) {
+                           EmployeeMapper employeeMapper,
+                           OutboxWriter outboxWriter) {
         this.employeeRepository = employeeRepository;
         this.departmentRepository = departmentRepository;
         this.employeeMapper = employeeMapper;
+        this.outboxWriter = outboxWriter;
     }
 
     @Transactional(readOnly = true)
@@ -77,7 +86,10 @@ public class EmployeeService {
             employee.setManager(manager);
         }
 
-        return employeeMapper.toResponse(employeeRepository.save(employee));
+        Employee saved = employeeRepository.save(employee);
+        publish(EmployeeEventType.CREATED, saved);
+
+        return employeeMapper.toResponse(saved);
     }
 
     @Transactional
@@ -103,6 +115,8 @@ public class EmployeeService {
         employee.setSalary(request.salary());
         employee.setManager(resolveManager(employee, request.managerId()));
 
+        publish(EmployeeEventType.UPDATED, employee);
+
         // save() cagrilmadi: entity transaction icinde yonetiliyor, degisiklikler
         // commit sirasinda otomatik yazilir (dirty checking).
         return employeeMapper.toResponse(employee);
@@ -114,6 +128,23 @@ public class EmployeeService {
                 .orElseThrow(() -> new EmployeeNotFoundException(id));
 
         employee.setActive(false);
+        publish(EmployeeEventType.DEACTIVATED, employee);
+    }
+
+    // Olay, is verisiyle ayni transaction icinde outbox tablosuna yazilir.
+    // Tek veritabanina tek yazma oldugu icin ikisi ya birlikte kalici olur
+    // ya birlikte geri alinir; broker bu noktada hic devrede degildir.
+    private void publish(EmployeeEventType type, Employee employee) {
+        outboxWriter.write(new EmployeeEvent(
+                UUID.randomUUID().toString(),
+                type,
+                Instant.now(),
+                employee.getId(),
+                employee.getFirstName(),
+                employee.getLastName(),
+                employee.getEmail(),
+                employee.getDepartment().getName(),
+                employee.getJobTitle()));
     }
 
     private Employee resolveManager(Employee employee, Long managerId) {

@@ -5,6 +5,9 @@ import com.proje.employee.dto.EmployeeResponse;
 import com.proje.employee.dto.EmployeeUpdateRequest;
 import com.proje.employee.entity.Department;
 import com.proje.employee.entity.Employee;
+import com.proje.employee.event.EmployeeEvent;
+import com.proje.employee.event.EmployeeEventType;
+import com.proje.employee.event.OutboxWriter;
 import com.proje.employee.exception.DepartmentNotFoundException;
 import com.proje.employee.exception.EmailAlreadyExistsException;
 import com.proje.employee.exception.EmployeeNotFoundException;
@@ -41,6 +44,9 @@ class EmployeeServiceTest {
 
     @Mock
     private DepartmentRepository departmentRepository;
+
+    @Mock
+    private OutboxWriter outboxWriter;
 
     @Spy
     private EmployeeMapper employeeMapper = new EmployeeMapper();
@@ -228,5 +234,66 @@ class EmployeeServiceTest {
 
         assertThat(ada.isActive()).isFalse();
         verify(employeeRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("Publishes a CREATED event carrying a snapshot of the saved employee")
+    void publishesCreatedEvent() {
+        Department department = new Department("Sales");
+        when(employeeRepository.existsByEmail(any())).thenReturn(false);
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+        when(employeeRepository.save(any(Employee.class))).thenAnswer(i -> i.getArgument(0));
+
+        employeeService.create(createRequest(1L, null));
+
+        EmployeeEvent event = capturePublishedEvent();
+        assertThat(event.eventType()).isEqualTo(EmployeeEventType.CREATED);
+        assertThat(event.email()).isEqualTo("ada@example.com");
+        assertThat(event.departmentName()).isEqualTo("Sales");
+        assertThat(event.eventId()).isNotBlank();
+        assertThat(event.occurredAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Publishes an UPDATED event after a successful update")
+    void publishesUpdatedEvent() {
+        Department department = new Department("Sales");
+        Employee ada = employeeWithId(1L, "ada@example.com", department);
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+
+        employeeService.update(1L, updateRequest("ada@example.com", 1L, null));
+
+        assertThat(capturePublishedEvent().eventType()).isEqualTo(EmployeeEventType.UPDATED);
+    }
+
+    @Test
+    @DisplayName("Publishes a DEACTIVATED event when an employee is deactivated")
+    void publishesDeactivatedEvent() {
+        Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+
+        employeeService.deactivate(1L);
+
+        EmployeeEvent event = capturePublishedEvent();
+        assertThat(event.eventType()).isEqualTo(EmployeeEventType.DEACTIVATED);
+        assertThat(event.employeeId()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("Publishes nothing when creation fails validation")
+    void publishesNothingWhenCreationFails() {
+        when(employeeRepository.existsByEmail("ada@example.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> employeeService.create(createRequest(1L, null)))
+                .isInstanceOf(EmailAlreadyExistsException.class);
+
+        verify(outboxWriter, never()).write(any());
+    }
+
+    private EmployeeEvent capturePublishedEvent() {
+        ArgumentCaptor<EmployeeEvent> captor = ArgumentCaptor.forClass(EmployeeEvent.class);
+        verify(outboxWriter).write(captor.capture());
+        return captor.getValue();
     }
 }
