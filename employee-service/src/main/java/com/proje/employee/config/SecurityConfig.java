@@ -94,6 +94,7 @@ public class SecurityConfig {
 
                         // Okuma uclari icin giris yapmis olmak yeterli.
                         .requestMatchers(HttpMethod.GET, "/api/employees/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/departments").authenticated()
 
                         // Kural yazilmayan her sey reddedilir.
                         .anyRequest().authenticated())
