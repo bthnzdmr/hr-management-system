@@ -366,11 +366,42 @@ cd frontend
 npm test
 ```
 
+### Tek komutla tüm sistem ✅
+
+Yukarıdaki adımlar geliştirme akışıdır: servisler makinede çalışır, kod
+değiştiğinde yeniden başlatmak yeterlidir. Sistemin tamamını konteynerlerde
+çalıştırmak için:
+
+```bash
+docker compose --profile full up -d --build
+```
+
+Bu komut altyapıya ek olarak Eureka, Employee Service, Notification Service ve
+arayüzü de başlatır. Adresler aynıdır (`:5173`, `:8080`, `:8081`, `:8761`).
+
+Kod değiştiğinde imajın yeniden üretilmesi gerekir (`--build`); bu yüzden
+geliştirirken profilsiz kullanım daha hızlıdır.
+
+### Uçtan uca testler ✅
+
+Ayağa kalkmış sisteme dışarıdan istek atan kara kutu testleri:
+
+```bash
+cd e2e
+mvn test
+```
+
+Zincirin tamamını doğrular: giriş → personel oluşturma → outbox → kuyruk →
+tüketici → MailHog'a düşen mail. Ayrı bir projede durur ve servislerin kendi
+test koşusuna karışmaz; sistem kapalıyken ne yapılması gerektiğini söyleyerek
+başarısız olur.
+
 ### Durdurma
 
 ```bash
-docker compose stop     # konteynerleri durdurur, veriyi korur
-docker compose down     # konteynerleri siler, volume'daki veri yine korunur
+docker compose stop                    # konteynerleri durdurur, veriyi korur
+docker compose down                    # konteynerleri siler, volume'daki veri korunur
+docker compose --profile full down     # uygulama konteynerleri dahil hepsini durdurur
 ```
 
 ---
@@ -496,7 +527,7 @@ Belge controller ve DTO sınıflarından üretilir; elle güncellenmez.
 | **3** | Olay yayını: transactional outbox, publisher confirms                                 | Yayınlanacak bir değişiklik önce var olmalı          | ✅        |
 | **4** | Notification Service: tüketici, idempotency, DLQ, Feign, mail                         | Dinlenecek mesaj önce var olmalı                     | ✅        |
 | **5** | React + TypeScript arayüz: giriş, sayfalı liste, form                                 | Çağrılacak API önce stabil olmalı                    | ✅        |
-| **6** | Uçtan uca test, Dockerfile'lar, dokümantasyon                                         | Parçaların tamamı hazır olmalı                       | 🚧        |
+| **6** | Dockerfile'lar, tek komutla ayağa kalkan sistem, uçtan uca testler                    | Parçaların tamamı hazır olmalı                       | ✅        |
 
 Genel kural: **veriyi üreten, tüketenden önce gelir.**
 
@@ -553,6 +584,9 @@ HR Management System/
         ├── components/         Ortak yerleşim
         ├── types/              Backend sözleşmesinin TypeScript karşılığı
         └── *.test.ts(x)        26 test (Vitest + Testing Library)
+
+e2e/                            ✅  çalışan sisteme dışarıdan bakan testler
+└── src/test/java/com/proje/e2e/    5 test
 ```
 
 Her Java servisinin **kendi `pom.xml`'i** vardır; ortak bir üst pom kullanılmaz. Mikroservislerin bağımsız derlenip bağımsız dağıtılabilmesi bu mimarinin amacıdır, ortak bir üst pom onları sürüm olarak birbirine bağlardı.
