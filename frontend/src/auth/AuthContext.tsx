@@ -1,0 +1,95 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { api, setUnauthorizedHandler, tokenStorage } from '../api/client';
+import type { LoginRequest, LoginResponse, Role } from '../types/api';
+
+interface AuthUser {
+  email: string;
+  role: Role;
+}
+
+interface AuthContextValue {
+  user: AuthUser | null;
+  isAdmin: boolean;
+  login: (credentials: LoginRequest) => Promise<void>;
+  logout: () => void;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+/**
+ * JWT'nin govdesini cozer.
+ *
+ * Token IMZALIDIR, SIFRELI DEGILDIR: icerigini herkes okuyabilir, garanti
+ * edilen tek sey degistirilememesidir. Burada rolu okumamiz yalnizca arayuzu
+ * sekillendirmek icindir -- yetki kararini SUNUCU verir. Kullanici token'i
+ * elle degistirip kendini ADMIN gosterse bile sunucu imzayi dogrular ve
+ * yazma isteklerini reddeder.
+ */
+function readToken(token: string): AuthUser | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expiresAtMs = payload.exp * 1000;
+
+    if (Date.now() >= expiresAtMs) {
+      return null;
+    }
+    return { email: payload.sub, role: payload.role as Role };
+  } catch {
+    return null;
+  }
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  // Sayfa yenilendiginde oturumun kaybolmamasi icin baslangic degeri
+  // saklanan token'dan okunur.
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    const token = tokenStorage.get();
+    if (!token) return null;
+
+    const parsed = readToken(token);
+    if (!parsed) tokenStorage.clear();
+    return parsed;
+  });
+
+  const logout = useCallback(() => {
+    tokenStorage.clear();
+    setUser(null);
+  }, []);
+
+  // Sunucu token'i reddettiginde (401) oturum burada da kapanir; aksi halde
+  // arayuz kullaniciyi giris yapmis sanmaya devam ederdi.
+  useEffect(() => {
+    setUnauthorizedHandler(() => setUser(null));
+  }, []);
+
+  const login = useCallback(async (credentials: LoginRequest) => {
+    const { data } = await api.post<LoginResponse>('/api/auth/login', credentials);
+
+    tokenStorage.set(data.token);
+
+    const parsed = readToken(data.token);
+    if (!parsed) {
+      tokenStorage.clear();
+      throw new Error('Received an unreadable token');
+    }
+    setUser(parsed);
+  }, []);
+
+  // useMemo olmadan her render'da yeni bir nesne uretilir ve context'i
+  // tuketen her bilesen sebepsiz yeniden render olur.
+  const value = useMemo<AuthContextValue>(
+    () => ({ user, isAdmin: user?.role === 'ADMIN', login, logout }),
+    [user, login, logout],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+}

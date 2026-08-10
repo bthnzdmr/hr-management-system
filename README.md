@@ -36,11 +36,11 @@ Sistem iki işi yapar:
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  TARAYICI                                                🚧      │
+│  TARAYICI                                                ✅      │
 │  React + TypeScript + MUI          :5173                         │
-│  Personel listesi ve kayıt formu ekranları                       │
+│  Giriş, personel listesi, kayıt formu                            │
 └───────────────────────┬──────────────────────────────────────────┘
-                        │  HTTP (JSON) + JWT
+                        │  HTTP (JSON) + JWT · CORS ile izinli
                         ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │  EMPLOYEE SERVICE (Spring Boot)      :8080               ✅      │
@@ -183,7 +183,7 @@ Gerekçeleri proje kurallarında kayıtlıdır.
 | Eureka Server        | 8761  | http://localhost:8761                        | ✅       |
 | Employee Service     | 8080  | http://localhost:8080                        | ✅       |
 | Notification Service | 8081  | http://localhost:8081                        | ✅       |
-| Frontend (React)     | 5173  | http://localhost:5173                        | 🚧 Faz 5 |
+| Frontend (React)     | 5173  | http://localhost:5173                        | ✅       |
 | PostgreSQL           | 5432  | `employee_db` ve `notification_db`           | ✅       |
 | RabbitMQ (AMQP)      | 5672  | uygulamaların bağlandığı port                | ✅       |
 | RabbitMQ paneli      | 15672 | http://localhost:15672                       | ✅       |
@@ -339,9 +339,25 @@ Personelin yöneticisi varsa mail ona da CC'lenir.
 >   psql -U $DB_USERNAME -d $POSTGRES_DB -c "CREATE DATABASE notification_db;"
 > ```
 
-### 6. Frontend'i başlat 🚧
+### 6. Frontend'i başlat ✅
 
-Faz 5 tamamlandığında bu bölüm doldurulacak.
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+http://localhost:5173 adresinde açılır. Giriş için `.env` dosyasındaki
+`ADMIN_EMAIL` / `ADMIN_PASSWORD` değerleri kullanılır.
+
+Arayüz Employee Service'e doğrudan gider; API adresi varsayılan olarak
+`http://localhost:8080`'dir ve `VITE_API_URL` ortam değişkeniyle değiştirilebilir.
+Backend'in bu kaynağa CORS izni vermesi gerekir (`CORS_ALLOWED_ORIGINS`).
+
+| Rol | Görebildiği |
+|---|---|
+| `USER` | Personel listesi (salt okunur) |
+| `ADMIN` | Liste + oluştur, güncelle, pasifleştir |
 
 ### Durdurma
 
@@ -467,7 +483,7 @@ Belge controller ve DTO sınıflarından üretilir; elle güncellenmez.
 | **2** | Spring Security: JWT, rol bazlı yetkilendirme                                         | Korunacak uçlar önce var olmalı                      | ✅        |
 | **3** | Olay yayını: transactional outbox, publisher confirms                                 | Yayınlanacak bir değişiklik önce var olmalı          | ✅        |
 | **4** | Notification Service: tüketici, idempotency, DLQ, Feign, mail                         | Dinlenecek mesaj önce var olmalı                     | ✅        |
-| **5** | React + TypeScript arayüz                                                             | Çağrılacak API önce stabil olmalı                    | 🚧        |
+| **5** | React + TypeScript arayüz: giriş, sayfalı liste, form                                 | Çağrılacak API önce stabil olmalı                    | ✅        |
 | **6** | Uçtan uca test, Dockerfile'lar, dokümantasyon                                         | Parçaların tamamı hazır olmalı                       | 🚧        |
 
 Genel kural: **veriyi üreten, tüketenden önce gelir.**
@@ -515,7 +531,15 @@ HR Management System/
 │       │   └── config/         kuyruk, DLX ve DLQ tanımları
 │       ├── main/resources/db/migration/   V1__
 │       └── test/               15 test
-└── frontend/                   🚧  Faz 5
+└── frontend/                   ✅  React + TypeScript arayüz
+    ├── package.json
+    └── src/
+        ├── api/                Axios istemcisi ve interceptor'lar
+        ├── auth/               Context API: oturum, korumalı rotalar
+        ├── store/              Redux Toolkit: liste durumu, sayfalama
+        ├── pages/              Giriş, liste, form ekranları
+        ├── components/         Ortak yerleşim
+        └── types/              Backend sözleşmesinin TypeScript karşılığı
 ```
 
 Her Java servisinin **kendi `pom.xml`'i** vardır; ortak bir üst pom kullanılmaz. Mikroservislerin bağımsız derlenip bağımsız dağıtılabilmesi bu mimarinin amacıdır, ortak bir üst pom onları sürüm olarak birbirine bağlardı.
