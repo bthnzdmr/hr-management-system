@@ -17,3 +17,16 @@ eureka:
     # Gelistirme ortaminda "self-preservation" modunu kapatiyoruz ki
     # servisler durunca rehberden hizlica dussunler (lokalde daha net gorursun).
     enable-self-preservation: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Yalnizca gerekenler acilir; "*" ortam degiskenlerini ve bellek
+        # dokumunu disariya acardi.
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true

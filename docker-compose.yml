@@ -77,9 +77,7 @@ services:
     ports:
       - "8761:8761"
     healthcheck:
-      # Eureka'da actuator yok; panelin cevap vermesi canlilik sinyali olarak
-      # kullaniliyor. Gercek bir saglik ucu icin actuator eklenmelidir.
-      test: ["CMD", "wget", "-qO-", "http://localhost:8761/"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8761/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 10

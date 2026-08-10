@@ -31,6 +31,14 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
         </dependency>
+
+        <!-- Saglik ucu. Panelin cevap vermesi canlilik sinyalidir ama servisin
+             KENDINI saglikli sayip saymadigini soylemez; orkestratorun sordugu
+             sorunun cevabi budur. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
     </dependencies>
 
     <!-- Spring Cloud surumlerini uyumlu tutan BOM (Bill of Materials). -->
