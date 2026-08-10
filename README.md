@@ -2,7 +2,7 @@
 
 > Personel kayıtlarını yöneten bir web uygulaması. Kayıt değiştiğinde bildirim maili, ana uygulamanın içinde değil, **ayrı bir servis** tarafından **mesaj kuyruğu** üzerinden gönderilir.
 
-**Durum:** Geliştirme aşamasında. Altyapı ve servis keşif sunucusu çalışıyor; uygulama servisleri henüz yazılmadı. Bölümlerdeki ✅ / 🚧 işaretleri neyin hazır olduğunu gösterir.
+**Durum:** Employee Service çalışıyor — beş REST ucu, doğrulama, merkezî hata yönetimi, Swagger ve sağlık ucu hazır (35 test). Notification Service ve arayüz henüz yazılmadı. Bölümlerdeki ✅ / 🚧 işaretleri neyin hazır olduğunu gösterir.
 
 ---
 
@@ -43,9 +43,9 @@ Sistem iki işi yapar:
                         │  HTTP (JSON) + JWT
                         ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│  EMPLOYEE SERVICE (Spring Boot)      :8080               🚧      │
-│  • REST uçları (listele, ekle, güncelle, sil)                    │
-│  • Doğrulama, yetkilendirme, iş kuralları                        │
+│  EMPLOYEE SERVICE (Spring Boot)      :8080               ✅      │
+│  • REST uçları (listele, ekle, güncelle, pasifleştir)            │
+│  • Doğrulama, iş kuralları, merkezî hata yönetimi                │
 │  • Verinin tek gerçek kaynağı (source of truth)                  │
 └──────┬────────────────────────────────────┬──────────────────────┘
        │ SQL                                │ olay mesajı (fire-and-forget)
@@ -80,7 +80,7 @@ Sistem iki işi yapar:
 | Parça                    | Görevi                                                      | Durum    |
 | ------------------------ | ----------------------------------------------------------- | -------- |
 | **React Frontend**       | Kullanıcının gördüğü arayüz                                 | 🚧 Faz 5 |
-| **Employee Service**     | Verinin sahibi; tüm iş kurallarının uygulandığı yer         | 🚧 Faz 1 |
+| **Employee Service**     | Verinin sahibi; tüm iş kurallarının uygulandığı yer         | ✅       |
 | **PostgreSQL**           | Personel verisinin kalıcı olarak saklandığı yer             | ✅       |
 | **RabbitMQ**             | İki servis arasında mesaj taşıyan aracı                     | ✅       |
 | **Notification Service** | Olayı dinleyip mail hazırlayan ve gönderen servis           | 🚧 Faz 4 |
@@ -137,16 +137,17 @@ proje kurallarında kayıtlıdır.
 | Spring Boot 3.2.5      | Uygulama iskeleti, gömülü sunucu, otomatik yapılandırma | ✅         |
 | Spring Cloud 2023.0.1  | Eureka ve Feign'in geldiği sürüm ailesi                 | ✅         |
 | Maven 3.9              | Bağımlılık yönetimi ve derleme                          | ✅         |
-| Spring Data JPA        | Veritabanı erişimi, sorgu üretimi                       | 🚧         |
-| Flyway                 | Versiyonlu veritabanı şema yönetimi                     | 🚧         |
-| Spring Validation      | Girdi doğrulama (sınırda)                               | 🚧         |
-| Spring Security        | Kimlik doğrulama (JWT) ve yetkilendirme                 | 🚧         |
-| Spring AOP             | Kesişen ilgiler: loglama, süre ölçümü                   | 🚧         |
-| slf4j                  | Loglama arayüzü, korelasyon kimliği (MDC)               | 🚧         |
-| RabbitMQ (Spring AMQP) | Servisler arası asenkron mesajlaşma                     | ✅ altyapı |
+| Spring Data JPA        | Veritabanı erişimi, sorgu üretimi                       | ✅         |
+| Flyway                 | Versiyonlu veritabanı şema yönetimi                     | ✅         |
+| Spring Validation      | Girdi doğrulama (sınırda)                               | ✅         |
+| Spring AOP             | Kesişen ilgiler: metot süre ölçümü                      | ✅         |
+| slf4j                  | Loglama arayüzü, korelasyon kimliği (MDC)               | ✅         |
+| springdoc-openapi      | Swagger arayüzü, API dokümantasyonu                     | ✅         |
+| Actuator               | Sağlık ucu (liveness / readiness)                       | ✅         |
 | Eureka                 | Servis keşfi                                            | ✅         |
-| OpenFeign              | Servisler arası deklaratif HTTP çağrısı                 | 🚧         |
-| springdoc-openapi      | Swagger arayüzü, API dokümantasyonu                     | 🚧         |
+| RabbitMQ (Spring AMQP) | Servisler arası asenkron mesajlaşma                     | ✅ altyapı |
+| Spring Security        | Kimlik doğrulama (JWT) ve yetkilendirme                 | 🚧 Faz 2   |
+| OpenFeign              | Servisler arası deklaratif HTTP çağrısı                 | 🚧 Faz 4   |
 
 ### Frontend
 
@@ -173,7 +174,7 @@ proje kurallarında kayıtlıdır.
 | Servis               | Port  | Adres                                      | Durum    |
 | -------------------- | ----- | ------------------------------------------ | -------- |
 | Eureka Server        | 8761  | http://localhost:8761                      | ✅       |
-| Employee Service     | 8080  | http://localhost:8080                      | 🚧 Faz 1 |
+| Employee Service     | 8080  | http://localhost:8080                      | ✅       |
 | Notification Service | 8081  | http://localhost:8081                      | 🚧 Faz 4 |
 | Frontend (React)     | 5173  | http://localhost:5173                      | 🚧 Faz 5 |
 | PostgreSQL           | 5432  | `employee_db` / `employee` / `employee123` | ✅       |
@@ -223,11 +224,32 @@ cd eureka-server
 mvn spring-boot:run
 ```
 
-Açılması yaklaşık 15–20 saniye sürer. Ardından http://localhost:8761 adresinde panel açılmalı, "Instances currently registered with Eureka" listesi henüz boş olmalıdır — kaydolacak servis yazılmadı.
+Açılması yaklaşık 15–20 saniye sürer. Ardından http://localhost:8761 adresinde panel açılmalıdır.
 
-### 3. Employee Service'i başlat 🚧
+### 3. Employee Service'i başlat ✅
 
-Faz 1 tamamlandığında bu bölüm doldurulacak.
+```bash
+cd employee-service
+mvn spring-boot:run
+```
+
+Açılışta Flyway şemayı oluşturur ve servis Eureka'ya kaydolur. Doğrulama:
+
+```bash
+curl http://localhost:8080/actuator/health     # {"status":"UP"}
+curl http://localhost:8080/api/employees       # sayfalı boş liste
+```
+
+Swagger arayüzü: http://localhost:8080/swagger-ui.html
+
+### Testleri çalıştırma
+
+```bash
+cd employee-service
+mvn test
+```
+
+Veri katmanı testleri `docker compose` ile ayağa kalkan PostgreSQL'i kullanır, dolayısıyla altyapının çalışıyor olması gerekir. Testler transaction içinde çalışıp geri alındığı için geliştirme veritabanını kirletmez.
 
 ### 4. Notification Service'i başlat 🚧
 
@@ -328,8 +350,8 @@ Belge controller ve DTO sınıflarından üretilir; elle güncellenmez.
 
 | Faz   | İçerik                                                                                | Neden bu sırada                                      | Durum     |
 | ----- | ------------------------------------------------------------------------------------- | ---------------------------------------------------- | --------- |
-| **0** | Git deposu, `.gitignore`, altyapı, Eureka                                             | Kod yazmadan önce geri dönülebilir bir zemin gerekir | 🔄 kısmen |
-| **1** | Employee Service: JPA, Flyway, REST, validation, hata yönetimi, AOP, Swagger, testler | Diğer her şey bu servisin verisine ve API'sine bağlı | 🚧        |
+| **0** | Git deposu, `.gitignore`, altyapı, Eureka                                             | Kod yazmadan önce geri dönülebilir bir zemin gerekir | ✅        |
+| **1** | Employee Service: JPA, Flyway, REST, validation, hata yönetimi, AOP, Swagger, testler | Diğer her şey bu servisin verisine ve API'sine bağlı | ✅        |
 | **2** | Spring Security: JWT, rol bazlı yetkilendirme                                         | Korunacak uçlar önce var olmalı                      | 🚧        |
 | **3** | RabbitMQ olay yayını (üretici taraf)                                                  | Yayınlanacak bir değişiklik önce var olmalı          | 🚧        |
 | **4** | Notification Service: tüketici, idempotency, Feign, mail                              | Dinlenecek mesaj önce var olmalı                     | 🚧        |
@@ -346,13 +368,25 @@ Genel kural: **veriyi üreten, tüketenden önce gelir.**
 HR Management System/
 ├── docker-compose.yml          ✅  altyapı tanımı (RabbitMQ, PostgreSQL, MailHog)
 ├── README.md                   ✅  bu dosya
-├── CLAUDE.md                   🚧  projeye özel geliştirme kuralları
 ├── eureka-server/              ✅  servis keşif sunucusu
 │   ├── pom.xml
 │   └── src/main/
 │       ├── java/com/proje/eureka/EurekaServerApplication.java
 │       └── resources/application.yml
-├── employee-service/           🚧  Faz 1
+├── employee-service/           ✅  ana uygulama servisi
+│   ├── pom.xml
+│   └── src/
+│       ├── main/java/com/proje/employee/
+│       │   ├── controller/     REST uçları
+│       │   ├── service/        iş kuralları, transaction sınırı
+│       │   ├── repository/     veritabanı erişimi
+│       │   ├── entity/         tablo karşılıkları
+│       │   ├── dto/            API sözleşmesi
+│       │   ├── mapper/         entity ↔ dto çevirisi
+│       │   ├── exception/      hata sınıfları + merkezî yakalayıcı
+│       │   └── config/         aspect, correlation ID filtresi
+│       ├── main/resources/db/migration/   V1__ V2__
+│       └── test/               35 test
 ├── notification-service/       🚧  Faz 4
 └── frontend/                   🚧  Faz 5
 ```
