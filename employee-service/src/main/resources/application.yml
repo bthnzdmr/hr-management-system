@@ -63,6 +63,11 @@ app:
     email: ${SERVICE_ACCOUNT_EMAIL:}
     password: ${SERVICE_ACCOUNT_PASSWORD:}
 
+  cors:
+    # Sir degil ama ortama gore degisir: uretimde gercek alan adi verilir.
+    # Virgulle ayrilmis liste olarak okunur.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
   jwt:
     # Varsayilan YOK: tanimsizsa uygulama acilmaz. Bu anahtari bilen kendine
     # istedigi rolde token uretebilir, dolayisiyla depoya asla girmez.

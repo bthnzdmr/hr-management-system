@@ -1,5 +1,6 @@
 package com.proje.employee.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -13,6 +14,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -31,11 +37,43 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 
+    /**
+     * Izinli kaynaklar acikca yazilir.
+     *
+     * "*" yazmak, kimlik bilgisi tasiyan isteklerde tarayici tarafindan zaten
+     * reddedilir; ayrica herhangi bir sitenin kullanicinin token'iyla bu API'ye
+     * istek atabilmesi demektir.
+     */
+    @Bean
+    CorsConfigurationSource corsConfigurationSource(
+            @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
+
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(allowedOrigins);
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        // Preflight cevabinin tarayicida onbelleklenme suresi; her istekten
+        // once ikinci bir tur atilmasini engeller.
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", configuration);
+
+        return source;
+    }
+
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http,
                                     JwtAuthenticationFilter jwtFilter,
-                                    SecurityProblemWriter problemWriter) throws Exception {
+                                    SecurityProblemWriter problemWriter,
+                                    CorsConfigurationSource corsConfigurationSource) throws Exception {
         return http
+                // Tarayici, farkli kaynaktan gelen istekleri CORS basliklari
+                // olmadan engeller. Bu bir TARAYICI korumasidir; curl veya
+                // Postman CORS'a hic bakmaz, dolayisiyla yetkilendirmenin
+                // yerini tutmaz.
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+
                 // Token header'da tasindigi icin CSRF gecerli bir tehdit degil.
                 // Cerez tabanli oturuma gecilirse GERI ACILMALIDIR.
                 .csrf(csrf -> csrf.disable())

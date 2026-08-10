@@ -32,3 +32,5 @@ app:
   jwt:
     secret: dGVzdC1vbmx5LWtleS1ub3QtYS1yZWFsLXNlY3JldC0zMisNCg==
     validity-minutes: 15
+  cors:
+    allowed-origins: http://localhost:5173
