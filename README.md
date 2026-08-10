@@ -2,7 +2,7 @@
 
 > Personel kayıtlarını yöneten bir web uygulaması. Kayıt değiştiğinde bildirim maili, ana uygulamanın içinde değil, **ayrı bir servis** tarafından **mesaj kuyruğu** üzerinden gönderilir.
 
-**Durum:** Employee Service çalışıyor — beş REST ucu, doğrulama, merkezî hata yönetimi, Swagger ve sağlık ucu hazır (35 test). Notification Service ve arayüz henüz yazılmadı. Bölümlerdeki ✅ / 🚧 işaretleri neyin hazır olduğunu gösterir.
+**Durum:** Employee Service çalışıyor — JWT ile korunan beş REST ucu, rol bazlı yetkilendirme, doğrulama, merkezî hata yönetimi, Swagger ve sağlık ucu hazır (45 test). Notification Service ve arayüz henüz yazılmadı. Bölümlerdeki ✅ / 🚧 işaretleri neyin hazır olduğunu gösterir.
 
 ---
 
@@ -45,6 +45,7 @@ Sistem iki işi yapar:
 ┌──────────────────────────────────────────────────────────────────┐
 │  EMPLOYEE SERVICE (Spring Boot)      :8080               ✅      │
 │  • REST uçları (listele, ekle, güncelle, pasifleştir)            │
+│  • JWT ile kimlik doğrulama, rol bazlı yetkilendirme             │
 │  • Doğrulama, iş kuralları, merkezî hata yönetimi                │
 │  • Verinin tek gerçek kaynağı (source of truth)                  │
 └──────┬────────────────────────────────────┬──────────────────────┘
@@ -146,7 +147,8 @@ proje kurallarında kayıtlıdır.
 | Actuator               | Sağlık ucu (liveness / readiness)                       | ✅         |
 | Eureka                 | Servis keşfi                                            | ✅         |
 | RabbitMQ (Spring AMQP) | Servisler arası asenkron mesajlaşma                     | ✅ altyapı |
-| Spring Security        | Kimlik doğrulama (JWT) ve yetkilendirme                 | 🚧 Faz 2   |
+| Spring Security        | Kimlik doğrulama (JWT) ve rol bazlı yetkilendirme       | ✅         |
+| jjwt                   | JWT üretme ve doğrulama                                 | ✅         |
 | OpenFeign              | Servisler arası deklaratif HTTP çağrısı                 | 🚧 Faz 4   |
 
 ### Frontend
@@ -228,16 +230,39 @@ Açılması yaklaşık 15–20 saniye sürer. Ardından http://localhost:8761 ad
 
 ### 3. Employee Service'i başlat ✅
 
+Servis üç ortam değişkeni bekler. Hiçbirinin varsayılanı yoktur — sırlar depoya
+girmediği için elle verilmeleri gerekir.
+
+| Değişken | Ne için | Zorunlu mu |
+|---|---|---|
+| `JWT_SECRET` | Token imzalama anahtarı, **base64**, en az 32 bayt | Evet, yoksa uygulama açılmaz |
+| `ADMIN_EMAIL` | İlk yönetici hesabının e-postası | Hayır, verilmezse hesap oluşturulmaz |
+| `ADMIN_PASSWORD` | İlk yönetici hesabının parolası | Hayır |
+
+Anahtar üretmek için:
+
 ```bash
-cd employee-service
-mvn spring-boot:run
+# Linux / macOS
+openssl rand -base64 48
 ```
 
-Açılışta Flyway şemayı oluşturur ve servis Eureka'ya kaydolur. Doğrulama:
+```powershell
+# Windows PowerShell
+[Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Max 256 }))
+```
+
+Çalıştırma:
+
+```bash
+cd employee-service
+JWT_SECRET="<uretilen-anahtar>" ADMIN_EMAIL="admin@example.com" ADMIN_PASSWORD="<parola>" mvn spring-boot:run
+```
+
+Açılışta Flyway şemayı oluşturur, yönetici hesabı yoksa oluşturulur ve servis
+Eureka'ya kaydolur. Doğrulama:
 
 ```bash
 curl http://localhost:8080/actuator/health     # {"status":"UP"}
-curl http://localhost:8080/api/employees       # sayfalı boş liste
 ```
 
 Swagger arayüzü: http://localhost:8080/swagger-ui.html
@@ -272,13 +297,39 @@ docker compose down     # konteynerleri siler, volume'daki veri yine korunur
 
 Taban adres: `http://localhost:8080`
 
-| Metot | Uç | Açıklama | Başarılı |
-|---|---|---|---|
-| `GET` | `/api/employees` | Sayfalı liste. `?page=0&size=20&sort=lastName,asc` | `200` |
-| `GET` | `/api/employees/{id}` | Tek kayıt | `200` |
-| `POST` | `/api/employees` | Yeni kayıt | `201` + `Location` |
-| `PUT` | `/api/employees/{id}` | Güncelleme | `200` |
-| `DELETE` | `/api/employees/{id}` | Pasifleştirme (kayıt silinmez) | `204` |
+| Metot | Uç | Açıklama | Yetki | Başarılı |
+|---|---|---|---|---|
+| `POST` | `/api/auth/login` | Token alma | herkese açık | `200` |
+| `GET` | `/api/employees` | Sayfalı liste. `?page=0&size=20&sort=lastName,asc` | giriş yapmış | `200` |
+| `GET` | `/api/employees/{id}` | Tek kayıt | giriş yapmış | `200` |
+| `POST` | `/api/employees` | Yeni kayıt | `ADMIN` | `201` + `Location` |
+| `PUT` | `/api/employees/{id}` | Güncelleme | `ADMIN` | `200` |
+| `DELETE` | `/api/employees/{id}` | Pasifleştirme (kayıt silinmez) | `ADMIN` | `204` |
+
+Yetki kuralı **okuma / yazma** ayrımına dayanır: okumak için giriş yapmış olmak
+yeterlidir, veri değiştiren her uç `ADMIN` rolü ister. Kural yazılmamış bir uç
+varsayılan olarak kimlik doğrulaması ister — açıkta kalmaz.
+
+### Kimlik doğrulama
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"<parola>"}'
+```
+
+```json
+{ "token": "eyJhbGciOiJIUzM4NCJ9...", "tokenType": "Bearer", "expiresInSeconds": 900 }
+```
+
+Sonraki isteklerde token `Authorization` header'ında taşınır:
+
+```bash
+curl http://localhost:8080/api/employees -H "Authorization: Bearer <token>"
+```
+
+Token 15 dakika geçerlidir (`JWT_VALIDITY_MINUTES` ile değiştirilebilir).
+Kimlik doğrulanmamış istek `401`, yetkisi olmayan istek `403` döner.
 
 ### Örnek istek
 
@@ -320,6 +371,8 @@ Hatalar RFC 7807 (`ProblemDetail`) biçiminde döner.
 |---|---|
 | Doğrulama hatası | `400` + alan bazlı `errors` listesi |
 | Geçersiz yönetici ataması (döngü) | `400` |
+| Kimlik doğrulanmadı / geçersiz token | `401` |
+| Yetki yok | `403` |
 | Kayıt bulunamadı | `404` |
 | E-posta zaten kayıtlı | `409` |
 
@@ -352,7 +405,7 @@ Belge controller ve DTO sınıflarından üretilir; elle güncellenmez.
 | ----- | ------------------------------------------------------------------------------------- | ---------------------------------------------------- | --------- |
 | **0** | Git deposu, `.gitignore`, altyapı, Eureka                                             | Kod yazmadan önce geri dönülebilir bir zemin gerekir | ✅        |
 | **1** | Employee Service: JPA, Flyway, REST, validation, hata yönetimi, AOP, Swagger, testler | Diğer her şey bu servisin verisine ve API'sine bağlı | ✅        |
-| **2** | Spring Security: JWT, rol bazlı yetkilendirme                                         | Korunacak uçlar önce var olmalı                      | 🚧        |
+| **2** | Spring Security: JWT, rol bazlı yetkilendirme                                         | Korunacak uçlar önce var olmalı                      | ✅        |
 | **3** | RabbitMQ olay yayını (üretici taraf)                                                  | Yayınlanacak bir değişiklik önce var olmalı          | 🚧        |
 | **4** | Notification Service: tüketici, idempotency, Feign, mail                              | Dinlenecek mesaj önce var olmalı                     | 🚧        |
 | **5** | React + TypeScript arayüz                                                             | Çağrılacak API önce stabil olmalı                    | 🚧        |
@@ -384,9 +437,9 @@ HR Management System/
 │       │   ├── dto/            API sözleşmesi
 │       │   ├── mapper/         entity ↔ dto çevirisi
 │       │   ├── exception/      hata sınıfları + merkezî yakalayıcı
-│       │   └── config/         aspect, correlation ID filtresi
-│       ├── main/resources/db/migration/   V1__ V2__
-│       └── test/               35 test
+│       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
+│       ├── main/resources/db/migration/   V1__ V2__ V3__
+│       └── test/               45 test
 ├── notification-service/       🚧  Faz 4
 └── frontend/                   🚧  Faz 5
 ```
