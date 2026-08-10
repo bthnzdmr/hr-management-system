@@ -17,19 +17,19 @@ public class ExecutionTimeAspect {
 
     @Around("execution(* com.proje.employee.service..*(..))")
     public Object measure(ProceedingJoinPoint joinPoint) throws Throwable {
-        long baslangic = System.nanoTime();
+        long startedAt = System.nanoTime();
 
         try {
             return joinPoint.proceed();
         } finally {
             // finally: istisna firlasa da olcum kaydedilir.
-            long ms = (System.nanoTime() - baslangic) / 1_000_000;
-            String metot = joinPoint.getSignature().toShortString();
+            long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+            String method = joinPoint.getSignature().toShortString();
 
-            if (ms >= SLOW_THRESHOLD_MS) {
-                log.warn("YAVAS  {} -> {} ms", metot, ms);
+            if (elapsedMs >= SLOW_THRESHOLD_MS) {
+                log.warn("SLOW  {} -> {} ms", method, elapsedMs);
             } else {
-                log.debug("{} -> {} ms", metot, ms);
+                log.debug("{} -> {} ms", method, elapsedMs);
             }
         }
     }

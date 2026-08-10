@@ -44,14 +44,14 @@ class EmployeeRepositoryTest {
         List<Department> departments = departmentRepository.findAll();
 
         for (int i = 0; i < 5; i++) {
-            Employee e = new Employee(
-                    "Ad" + i,
-                    "Soyad" + i,
+            Employee employee = new Employee(
+                    "Name" + i,
+                    "Surname" + i,
                     "test" + i + "@example.com",
                     departments.get(i),
                     "Engineer",
                     LocalDate.of(2024, 1, 1));
-            employeeRepository.save(e);
+            employeeRepository.save(employee);
         }
 
         // flush: bekleyen INSERT'leri veritabanina yaz.
@@ -66,42 +66,42 @@ class EmployeeRepositoryTest {
     }
 
     @Test
-    @DisplayName("JOIN FETCH olmadan her departman icin ayri sorgu atilir (N+1)")
-    void joinFetchOlmadanNArtiBirSorguAtilir() {
+    @DisplayName("Without JOIN FETCH each department costs a separate query (N+1)")
+    void issuesNPlusOneQueriesWithoutJoinFetch() {
         List<Employee> employees = employeeRepository.findAll();
 
         // Vekil nesneye dokunmak veritabanina gidilmesine sebep olur.
-        employees.forEach(e -> e.getDepartment().getName());
+        employees.forEach(employee -> employee.getDepartment().getName());
 
-        long sorguSayisi = statistics.getPrepareStatementCount();
+        long queryCount = statistics.getPrepareStatementCount();
 
         assertThat(employees).hasSize(5);
-        assertThat(sorguSayisi).isEqualTo(6);   // 1 liste + 5 departman
+        assertThat(queryCount).isEqualTo(6);   // 1 liste + 5 departman
     }
 
     @Test
-    @DisplayName("JOIN FETCH ile departmanlar ayni sorguda gelir")
-    void joinFetchIleTekSorguAtilir() {
+    @DisplayName("JOIN FETCH loads departments in the same query")
+    void issuesSingleQueryWithJoinFetch() {
         Page<Employee> page = employeeRepository.findAllWithDepartment(
                 PageRequest.of(0, 10, Sort.by("lastName")));
 
-        page.getContent().forEach(e -> e.getDepartment().getName());
+        page.getContent().forEach(employee -> employee.getDepartment().getName());
 
-        long sorguSayisi = statistics.getPrepareStatementCount();
+        long queryCount = statistics.getPrepareStatementCount();
 
         assertThat(page.getContent()).hasSize(5);
 
         // Tek sorgu: departmanlar JOIN ile geldigi icin dongude veritabanina gidilmiyor.
         // Sayim sorgusu da atilmiyor -- ilk sayfada ve sonuc sayfa boyutundan az oldugu
         // icin Spring Data toplami zaten biliyor.
-        assertThat(sorguSayisi).isEqualTo(1);
+        assertThat(queryCount).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("Turetilmis sorgu email ile kaydi bulur")
-    void findByEmailKaydiBulur() {
+    @DisplayName("Derived query finds a record by email")
+    void findsRecordByEmail() {
         assertThat(employeeRepository.findByEmail("test0@example.com")).isPresent();
-        assertThat(employeeRepository.findByEmail("yok@example.com")).isEmpty();
+        assertThat(employeeRepository.findByEmail("missing@example.com")).isEmpty();
         assertThat(employeeRepository.existsByEmail("test1@example.com")).isTrue();
     }
 }

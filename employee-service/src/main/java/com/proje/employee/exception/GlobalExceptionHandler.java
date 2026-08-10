@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -24,6 +25,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ProblemDetail handleEmailExists(EmailAlreadyExistsException ex) {
         return problem(HttpStatus.CONFLICT, "Email already registered", ex.getMessage());
+    }
+
+    // Hangi kismin yanlis oldugu SOYLENMEZ: "bu email kayitli degil" demek,
+    // saldirgana gecerli hesaplari kesfetme imkani verir.
+    @ExceptionHandler(AuthenticationException.class)
+    public ProblemDetail handleAuthentication(AuthenticationException ex) {
+        log.warn("Kimlik dogrulama basarisiz", ex);
+        return problem(HttpStatus.UNAUTHORIZED, "Authentication failed", "Invalid credentials");
     }
 
     @ExceptionHandler(ManagerCycleException.class)

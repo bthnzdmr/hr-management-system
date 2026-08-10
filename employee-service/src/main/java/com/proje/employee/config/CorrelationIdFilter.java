@@ -26,14 +26,14 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
 
     // Disaridan gelen deger loglara yazilacagi icin dogrulanir: satir sonu
     // iceren bir deger sahte log satiri uretebilir (log injection).
-    private static final Pattern GECERLI = Pattern.compile("[A-Za-z0-9-]{1,64}");
+    private static final Pattern VALID_ID = Pattern.compile("[A-Za-z0-9-]{1,64}");
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        String correlationId = temizle(request.getHeader(HEADER));
+        String correlationId = sanitize(request.getHeader(HEADER));
 
         MDC.put(MDC_KEY, correlationId);
         response.setHeader(HEADER, correlationId);
@@ -47,9 +47,9 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
         }
     }
 
-    private String temizle(String gelen) {
-        if (gelen != null && gelen.length() <= MAX_LENGTH && GECERLI.matcher(gelen).matches()) {
-            return gelen;
+    private String sanitize(String incoming) {
+        if (incoming != null && incoming.length() <= MAX_LENGTH && VALID_ID.matcher(incoming).matches()) {
+            return incoming;
         }
         return UUID.randomUUID().toString().substring(0, 8);
     }

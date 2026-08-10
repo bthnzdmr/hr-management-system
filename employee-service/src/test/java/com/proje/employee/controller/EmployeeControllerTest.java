@@ -1,6 +1,10 @@
 package com.proje.employee.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.proje.employee.config.JwtAuthenticationFilter;
+import com.proje.employee.config.JwtService;
+import com.proje.employee.config.SecurityConfig;
+import com.proje.employee.config.SecurityProblemWriter;
 import com.proje.employee.dto.EmployeeCreateRequest;
 import com.proje.employee.dto.EmployeeResponse;
 import com.proje.employee.exception.EmailAlreadyExistsException;
@@ -17,12 +21,12 @@ import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.proje.employee.config.SecurityConfig;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -31,8 +35,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+// @WebMvcTest yalnizca web katmanini yukler; SecurityConfig'in ihtiyac duydugu
+// filtre ve servis acikca saglanmalidir.
 @WebMvcTest(EmployeeController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, SecurityProblemWriter.class})
 class EmployeeControllerTest {
 
     @Autowired
@@ -44,7 +50,11 @@ class EmployeeControllerTest {
     @MockBean
     private EmployeeService employeeService;
 
-    private EmployeeCreateRequest gecerliIstek() {
+    // Kimlik @WithMockUser ile atandigi icin token cozumlemeye gerek yok.
+    @MockBean
+    private JwtService jwtService;
+
+    private EmployeeCreateRequest validRequest() {
         return new EmployeeCreateRequest(
                 "Ada", "Lovelace", "ada@example.com", null,
                 1L, null, "Software Engineer",
@@ -53,8 +63,8 @@ class EmployeeControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    @DisplayName("Gecerli kayit 201 ve Location header'i doner")
-    void gecerliKayit201Doner() throws Exception {
+    @DisplayName("A valid create returns 201 with a Location header")
+    void createReturns201WithLocation() throws Exception {
         EmployeeResponse response = new EmployeeResponse(
                 42L, "Ada", "Lovelace", "ada@example.com", null,
                 1L, "Software Development", null, "Software Engineer",
@@ -64,7 +74,7 @@ class EmployeeControllerTest {
 
         mockMvc.perform(post("/api/employees")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(gecerliIstek())))
+                        .content(objectMapper.writeValueAsString(validRequest())))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/api/employees/42"))
                 .andExpect(jsonPath("$.id").value(42))
@@ -73,16 +83,16 @@ class EmployeeControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    @DisplayName("Gecersiz istek 400 ve alan bazli hata listesi doner")
-    void gecersizIstek400Doner() throws Exception {
-        EmployeeCreateRequest bozuk = new EmployeeCreateRequest(
-                "   ", "", "asdf", null,
+    @DisplayName("An invalid request returns 400 with per-field errors")
+    void invalidRequestReturns400WithFieldErrors() throws Exception {
+        EmployeeCreateRequest invalid = new EmployeeCreateRequest(
+                "   ", "", "not-an-email", null,
                 null, null, "Engineer",
                 LocalDate.of(2024, 1, 15), new BigDecimal("-5"));
 
         mockMvc.perform(post("/api/employees")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(bozuk)))
+                        .content(objectMapper.writeValueAsString(invalid)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Validation failed"))
                 .andExpect(jsonPath("$.errors[*].field")
@@ -92,22 +102,22 @@ class EmployeeControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    @DisplayName("Kayitli email 409 doner")
-    void kayitliEmail409Doner() throws Exception {
+    @DisplayName("An already registered email returns 409")
+    void duplicateEmailReturns409() throws Exception {
         when(employeeService.create(any()))
                 .thenThrow(new EmailAlreadyExistsException("ada@example.com"));
 
         mockMvc.perform(post("/api/employees")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(gecerliIstek())))
+                        .content(objectMapper.writeValueAsString(validRequest())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.title").value("Email already registered"));
     }
 
     @Test
     @WithMockUser(roles = "USER")
-    @DisplayName("Olmayan kayit 404 doner")
-    void olmayanKayit404Doner() throws Exception {
+    @DisplayName("A missing record returns 404")
+    void missingRecordReturns404() throws Exception {
         when(employeeService.getById(99L)).thenThrow(new EmployeeNotFoundException(99L));
 
         mockMvc.perform(get("/api/employees/99"))
@@ -120,40 +130,40 @@ class EmployeeControllerTest {
 
     @Test
     @WithAnonymousUser
-    @DisplayName("Kimlik dogrulanmadan okuma ucu 401 doner")
-    void kimliksizOkuma401Doner() throws Exception {
+    @DisplayName("Unauthenticated read returns 401")
+    void unauthenticatedReadReturns401() throws Exception {
         mockMvc.perform(get("/api/employees"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     @WithMockUser(roles = "USER")
-    @DisplayName("USER rolu okuyabilir")
-    void userRoluOkuyabilir() throws Exception {
+    @DisplayName("USER role can read")
+    void userRoleCanRead() throws Exception {
         mockMvc.perform(get("/api/employees"))
                 .andExpect(status().isOk());
     }
 
     @Test
     @WithMockUser(roles = "USER")
-    @DisplayName("USER rolu YAZAMAZ: POST 403 doner")
-    void userRoluYazamaz() throws Exception {
+    @DisplayName("USER role cannot create: POST returns 403")
+    void userRoleCannotCreate() throws Exception {
         mockMvc.perform(post("/api/employees")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(gecerliIstek())))
+                        .content(objectMapper.writeValueAsString(validRequest())))
                 .andExpect(status().isForbidden());
 
         // Yetki reddi service'e hic ulasmamali.
-        org.mockito.Mockito.verify(employeeService, org.mockito.Mockito.never()).create(any());
+        verify(employeeService, never()).create(any());
     }
 
     @Test
     @WithMockUser(roles = "USER")
-    @DisplayName("USER rolu SILEMEZ: DELETE 403 doner")
-    void userRoluSilemez() throws Exception {
+    @DisplayName("USER role cannot delete: DELETE returns 403")
+    void userRoleCannotDelete() throws Exception {
         mockMvc.perform(delete("/api/employees/1"))
                 .andExpect(status().isForbidden());
 
-        org.mockito.Mockito.verify(employeeService, org.mockito.Mockito.never()).deactivate(any());
+        verify(employeeService, never()).deactivate(any());
     }
 }

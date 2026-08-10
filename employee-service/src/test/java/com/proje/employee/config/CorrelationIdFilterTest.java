@@ -22,82 +22,82 @@ class CorrelationIdFilterTest {
     }
 
     @Test
-    @DisplayName("Kimlik gonderilmezse sunucu uretir ve cevap header'ina yazar")
-    void kimlikYoksaUretilir() throws Exception {
+    @DisplayName("Generates an id when the request does not provide one")
+    void generatesIdWhenMissing() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter.doFilter(request, response, new MockFilterChain());
 
-        String uretilen = response.getHeader(CorrelationIdFilter.HEADER);
-        assertThat(uretilen).isNotBlank();
-        assertThat(uretilen).matches("[A-Za-z0-9-]+");
+        String generated = response.getHeader(CorrelationIdFilter.HEADER);
+        assertThat(generated).isNotBlank();
+        assertThat(generated).matches("[A-Za-z0-9-]+");
     }
 
     @Test
-    @DisplayName("Gecerli kimlik gonderilirse oldugu gibi tasinir")
-    void gecerliKimlikTasinir() throws Exception {
+    @DisplayName("Propagates a valid incoming id unchanged")
+    void propagatesValidIncomingId() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(CorrelationIdFilter.HEADER, "siparis-4821");
+        request.addHeader(CorrelationIdFilter.HEADER, "order-4821");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter.doFilter(request, response, new MockFilterChain());
 
-        assertThat(response.getHeader(CorrelationIdFilter.HEADER)).isEqualTo("siparis-4821");
+        assertThat(response.getHeader(CorrelationIdFilter.HEADER)).isEqualTo("order-4821");
     }
 
     @Test
-    @DisplayName("Zararli kimlik reddedilir ve yerine yenisi uretilir (log injection)")
-    void zararliKimlikReddedilir() throws Exception {
+    @DisplayName("Rejects a malicious id and generates a new one (log injection)")
+    void rejectsMaliciousId() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(CorrelationIdFilter.HEADER, "sahte] FAKE LOG [x");
+        request.addHeader(CorrelationIdFilter.HEADER, "fake] FAKE LOG [x");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter.doFilter(request, response, new MockFilterChain());
 
-        String donen = response.getHeader(CorrelationIdFilter.HEADER);
-        assertThat(donen).isNotEqualTo("sahte] FAKE LOG [x");
-        assertThat(donen).matches("[A-Za-z0-9-]+");
+        String returned = response.getHeader(CorrelationIdFilter.HEADER);
+        assertThat(returned).isNotEqualTo("fake] FAKE LOG [x");
+        assertThat(returned).matches("[A-Za-z0-9-]+");
     }
 
     @Test
-    @DisplayName("Kimlik zincir sirasinda MDC'de bulunur, istek bitince TEMIZLENIR")
-    void mdcIstekSonundaTemizlenir() throws Exception {
+    @DisplayName("Id is present in MDC during the chain and cleared afterwards")
+    void clearsMdcAfterRequest() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(CorrelationIdFilter.HEADER, "test-kimlik");
+        request.addHeader(CorrelationIdFilter.HEADER, "test-id");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        AtomicReference<String> zincirdekiDeger = new AtomicReference<>();
-        MockFilterChain zincir = new MockFilterChain() {
+        AtomicReference<String> valueInsideChain = new AtomicReference<>();
+        MockFilterChain chain = new MockFilterChain() {
             @Override
             public void doFilter(jakarta.servlet.ServletRequest req, jakarta.servlet.ServletResponse res) {
-                zincirdekiDeger.set(MDC.get(CorrelationIdFilter.MDC_KEY));
+                valueInsideChain.set(MDC.get(CorrelationIdFilter.MDC_KEY));
             }
         };
 
-        filter.doFilter(request, response, zincir);
+        filter.doFilter(request, response, chain);
 
-        assertThat(zincirdekiDeger.get()).isEqualTo("test-kimlik");
+        assertThat(valueInsideChain.get()).isEqualTo("test-id");
 
         // Thread havuzdan geldigi icin temizlenmezse sonraki istek bu kimligi devralir.
         assertThat(MDC.get(CorrelationIdFilter.MDC_KEY)).isNull();
     }
 
     @Test
-    @DisplayName("Zincirde istisna firlasa bile MDC temizlenir")
-    void istisnadaDaTemizlenir() {
+    @DisplayName("Clears MDC even when the chain throws")
+    void clearsMdcWhenChainThrows() {
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        MockFilterChain patlayanZincir = new MockFilterChain() {
+        MockFilterChain throwingChain = new MockFilterChain() {
             @Override
             public void doFilter(jakarta.servlet.ServletRequest req, jakarta.servlet.ServletResponse res) {
-                throw new IllegalStateException("patladi");
+                throw new IllegalStateException("boom");
             }
         };
 
         try {
-            filter.doFilter(request, response, patlayanZincir);
+            filter.doFilter(request, response, throwingChain);
         } catch (Exception ignored) {
             // istisnanin yukari gecmesi beklenir
         }

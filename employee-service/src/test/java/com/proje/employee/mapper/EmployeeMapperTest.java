@@ -40,7 +40,7 @@ class EmployeeMapperTest {
     private EntityManager entityManager;
 
     private Statistics statistics;
-    private Long yoneticiId;
+    private Long managerId;
 
     @BeforeEach
     void setUp() {
@@ -50,15 +50,15 @@ class EmployeeMapperTest {
 
         Department department = departmentRepository.findAll().get(0);
 
-        Employee yonetici = new Employee("Grace", "Hopper", "grace@example.com",
+        Employee manager = new Employee("Grace", "Hopper", "grace@example.com",
                 department, "Engineering Manager", LocalDate.of(2020, 1, 1));
-        employeeRepository.save(yonetici);
-        yoneticiId = yonetici.getId();
+        employeeRepository.save(manager);
+        managerId = manager.getId();
 
-        Employee ast = new Employee("Ada", "Lovelace", "ada@example.com",
+        Employee subordinate = new Employee("Ada", "Lovelace", "ada@example.com",
                 department, "Software Engineer", LocalDate.of(2024, 1, 15));
-        ast.setManager(yonetici);
-        employeeRepository.save(ast);
+        subordinate.setManager(manager);
+        employeeRepository.save(subordinate);
 
         entityManager.flush();
         entityManager.clear();
@@ -70,8 +70,8 @@ class EmployeeMapperTest {
     }
 
     @Test
-    @DisplayName("Vekil yoneticinin id'sini okumak ek sorgu atmaz")
-    void vekilIdOkumakSorguAtmaz() {
+    @DisplayName("Reading the id of a lazy proxy does not trigger an extra query")
+    void readingProxyIdIssuesNoExtraQuery() {
         List<Employee> employees = employeeRepository
                 .findAllWithDepartment(PageRequest.of(0, 10))
                 .getContent();
@@ -85,8 +85,8 @@ class EmployeeMapperTest {
     }
 
     @Test
-    @DisplayName("Yoneticisi olmayan kayitta managerId null doner")
-    void yoneticisiOlmayanKayit() {
+    @DisplayName("managerId is null when the employee has no manager")
+    void mapsNullManagerId() {
         EmployeeResponse response = mapper.toResponse(
                 employeeRepository.findByEmail("grace@example.com").orElseThrow());
 
@@ -95,12 +95,12 @@ class EmployeeMapperTest {
     }
 
     @Test
-    @DisplayName("Yoneticisi olan kayitta managerId dolu doner")
-    void yoneticisiOlanKayit() {
+    @DisplayName("managerId is populated when the employee has a manager")
+    void mapsManagerId() {
         EmployeeResponse response = mapper.toResponse(
                 employeeRepository.findByEmail("ada@example.com").orElseThrow());
 
-        assertThat(response.managerId()).isEqualTo(yoneticiId);
+        assertThat(response.managerId()).isEqualTo(managerId);
         assertThat(response.firstName()).isEqualTo("Ada");
         assertThat(response.lastName()).isEqualTo("Lovelace");
     }
