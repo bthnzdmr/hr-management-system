@@ -12,6 +12,12 @@ spring:
     username: ${DB_USERNAME:employee}
     password: ${DB_PASSWORD:employee123}
 
+    hikari:
+      # Timeout yazilmazsa varsayilan 30 sn'dir; veritabani erisilemezken saglik
+      # ucu DOWN donmek yerine 30 sn askida kalir.
+      connection-timeout: 3000
+      validation-timeout: 2000
+
   jpa:
     hibernate:
       # Hibernate semayi yalnizca dogrular; sema degisiklikleri Flyway ile yapilir.
@@ -33,6 +39,21 @@ eureka:
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
   instance:
     prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Yalnizca gerekenler acilir. "*" yazmak /actuator/env ve /actuator/heapdump
+        # gibi ortam degiskenlerini ve bellek dokumunu disariya acardi.
+        include: health,info
+  endpoint:
+    health:
+      # Bilesen detaylari (veritabani surumu, disk) yalnizca yetkili istemciye.
+      show-details: when-authorized
+      probes:
+        # liveness ve readiness uclarini ayri ayri acar.
+        enabled: true
 
 logging:
   # %X{...} MDC'den okur. Istek disinda uretilen loglarda (acilis gibi) bos kalir.

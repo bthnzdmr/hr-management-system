@@ -84,6 +84,12 @@
             <version>${springdoc.version}</version>
         </dependency>
 
+        <!-- 8) Actuator: saglik ucu. Orkestratör ve yuk dengeleyici bunu sorar. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!-- Test: JUnit 5, Mockito, AssertJ, MockMvc.
              test kapsami: yalnizca test derlerken ve calisirken kullanilir,
              uretim jar'ina girmez. -->
