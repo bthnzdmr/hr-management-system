@@ -21,7 +21,17 @@ RUN npm run build
 # unprivileged surumu root olmadan calisir.
 FROM nginxinc/nginx-unprivileged:1.27-alpine
 
+ARG VITE_API_URL=http://localhost:8080
+
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# CSP'deki API adresi, paketin icine gomulen adresle AYNI degerden uretilir.
+# Ikisi ayri yerden gelseydi, birini degistirip digerini unutmak uygulamayi
+# sessizce kirardi.
+USER root
+RUN sed -i "s|__API_ORIGIN__|${VITE_API_URL}|" /etc/nginx/conf.d/default.conf
+USER nginx
+
 COPY --from=build /build/dist /usr/share/nginx/html
 
 EXPOSE 8080
