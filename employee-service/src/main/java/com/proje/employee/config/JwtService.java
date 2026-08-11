@@ -1,10 +1,13 @@
 package com.proje.employee.config;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +19,8 @@ import java.util.Optional;
 
 @Service
 public class JwtService {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
 
     private static final String CLAIM_ROLE = "role";
     private static final int MIN_KEY_BYTES = 32;
@@ -59,7 +64,17 @@ public class JwtService {
                     .build()
                     .parseSignedClaims(token)
                     .getPayload());
+
+        } catch (ExpiredJwtException e) {
+            // Normal ve beklenen durum: kullanicinin token'inin suresi doldu.
+            log.debug("Token expired for subject {}", e.getClaims().getSubject());
+            return Optional.empty();
+
         } catch (JwtException | IllegalArgumentException e) {
+            // Imza tutmuyor ya da token bicimi bozuk. Bu bir GUVENLIK sinyali
+            // olabilir ve suresi dolmus token'dan ayirt edilebilmelidir.
+            // Token'in kendisi loglanmaz: gecerliyse dogrudan kimlik bilgisidir.
+            log.warn("Rejected an invalid token: {}", e.getClass().getSimpleName());
             return Optional.empty();
         }
     }

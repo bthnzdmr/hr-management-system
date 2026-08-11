@@ -24,7 +24,7 @@ public class UserSeeder {
                                 @Value("${app.admin.password:}") String password) {
 
         return args -> seed(userRepository, passwordEncoder, email, password, Role.ADMIN,
-                "Yonetici hesabi", "ADMIN_EMAIL / ADMIN_PASSWORD");
+                "Admin account", "ADMIN_EMAIL / ADMIN_PASSWORD");
     }
 
     // Notification Service bu hesapla giris yapar. Rolu USER: bildirim gonderen
@@ -36,7 +36,7 @@ public class UserSeeder {
                                          @Value("${app.service-account.password:}") String password) {
 
         return args -> seed(userRepository, passwordEncoder, email, password, Role.USER,
-                "Servis hesabi", "SERVICE_ACCOUNT_EMAIL / SERVICE_ACCOUNT_PASSWORD");
+                "Service account", "SERVICE_ACCOUNT_EMAIL / SERVICE_ACCOUNT_PASSWORD");
     }
 
     private void seed(UserRepository userRepository,
@@ -48,16 +48,19 @@ public class UserSeeder {
                       String variables) {
 
         if (email.isBlank() || password.isBlank()) {
-            log.warn("{} tanimli degil, {} olusturulmadi", variables, label.toLowerCase());
+            log.warn("{} not set, {} was not created", variables, label.toLowerCase());
             return;
         }
 
+        // Var olan hesabin parolasi EZILMEZ: aksi halde uygulamayi yeniden
+        // baslatabilen herkes parolayi sifirlayabilir ve uygulama icinden
+        // degistirilen parola her acilista geri gelirdi.
         if (userRepository.existsByEmail(email)) {
-            log.info("{} zaten var: {}", label, email);
+            log.info("{} already exists: {}", label, email);
             return;
         }
 
         userRepository.save(new User(email, passwordEncoder.encode(password), role));
-        log.info("{} olusturuldu: {}", label, email);
+        log.info("{} created: {}", label, email);
     }
 }

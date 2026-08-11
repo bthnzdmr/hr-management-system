@@ -44,6 +44,14 @@ spring:
     # "sokete yazildi" ile "broker aldi" ayirt edilemez.
     publisher-confirm-type: correlated
 
+# API belgesi tum uc adreslerini, DTO semalarini ve dogrulama kurallarini
+# aciga cikarir. Gelistirmede acik, uretimde SWAGGER_ENABLED=false ile kapatilir.
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
+
 eureka:
   client:
     service-url:
@@ -77,8 +85,10 @@ app:
   outbox:
     # Yayin gecikmesinin ust siniri: olay en gec bu sure sonra gonderilir.
     poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:2000}
-    # Tek turda kilitlenecek satir sayisi; kilit suresini sinirli tutar.
-    batch-size: ${OUTBOX_BATCH_SIZE:100}
+    # Tek turda kilitlenecek satir sayisi. Relay, satir kilitlerini ve
+    # veritabani baglantisini parti boyunca ACIK TUTAR (her mesaj icin broker
+    # onayi beklenir), bu yuzden parti kucuk tutulur: kilit suresi sinirli kalir.
+    batch-size: ${OUTBOX_BATCH_SIZE:20}
     # Broker'in reddettigi mesaj icin ust sinir. Erisilemezlik bu sayaci
     # artirmaz; yalnizca mesajin kendi kusuru sayilir.
     max-attempts: ${OUTBOX_MAX_ATTEMPTS:5}

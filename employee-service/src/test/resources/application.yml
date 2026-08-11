@@ -21,6 +21,7 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
+    publisher-confirm-type: correlated
 
 eureka:
   client:
@@ -34,3 +35,12 @@ app:
     validity-minutes: 15
   cors:
     allowed-origins: http://localhost:5173
+
+  # Bu dosya ana application.yml'i TAMAMEN golgeler (test classpath'i once
+  # gelir). Kodun okudugu her anahtar burada da bulunmak zorundadir; aksi
+  # halde ilk @SpringBootTest "Could not resolve placeholder" ile patlar.
+  outbox:
+    poll-interval-ms: 2000
+    batch-size: 20
+    max-attempts: 5
+    confirm-timeout-ms: 5000
