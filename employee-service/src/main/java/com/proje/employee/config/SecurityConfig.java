@@ -95,6 +95,16 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 
+                        // Kendi parolasini herkes degistirebilir. Bu kural
+                        // "/api/users/**" kuralindan ONCE gelmek zorunda: sonra
+                        // yazilsaydi genel kural once eslesir ve yalnizca
+                        // yoneticiler parolasini degistirebilirdi.
+                        .requestMatchers(HttpMethod.PUT, "/api/users/me/password").authenticated()
+
+                        // Hesap yonetiminin tamami yoneticiye ait. Metot
+                        // belirtilmez: HEAD dahil her sey kapsanmali.
+                        .requestMatchers("/api/users/**").hasRole("ADMIN")
+
                         // Maas kurali GENEL okuma kuralindan ONCE gelmek zorunda:
                         // Spring Security ilk eslesen kurali uygular. Sonra yazilsaydi
                         // "/api/employees/**" once eslesir ve maas USER'a acik kalirdi.

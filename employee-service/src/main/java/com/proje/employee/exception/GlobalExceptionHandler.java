@@ -34,9 +34,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler({EmployeeNotFoundException.class, DepartmentNotFoundException.class})
+    @ExceptionHandler({EmployeeNotFoundException.class, DepartmentNotFoundException.class,
+            UserNotFoundException.class})
     public ProblemDetail handleNotFound(RuntimeException ex) {
         return problem(HttpStatus.NOT_FOUND, "Resource not found", ex.getMessage());
+    }
+
+    // Istek gecerli ama sistemin durumu izin vermiyor: son yoneticiyi dusurmek,
+    // kendi hesabini kapatmak. Mesaj is kuralidir, ic detay degil.
+    @ExceptionHandler(UserRuleViolationException.class)
+    public ProblemDetail handleUserRule(UserRuleViolationException ex) {
+        return problem(HttpStatus.CONFLICT, "Operation not allowed", ex.getMessage());
+    }
+
+    // 401 DEGIL 400: 401 arayuzdeki interceptor'a "oturum bitti" der ve kullanici
+    // parolasini yanlis yazdi diye sistemden atilirdi.
+    @ExceptionHandler(InvalidPasswordException.class)
+    public ProblemDetail handleInvalidPassword(InvalidPasswordException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Invalid password", ex.getMessage());
     }
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
