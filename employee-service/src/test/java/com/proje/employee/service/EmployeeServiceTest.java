@@ -353,6 +353,27 @@ class EmployeeServiceTest {
     }
 
     @Test
+    @DisplayName("Refuses to create an employee under an inactive manager")
+    void refusesInactiveManagerOnCreate() {
+        // Uctan uca kosuda yakalandi: kural yalnizca guncellemede geceriydi,
+        // olusturma kendi arama kodunu yazdigi icin ayni kontrolu atliyordu.
+        Department department = new Department("Sales");
+        Employee retired = employeeWithId(9L, "retired@example.com", department);
+        retired.setActive(false);
+
+        when(employeeRepository.existsByEmail("ada@example.com")).thenReturn(false);
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+        when(employeeRepository.findById(9L)).thenReturn(Optional.of(retired));
+
+        assertThatThrownBy(() -> employeeService.create(createRequest(1L, 9L)))
+                .isInstanceOf(InactiveManagerException.class);
+
+        // Hicbir sey yazilmamis olmali: reddedilen bir istek yarim kayit birakmaz.
+        verify(employeeRepository, never()).save(any());
+        verify(outboxWriter, never()).write(any());
+    }
+
+    @Test
     @DisplayName("Lists the people who report directly to an employee")
     void listsDirectReports() {
         Department department = new Department("Sales");

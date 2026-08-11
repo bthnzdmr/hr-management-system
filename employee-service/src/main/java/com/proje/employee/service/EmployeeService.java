@@ -99,11 +99,10 @@ public class EmployeeService {
         employee.setPhone(request.phone());
         employee.setSalary(request.salary());
 
-        if (request.managerId() != null) {
-            Employee manager = employeeRepository.findById(request.managerId())
-                    .orElseThrow(() -> new EmployeeNotFoundException(request.managerId()));
-            employee.setManager(manager);
-        }
+        // Guncelleme ile AYNI yol kullanilir. Ayri bir arama yazildiginda
+        // "pasif kisi yonetici olamaz" kurali yalnizca guncellemede geceriydi;
+        // ayni kurali iki yere yazmak, birinin geride kalmasi demektir.
+        employee.setManager(resolveManager(employee, request.managerId()));
 
         Employee saved = employeeRepository.save(employee);
         publish(EmployeeEventType.CREATED, saved);

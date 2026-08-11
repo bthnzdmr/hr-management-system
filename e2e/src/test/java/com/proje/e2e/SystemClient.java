@@ -41,6 +41,12 @@ final class SystemClient {
                 .POST(HttpRequest.BodyPublishers.ofString(json)));
     }
 
+    Response put(String url, String token, String json) {
+        return send(request(url, token)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(json)));
+    }
+
     private HttpRequest.Builder request(String url, String token) {
         HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(10));

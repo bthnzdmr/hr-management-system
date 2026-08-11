@@ -79,8 +79,13 @@ class SystemEndToEndTest {
         return response.body().get("id").asText();
     }
 
-    /** MailHog'u belirli bir adrese mail dusene kadar yoklar. */
-    private JsonNode awaitMail(String recipient) {
+    /**
+     * MailHog'u belirli bir adrese, belirli konulu mail dusene kadar yoklar.
+     *
+     * Konu da aranir: ayni adrese birden fazla mail gidiyor ve yalnizca alicaya
+     * bakmak, olusturma mailini yeniden aktiflestirme maili sanmaya yol acar.
+     */
+    private JsonNode awaitMail(String recipient, String subjectFragment) {
         Instant deadline = Instant.now().plus(MAIL_TIMEOUT);
 
         while (Instant.now().isBefore(deadline)) {
@@ -91,14 +96,17 @@ class SystemEndToEndTest {
 
             for (JsonNode message : messages) {
                 JsonNode to = message.at("/Content/Headers/To");
-                if (to.toString().contains(recipient)) {
+                JsonNode subject = message.at("/Content/Headers/Subject");
+
+                if (to.toString().contains(recipient) && subject.toString().contains(subjectFragment)) {
                     return message;
                 }
             }
 
             sleep(Duration.ofSeconds(1));
         }
-        throw new AssertionError("Mail did not arrive within " + MAIL_TIMEOUT + " for " + recipient);
+        throw new AssertionError("Mail '%s' did not arrive within %s for %s"
+                .formatted(subjectFragment, MAIL_TIMEOUT, recipient));
     }
 
     private void sleep(Duration duration) {
@@ -132,8 +140,8 @@ class SystemEndToEndTest {
 
         createEmployee(token, email);
 
-        JsonNode mail = awaitMail(email);
-        assertThat(mail.at("/Content/Headers/Subject").toString()).contains("Welcome to the team");
+        JsonNode mail = awaitMail(email, "Welcome to the team");
+        assertThat(mail.at("/Content/Headers/To").toString()).contains(email);
     }
 
     @Test
@@ -152,6 +160,81 @@ class SystemEndToEndTest {
 
         assertThat(second.status()).isEqualTo(409);
         assertThat(second.body().get("title").asText()).isEqualTo("Email already registered");
+    }
+
+    @Test
+    @DisplayName("Deactivation can be undone and both changes are announced by mail")
+    void deactivationCanBeUndone() {
+        // Kullanicinin bildirdigi eksigin uctan uca karsiligi: pasiflestirme
+        // tek yonlu bir kapi degildir.
+        String token = signIn();
+        String email = "e2e.status." + UUID.randomUUID() + "@example.com";
+        String id = createEmployee(token, email);
+        awaitMail(email, "Welcome to the team");
+
+        SystemClient.Response deactivated = client.put(
+                SystemClient.API_URL + "/api/employees/" + id + "/status", token,
+                """
+                {"active":false}
+                """);
+
+        assertThat(deactivated.status()).isEqualTo(200);
+        assertThat(deactivated.body().get("active").asBoolean()).isFalse();
+
+        SystemClient.Response reactivated = client.put(
+                SystemClient.API_URL + "/api/employees/" + id + "/status", token,
+                """
+                {"active":true}
+                """);
+
+        assertThat(reactivated.status()).isEqualTo(200);
+        assertThat(reactivated.body().get("active").asBoolean()).isTrue();
+
+        // Zincir yeniden aktiflestirme icin de isliyor mu: outbox, relay,
+        // kuyruk ve tuketici.
+        awaitMail(email, "Welcome back");
+    }
+
+    @Test
+    @DisplayName("Rejects an inactive employee as a manager")
+    void rejectsInactiveManager() {
+        String token = signIn();
+        String managerId = createEmployee(token, "e2e.manager." + UUID.randomUUID() + "@example.com");
+
+        client.put(SystemClient.API_URL + "/api/employees/" + managerId + "/status", token,
+                """
+                {"active":false}
+                """);
+
+        SystemClient.Response response = client.post(
+                SystemClient.API_URL + "/api/employees", token,
+                """
+                {"firstName":"E2E","lastName":"Report","email":"e2e.report.%s@example.com",
+                 "departmentId":1,"managerId":%s,"jobTitle":"Engineer","hireDate":"2024-08-01"}
+                """.formatted(UUID.randomUUID(), managerId));
+
+        // Istemcinin gonderdigi gecersiz bir iliski sunucu hatasi degildir.
+        assertThat(response.status()).isEqualTo(400);
+    }
+
+    @Test
+    @DisplayName("Filters the employee list by search term and status")
+    void filtersEmployeeList() {
+        String token = signIn();
+        String marker = "zz" + UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        createEmployee(token, "e2e.filter." + marker + "@example.com");
+
+        SystemClient.Response found = client.get(
+                SystemClient.API_URL + "/api/employees?search=" + marker + "&active=true", token);
+
+        assertThat(found.status()).isEqualTo(200);
+        assertThat(found.body().get("totalElements").asInt()).isEqualTo(1);
+
+        // Ayni kayit pasifler arasinda gorunmemeli.
+        SystemClient.Response amongInactive = client.get(
+                SystemClient.API_URL + "/api/employees?search=" + marker + "&active=false", token);
+
+        assertThat(amongInactive.body().get("totalElements").asInt()).isZero();
     }
 
     @Test
