@@ -2,7 +2,7 @@
 
 > Personel kayıtlarını yöneten bir web uygulaması. Kayıt değiştiğinde bildirim maili, ana uygulamanın içinde değil, **ayrı bir servis** tarafından **mesaj kuyruğu** üzerinden gönderilir.
 
-**Durum:** Employee Service çalışıyor — JWT ile korunan beş REST ucu, rol bazlı yetkilendirme, doğrulama, merkezî hata yönetimi, Swagger ve sağlık ucu hazır (45 test). Notification Service ve arayüz henüz yazılmadı. Bölümlerdeki ✅ / 🚧 işaretleri neyin hazır olduğunu gösterir.
+**Durum:** Sistem uçtan uca çalışıyor. Employee Service (JWT ile korunan dokuz REST ucu, rol bazlı yetkilendirme, transactional outbox), Notification Service (idempotent tüketici, DLQ, Feign, mail) ve React arayüzü hazır; tamamı tek komutla konteynerlerde ayağa kalkıyor. **132 test** geçiyor.
 
 ---
 
@@ -81,11 +81,11 @@ Sistem iki işi yapar:
 
 | Parça                    | Görevi                                                      | Durum    |
 | ------------------------ | ----------------------------------------------------------- | -------- |
-| **React Frontend**       | Kullanıcının gördüğü arayüz                                 | 🚧 Faz 5 |
+| **React Frontend**       | Kullanıcının gördüğü arayüz                                 | ✅       |
 | **Employee Service**     | Verinin sahibi; tüm iş kurallarının uygulandığı yer         | ✅       |
 | **PostgreSQL**           | Personel verisinin kalıcı olarak saklandığı yer             | ✅       |
 | **RabbitMQ**             | İki servis arasında mesaj taşıyan aracı                     | ✅       |
-| **Notification Service** | Olayı dinleyip mail hazırlayan ve gönderen servis           | 🚧 Faz 4 |
+| **Notification Service** | Olayı dinleyip mail hazırlayan ve gönderen servis           | ✅       |
 | **MailHog**              | Gerçek SMTP sunucusu yerine geliştirme ortamı sahtesi       | ✅       |
 | **Eureka Server**        | Servislerin birbirini IP yerine **isimle** bulmasını sağlar | ✅       |
 
@@ -154,17 +154,17 @@ Gerekçeleri proje kurallarında kayıtlıdır.
 | RabbitMQ (Spring AMQP) | Servisler arası asenkron mesajlaşma                     | ✅ altyapı |
 | Spring Security        | Kimlik doğrulama (JWT) ve rol bazlı yetkilendirme       | ✅         |
 | jjwt                   | JWT üretme ve doğrulama                                 | ✅         |
-| OpenFeign              | Servisler arası deklaratif HTTP çağrısı                 | 🚧 Faz 4   |
+| OpenFeign              | Servisler arası deklaratif HTTP çağrısı                 | ✅         |
 
 ### Frontend
 
 | Teknoloji          | Ne için kullanılıyor                                           | Durum |
 | ------------------ | -------------------------------------------------------------- | ----- |
-| React + TypeScript | Arayüz ve tip güvenliği                                        | 🚧    |
-| MUI                | Hazır bileşenler, DataGrid ile sunucu taraflı liste            | 🚧    |
-| Redux Toolkit      | Sunucu verisi durumu (liste, filtre, yükleniyor, hata)         | 🚧    |
-| Context API        | Uygulama geneli durum (tema, oturum)                           | 🚧    |
-| Axios              | HTTP istemcisi; interceptor ile merkezi token ve hata yönetimi | 🚧    |
+| React + TypeScript | Arayüz ve tip güvenliği                                        | ✅    |
+| MUI                | Hazır bileşenler; Table + TablePagination ile sayfalı liste    | ✅    |
+| Redux Toolkit      | Sunucu verisi durumu (liste, sayfalama, yükleniyor, hata)      | ✅    |
+| Context API        | Oturum ve rol (seyrek değişen, her yerden okunan veri)         | ✅    |
+| Axios              | HTTP istemcisi; interceptor ile merkezi token ve hata yönetimi | ✅    |
 
 ### Altyapı
 
@@ -317,11 +317,14 @@ için geliştirme veritabanını kirletmez.
 
 ### 5. Notification Service'i başlat ✅
 
-Ortam değişkenleri Employee Service ile aynıdır; aynı kabukta çalıştırılabilir.
+`mvn spring-boot:run` kabuğu **bloke eder**. Bu yüzden yeni bir kabuk aç, depo
+kökünden başla ve `.env`'i **orada da yükle** — ortam değişkenleri kabuklar
+arasında taşınmaz.
 
 ```bash
-cd notification-service
-mvn spring-boot:run
+# yeni kabuk, depo kokunde
+set -a && source .env && set +a
+cd notification-service && mvn spring-boot:run
 ```
 
 Servisin dışarıya açılan bir REST API'si yoktur; yalnızca kuyruğu dinler.
@@ -421,8 +424,15 @@ Taban adres: `http://localhost:8080`
 | `GET` | `/api/employees/{id}` | Tek kayıt | giriş yapmış | `200` |
 | `POST` | `/api/employees` | Yeni kayıt | `ADMIN` | `201` + `Location` |
 | `PUT` | `/api/employees/{id}` | Güncelleme | `ADMIN` | `200` |
-| `DELETE` | `/api/employees/{id}` | Pasifleştirme (kayıt silinmez) | `ADMIN` | `204` |
+| `DELETE` | `/api/employees/{id}` | Pasifleştirme (kayıt silinmez, tekrarı etkisiz) | `ADMIN` | `204` |
+| `GET` | `/api/employees/{id}/salary` | Maaş bilgisi | `ADMIN` | `200` |
+| `PUT` | `/api/employees/{id}/salary` | Maaş güncelleme | `ADMIN` | `200` |
 | `GET` | `/api/departments` | Aktif departmanlar, isme göre sıralı | giriş yapmış | `200` |
+
+**Maaş neden ayrı uçta?** Genel personel cevabında dönseydi, `USER` rolündeki
+istemciler — Notification Service dahil — maaşı görürdü. Genel güncellemede yer
+alsaydı, maaşı okuyamayan bir istemci onu her kayıtta `null` gönderip silerdi.
+Ayrı alt kaynak her iki sorunu da yapısal olarak ortadan kaldırır.
 
 Departman listesi sayfasızdır: sayısı kurumsal olarak sınırlı bir referans
 verisidir ve seçim kutusunu doldurmak için kullanılır. Büyüyebilen listelerde
@@ -457,6 +467,7 @@ Kimlik doğrulanmamış istek `401`, yetkisi olmayan istek `403` döner.
 
 ```bash
 curl -X POST http://localhost:8080/api/employees \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
     "firstName": "Ada",
@@ -564,7 +575,7 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesi, outbox yazıcı ve relay
 │       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
 │       ├── main/resources/db/migration/   V1__ V2__ V3__ V4__
-│       └── test/               63 test
+│       └── test/               78 test
 ├── notification-service/       ✅  olayları dinleyip mail gönderen servis
 │   ├── pom.xml
 │   └── src/
@@ -577,7 +588,7 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesinin tüketici tarafı
 │       │   └── config/         kuyruk, DLX ve DLQ tanımları
 │       ├── main/resources/db/migration/   V1__
-│       └── test/               15 test
+│       └── test/               19 test
 └── frontend/                   ✅  React + TypeScript arayüz
     ├── package.json
     └── src/
@@ -587,7 +598,7 @@ HR Management System/
         ├── pages/              Giriş, liste, form ekranları
         ├── components/         Ortak yerleşim
         ├── types/              Backend sözleşmesinin TypeScript karşılığı
-        └── *.test.ts(x)        26 test (Vitest + Testing Library)
+        └── *.test.ts(x)        30 test (Vitest + Testing Library)
 
 e2e/                            ✅  çalışan sisteme dışarıdan bakan testler
 └── src/test/java/com/proje/e2e/    5 test
