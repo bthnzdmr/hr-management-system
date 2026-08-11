@@ -138,6 +138,10 @@ services:
       SERVICE_ACCOUNT_PASSWORD: ${SERVICE_ACCOUNT_PASSWORD:?see .env.example}
       # Tarayici Docker aginin disindadir; frontend'in adresi host uzerinden gorunur.
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      # Bu profil bir gosterim yiginidir, uretim degil: Swagger acik kalir.
+      # Gercek bir dagitimda false verilir; anahtar burada gorunur olsun diye
+      # acikca yazildi.
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
     depends_on:
       postgres:
         condition: service_healthy

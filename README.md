@@ -2,7 +2,7 @@
 
 > Personel kayıtlarını yöneten bir web uygulaması. Kayıt değiştiğinde bildirim maili, ana uygulamanın içinde değil, **ayrı bir servis** tarafından **mesaj kuyruğu** üzerinden gönderilir.
 
-**Durum:** Sistem uçtan uca çalışıyor. Employee Service (JWT ile korunan dokuz REST ucu, rol bazlı yetkilendirme, transactional outbox), Notification Service (idempotent tüketici, DLQ, Feign, mail) ve React arayüzü hazır; tamamı tek komutla konteynerlerde ayağa kalkıyor. **132 test** geçiyor.
+**Durum:** Sistem uçtan uca çalışıyor. Employee Service (dokuz REST ucu — sekizi kimlik doğrulaması ister, rol bazlı yetkilendirme, transactional outbox), Notification Service (idempotent tüketici, DLQ, Feign, mail) ve React arayüzü hazır; tamamı tek komutla konteynerlerde ayağa kalkıyor.
 
 ---
 
@@ -208,7 +208,7 @@ Kimlik bilgileri depoda yazmaz; hepsi `.env` dosyasından gelir (bkz. bölüm 6)
 | JDK            | 17 veya üzeri (Java 17 bytecode hedeflenir) |
 | Maven          | 3.9+                                        |
 | Docker Desktop | Çalışır durumda                             |
-| Node.js        | 22+ (yalnızca frontend için, Faz 5)         |
+| Node.js        | 22+ (yalnızca frontend için)         |
 
 ### 1. Ortam değişkenlerini hazırla ✅
 
@@ -504,9 +504,12 @@ Hatalar RFC 7807 (`ProblemDetail`) biçiminde döner.
 |---|---|
 | Doğrulama hatası | `400` + alan bazlı `errors` listesi |
 | Geçersiz yönetici ataması (döngü) | `400` |
+| Bozuk JSON gövdesi | `400` |
+| Geçersiz sayfalama/sıralama parametresi | `400` |
 | Kimlik doğrulanmadı / geçersiz token | `401` |
 | Yetki yok | `403` |
 | Kayıt bulunamadı | `404` |
+| Desteklenmeyen HTTP metodu | `405` |
 | E-posta zaten kayıtlı | `409` |
 
 ```json
@@ -552,7 +555,7 @@ Genel kural: **veriyi üreten, tüketenden önce gelir.**
 
 ```
 HR Management System/
-├── docker-compose.yml          ✅  altyapı tanımı (RabbitMQ, PostgreSQL, MailHog)
+├── docker-compose.yml          ✅  altyapı + "full" profilinde tüm uygulamalar
 ├── .env.example                ✅  ortam değişkeni şablonu (.env buradan kopyalanır)
 ├── docker/postgres-init/       ✅  ilk kurulumda çalışan veritabanı betikleri
 ├── README.md                   ✅  bu dosya
