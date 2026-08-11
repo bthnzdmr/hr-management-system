@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/notification_db}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+
+eureka:
+  client:
+    enabled: false
+
+# Ana application.yml test siniflarinda GORUNMEZ (test classpath'i once gelir),
+# bu yuzden kodun okudugu her anahtar burada da tanimli olmak zorundadir.
+# Aksi halde ilk @SpringBootTest "Could not resolve placeholder" ile patlar.
+app:
+  mail:
+    from: hr-system@example.com
+  employee-service:
+    username: test-service-account@internal
+    password: test-only-password

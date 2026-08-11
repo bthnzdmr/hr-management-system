@@ -14,6 +14,7 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -56,7 +57,7 @@ class EmployeeEventListenerTest {
         listener.onEmployeeEvent(event(eventId));
 
         ArgumentCaptor<ProcessedEvent> captor = ArgumentCaptor.forClass(ProcessedEvent.class);
-        verify(processedEventRepository).save(captor.capture());
+        verify(processedEventRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().getEventId()).isEqualTo(eventId);
         assertThat(captor.getValue().getEmployeeId()).isEqualTo(42L);
         verify(mailService).send(any(), any());
@@ -75,18 +76,33 @@ class EmployeeEventListenerTest {
     }
 
     @Test
-    @DisplayName("Records the event before sending so a failed mail can be retried")
-    void recordsEventBeforeSendingMail() {
+    @DisplayName("Writes the record to the database before sending the mail")
+    void writesRecordBeforeSendingMail() {
         UUID eventId = UUID.randomUUID();
         when(processedEventRepository.existsById(eventId)).thenReturn(false);
 
         listener.onEmployeeEvent(event(eventId));
 
-        // Ters sirada gonderilmis mail geri alinamayacagi icin tekrar denemede
-        // ikinci mail giderdi; sira bu yuzden dogrulanir.
+        // saveAndFlush sart: duz save() yalnizca kuyruga alir ve INSERT commit
+        // aninda, yani mail gittikten SONRA calisirdi.
         InOrder order = inOrder(processedEventRepository, mailService);
-        order.verify(processedEventRepository).save(any());
+        order.verify(processedEventRepository).saveAndFlush(any());
         order.verify(mailService).send(any(), any());
+    }
+
+    @Test
+    @DisplayName("Sends no mail when another consumer claimed the event first")
+    void sendsNoMailWhenAnotherConsumerClaimedTheEvent() {
+        // Yaris durumu: iki tuketici de existsById kontrolunu gecti, biri once
+        // kaydetti. Kaybeden taraf maili HENUZ gondermemis olmalidir.
+        UUID eventId = UUID.randomUUID();
+        when(processedEventRepository.existsById(eventId)).thenReturn(false);
+        when(processedEventRepository.saveAndFlush(any()))
+                .thenThrow(new DataIntegrityViolationException("duplicate key"));
+
+        listener.onEmployeeEvent(event(eventId));
+
+        verify(mailService, never()).send(any(), any());
     }
 
     @Test

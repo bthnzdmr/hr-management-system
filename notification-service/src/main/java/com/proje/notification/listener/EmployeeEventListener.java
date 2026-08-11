@@ -9,6 +9,7 @@ import com.proje.notification.service.NotificationMailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,20 +33,45 @@ public class EmployeeEventListener {
     @RabbitListener(queues = RabbitConfig.QUEUE)
     @Transactional
     public void onEmployeeEvent(EmployeeEvent event) {
-        // Hizli yol: olay daha once islendiyse hicbir sey yapilmaz.
-        if (processedEventRepository.existsById(event.eventId())) {
+        if (!claim(event)) {
             log.debug("Duplicate event ignored: {}", event.eventId());
             return;
         }
 
-        // Kayit mailden ONCE yazilir: mail gonderimi patlarsa transaction geri
-        // alinir, kayit silinir ve mesaj yeniden denenir. Ters sirada, gonderilmis
-        // mail geri alinamadigi icin tekrar denemede ikinci mail giderdi.
-        processedEventRepository.save(new ProcessedEvent(
-                event.eventId(), event.eventType().name(), event.employeeId()));
-
         mailService.send(event, managerLookupService.managerEmail(event.employeeId()));
 
         log.info("Notification sent for event {} ({})", event.eventId(), event.eventType());
+    }
+
+    /**
+     * Olayi "bu benim" diye isaretler.
+     *
+     * saveAndFlush sart: duz save() yazmayi yalnizca KUYRUGA ALIR ve gercek
+     * INSERT commit aninda, yani mail coktan gittikten sonra calisirdi. O
+     * durumda birincil anahtar mukerrer SATIRI engelleyebilir ama mukerrer
+     * MAILI engelleyemezdi.
+     *
+     * @return olay ilk kez bu tuketici tarafindan sahiplenildiyse true
+     */
+    private boolean claim(EmployeeEvent event) {
+        // Hizli yol: mukerrer teslimlerin buyuk cogunlugu burada elenir ve
+        // istisna maliyeti hic odenmez.
+        if (processedEventRepository.existsById(event.eventId())) {
+            return false;
+        }
+
+        try {
+            processedEventRepository.saveAndFlush(new ProcessedEvent(
+                    event.eventId(), event.eventType().name(), event.employeeId()));
+            return true;
+
+        } catch (DataIntegrityViolationException e) {
+            // Yaris: baska bir tuketici ayni olayi biz kontrol ettikten sonra
+            // kaydetti. Mail HENUZ gonderilmedi, dogru davranis atlamaktir.
+            // Transaction geri alinabilir; mesaj yeniden teslim edildiginde
+            // hizli yol devreye girer ve sessizce atlanir.
+            log.info("Event already claimed by another consumer: {}", event.eventId());
+            return false;
+        }
     }
 }
