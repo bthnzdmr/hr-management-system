@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
-import type { SyntheticEvent } from 'react';
+import type { ReactNode, SyntheticEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Alert, Box, Button, Card, CardContent, CircularProgress, Grid, MenuItem, Stack, TextField,
+  Alert, Box, Button, CircularProgress, Divider, Grid, MenuItem, Paper, Stack, TextField,
   Typography,
 } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { employeeApi } from '../api/employees';
 import { departmentApi } from '../api/departments';
 import { errorMessage } from '../api/client';
+import { ManagerPicker } from '../components/ManagerPicker';
+import type { ManagerOption } from '../components/ManagerPicker';
+import { useSnackbar } from '../components/SnackbarProvider';
 import type { Department, EmployeeCreateRequest } from '../types/api';
 
 const EMPTY_FORM: EmployeeCreateRequest = {
@@ -23,12 +27,31 @@ const EMPTY_FORM: EmployeeCreateRequest = {
   salary: null,
 };
 
+function Section({ title, description, children }: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <Box>
+      <Typography variant="subtitle2">{title}</Typography>
+      <Typography variant="caption" color="text.secondary">
+        {description}
+      </Typography>
+      <Divider sx={{ mt: 1, mb: 2.5 }} />
+      {children}
+    </Box>
+  );
+}
+
 export function EmployeeFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { notify } = useSnackbar();
   const isEdit = Boolean(id);
 
   const [form, setForm] = useState<EmployeeCreateRequest>(EMPTY_FORM);
+  const [manager, setManager] = useState<ManagerOption | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   // Maas ayri uca yazildigi icin degisip degismedigini bilmemiz gerekiyor:
   // degismediyse gereksiz bir istek ve gereksiz bir olay uretmeyiz.
@@ -75,6 +98,13 @@ export function EmployeeFormPage() {
           hireDate: employee.hireDate,
           salary: asText,
         });
+        // Secim kutusu adi sunucudan gelen cevaptan doldurulur; aksi halde
+        // mevcut yonetici alani bos gorunur ve kaydederken sessizce silinirdi.
+        setManager(
+          employee.managerId && employee.managerFullName
+            ? { id: employee.managerId, label: employee.managerFullName }
+            : null,
+        );
         setInitialSalary(asText);
       })
       .catch((err) => setError(errorMessage(err)))
@@ -91,10 +121,12 @@ export function EmployeeFormPage() {
     setError(null);
     setSubmitting(true);
 
+    const payload = { ...form, managerId: manager?.id ?? null };
+
     try {
       if (isEdit) {
         // salary bilerek ayriliyor: genel guncelleme onu tasimaz.
-        const { salary, ...employeeFields } = form;
+        const { salary, ...employeeFields } = payload;
         await employeeApi.update(Number(id), employeeFields);
 
         // Metin karsilastirilir (ikisi de ayni bicimde), sunucuya SAYI gider.
@@ -102,8 +134,9 @@ export function EmployeeFormPage() {
           await employeeApi.updateSalary(Number(id), { salary: Number(salary) });
         }
       } else {
-        await employeeApi.create(form);
+        await employeeApi.create(payload);
       }
+      notify(isEdit ? 'Employee updated' : 'Employee created');
       navigate('/employees');
     } catch (err) {
       // Sunucunun alan bazli dogrulama hatalari da burada gosterilir.
@@ -123,92 +156,134 @@ export function EmployeeFormPage() {
   }
 
   return (
-    <Card sx={{ maxWidth: 720, mx: 'auto' }}>
-      <CardContent>
-        <Typography variant="h5" component="h1" gutterBottom>
+    <Stack spacing={2.5} sx={{ maxWidth: 860, mx: 'auto' }}>
+      <Box>
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/employees')}>
+          Back to employees
+        </Button>
+      </Box>
+
+      <Box>
+        <Typography variant="h5" component="h1">
           {isEdit ? 'Edit employee' : 'New employee'}
         </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {isEdit
+            ? 'Changes are announced to the notification service.'
+            : 'The new record triggers a welcome notification.'}
+        </Typography>
+      </Box>
 
-        <form onSubmit={handleSubmit}>
-          <Stack spacing={2} sx={{ mt: 2 }}>
-            {error && <Alert severity="error">{error}</Alert>}
+      {error && <Alert severity="error">{error}</Alert>}
 
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="First name" value={form.firstName} required fullWidth
-                  onChange={(e) => update('firstName', e.target.value)}
-                />
+      {/* Tarayici dogrulamasi acik birakilir: zorunlu bir alan bos kaldiginda
+          sunucuya gidip donmeye gerek kalmadan uyari verir. Karari yine
+          sunucu verir, bu yalnizca hizli geri bildirimdir. */}
+      <form onSubmit={handleSubmit}>
+        <Stack spacing={2.5}>
+          <Paper sx={{ p: 3 }}>
+            <Section title="Personal details" description="How we identify and reach this person.">
+              <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="First name" value={form.firstName} required fullWidth
+                    onChange={(e) => update('firstName', e.target.value)}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Last name" value={form.lastName} required fullWidth
+                    onChange={(e) => update('lastName', e.target.value)}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Email" type="email" value={form.email} required fullWidth
+                    onChange={(e) => update('email', e.target.value)}
+                    helperText="Notifications are sent to this address"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Phone" value={form.phone ?? ''} fullWidth
+                    onChange={(e) => update('phone', e.target.value || null)}
+                    helperText="Optional"
+                  />
+                </Grid>
               </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Last name" value={form.lastName} required fullWidth
-                  onChange={(e) => update('lastName', e.target.value)}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Email" type="email" value={form.email} required fullWidth
-                  onChange={(e) => update('email', e.target.value)}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Phone" value={form.phone ?? ''} fullWidth
-                  onChange={(e) => update('phone', e.target.value || null)}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  select label="Department" required fullWidth
-                  value={form.departmentId ? String(form.departmentId) : ''}
-                  onChange={(e) => update('departmentId', Number(e.target.value))}
-                  helperText={departments.length === 0 ? 'No departments available' : ' '}
-                >
-                  {departments.map((department) => (
-                    <MenuItem key={department.id} value={String(department.id)}>
-                      {department.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Manager ID" type="number" value={form.managerId ?? ''} fullWidth
-                  onChange={(e) => update('managerId', e.target.value ? Number(e.target.value) : null)}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Job title" value={form.jobTitle} required fullWidth
-                  onChange={(e) => update('jobTitle', e.target.value)}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Hire date" type="date" value={form.hireDate} required fullWidth
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  onChange={(e) => update('hireDate', e.target.value)}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Salary" type="number" value={form.salary ?? ''} fullWidth
-                  onChange={(e) => update('salary', e.target.value || null)}
-                  helperText={isEdit ? 'Saved separately; admins only' : ' '}
-                />
-              </Grid>
-            </Grid>
+            </Section>
+          </Paper>
 
-            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-              <Button onClick={() => navigate('/employees')}>Cancel</Button>
-              <Button type="submit" variant="contained" disabled={submitting}>
-                {submitting ? 'Saving…' : 'Save'}
-              </Button>
-            </Box>
-          </Stack>
-        </form>
-      </CardContent>
-    </Card>
+          <Paper sx={{ p: 3 }}>
+            <Section title="Employment" description="Where this person sits in the organisation.">
+              <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    select label="Department" required fullWidth
+                    value={form.departmentId ? String(form.departmentId) : ''}
+                    onChange={(e) => update('departmentId', Number(e.target.value))}
+                    helperText={departments.length === 0 ? 'No departments available' : ' '}
+                  >
+                    {departments.map((department) => (
+                      <MenuItem key={department.id} value={String(department.id)}>
+                        {department.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Job title" value={form.jobTitle} required fullWidth
+                    onChange={(e) => update('jobTitle', e.target.value)}
+                    helperText=" "
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Hire date" type="date" value={form.hireDate} required fullWidth
+                    slotProps={{ inputLabel: { shrink: true } }}
+                    onChange={(e) => update('hireDate', e.target.value)}
+                    helperText=" "
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <ManagerPicker
+                    value={manager}
+                    onChange={setManager}
+                    excludeId={id ? Number(id) : undefined}
+                  />
+                </Grid>
+              </Grid>
+            </Section>
+          </Paper>
+
+          <Paper sx={{ p: 3 }}>
+            <Section
+              title="Compensation"
+              description="Stored separately and never included in notification emails."
+            >
+              <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Salary" type="number" value={form.salary ?? ''} fullWidth
+                    onChange={(e) => update('salary', e.target.value || null)}
+                    helperText={isEdit ? 'Saved through its own endpoint' : 'Optional'}
+                  />
+                </Grid>
+              </Grid>
+            </Section>
+          </Paper>
+
+          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+            <Button onClick={() => navigate('/employees')} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained" disabled={submitting}>
+              {submitting ? 'Saving…' : 'Save'}
+            </Button>
+          </Box>
+        </Stack>
+      </form>
+    </Stack>
   );
 }
