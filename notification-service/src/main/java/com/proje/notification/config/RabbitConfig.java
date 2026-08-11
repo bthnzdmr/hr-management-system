@@ -2,15 +2,21 @@ package com.proje.notification.config;
 
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.retry.MessageRecoverer;
+import org.springframework.amqp.rabbit.retry.RepublishMessageRecoverer;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+
+import java.util.List;
 
 @Configuration
 public class RabbitConfig {
@@ -24,9 +30,19 @@ public class RabbitConfig {
     public static final String DLX = "employee.dlx";
     public static final String DLQ = "employee.notification.dlq";
 
-    // employee.# : employee ile baslayan tum olaylar. Yeni bir olay tipi
-    // eklendiginde bu servis onu da almaya baslar, binding degistirilmez.
-    private static final String ROUTING_PATTERN = "employee.#";
+    // Yalnizca ISLEYEBILDIGIMIZ olay tiplerine abone olunur.
+    //
+    // Onceden "employee.#" jokeri vardi ve yorumunda "yeni olay tipi eklenince
+    // bu servis onu da alir" yaziyordu. Ama EmployeeEventType KAPALI bir enum:
+    // taninmayan tip Jackson'da cozulemez, uc deneme bosa gider ve mesaj kimsenin
+    // bakmadigi DLQ'ya duserdi. Joker binding ile kapali enum birbiriyle celisir.
+    //
+    // Yeni bir olay tipi eklendiginde artik iki sey birlikte degisir: enum ve
+    // buradaki liste. Sessizce DLQ'ya dusmek yerine hic teslim edilmez.
+    private static final List<String> ROUTING_KEYS = List.of(
+            "employee.created",
+            "employee.updated",
+            "employee.deactivated");
 
     @Bean
     TopicExchange employeeExchange() {
@@ -55,9 +71,13 @@ public class RabbitConfig {
         return QueueBuilder.durable(DLQ).build();
     }
 
+    // Her routing key icin ayri bir binding. Declarables ile tek bean altinda
+    // toplanir; Spring hepsini acilista bildirir.
     @Bean
-    Binding notificationBinding(Queue notificationQueue, TopicExchange employeeExchange) {
-        return BindingBuilder.bind(notificationQueue).to(employeeExchange).with(ROUTING_PATTERN);
+    Declarables notificationBindings(Queue notificationQueue, TopicExchange employeeExchange) {
+        return new Declarables(ROUTING_KEYS.stream()
+                .map(key -> BindingBuilder.bind(notificationQueue).to(employeeExchange).with(key))
+                .toList());
     }
 
     @Bean
@@ -70,5 +90,18 @@ public class RabbitConfig {
     @Bean
     MessageConverter jsonMessageConverter(Jackson2ObjectMapperBuilder builder) {
         return new Jackson2JsonMessageConverter(builder.build());
+    }
+
+    /**
+     * Retry hakki biten mesaji DLQ'ya HATA SEBEBIYLE birlikte tasir.
+     *
+     * Varsayilan davranis mesaji reddetmek ve DLX'e birakmaktir; o zaman DLQ'da
+     * yalnizca x-death sayaci bulunur, NEDEN basarisiz oldugu bilinmez.
+     * RepublishMessageRecoverer x-exception-message ve x-exception-stacktrace
+     * basliklarini ekler -- DLQ'ya bakan kisi sebebi dogrudan gorur.
+     */
+    @Bean
+    MessageRecoverer messageRecoverer(RabbitTemplate rabbitTemplate) {
+        return new RepublishMessageRecoverer(rabbitTemplate, DLX, DLQ);
     }
 }

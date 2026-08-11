@@ -33,14 +33,18 @@ spring:
     listener:
       simple:
         # Basarisiz mesaj once bellek ici olarak yeniden denenir; hak bitince
-        # requeue edilmeden reddedilir ve kuyrugun DLX'i uzerinden DLQ'ya duser.
+        # RepublishMessageRecoverer mesaji DLQ'ya tasir.
         # Retry kapali olsaydi mesaj sonsuza kadar kuyruga geri konurdu.
+        #
+        # Onceki degerler 1 sn + 2 sn = ~3 saniyelik tolerans veriyordu; bundan
+        # uzun suren HER SMTP veya veritabani kesintisi tum olaylari DLQ'ya
+        # dokerdi. Simdi 2+4+8+16 = 30 saniye.
         retry:
           enabled: true
-          max-attempts: 3
-          initial-interval: 1s
+          max-attempts: 5
+          initial-interval: 2s
           multiplier: 2
-          max-interval: 10s
+          max-interval: 30s
         default-requeue-rejected: false
 
   mail:
