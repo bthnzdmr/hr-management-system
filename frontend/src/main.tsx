@@ -6,6 +6,7 @@ import { store } from './store';
 import { AuthProvider } from './auth/AuthContext';
 import { ColorModeProvider } from './theme/ColorModeContext';
 import { SnackbarProvider } from './components/SnackbarProvider';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import App from './App';
 
 // Saglayicilarin sirasi onemli: AuthProvider ici Router'in yonlendirme
@@ -14,13 +15,18 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
       <ColorModeProvider>
-        <SnackbarProvider>
-          <BrowserRouter>
-            <AuthProvider>
-              <App />
-            </AuthProvider>
-          </BrowserRouter>
-        </SnackbarProvider>
+        {/* Hata sinirini temanin ICINE koyuyoruz: hata ekrani da uygulamanin
+            renkleriyle cizilsin. Router'in DISINDA cunku yonlendirme
+            kurulamadan da bir hata firlayabilir. */}
+        <ErrorBoundary>
+          <SnackbarProvider>
+            <BrowserRouter>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </BrowserRouter>
+          </SnackbarProvider>
+        </ErrorBoundary>
       </ColorModeProvider>
     </Provider>
   </StrictMode>,

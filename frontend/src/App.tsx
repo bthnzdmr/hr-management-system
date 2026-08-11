@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { EmployeeListPage } from './pages/EmployeeListPage';
 import { EmployeeDetailPage } from './pages/EmployeeDetailPage';
 import { EmployeeFormPage } from './pages/EmployeeFormPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 export default function App() {
   return (
@@ -26,10 +27,16 @@ export default function App() {
             <Route path="/employees/new" element={<EmployeeFormPage />} />
             <Route path="/employees/:id" element={<EmployeeFormPage />} />
           </Route>
+
+          {/* Bilinmeyen adres kabugun ICINDE karsilanir: kullanici menusunu
+              ve cikis dugmesini kaybetmez. */}
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/employees" replace />} />
+      {/* Kok adres tek gercek yonlendirmedir. Onceki halde her yanlis adres
+          sessizce listeye gidiyordu ve yazim hatasi hic fark edilmiyordu. */}
+      <Route path="/" element={<Navigate to="/employees" replace />} />
     </Routes>
   );
 }
