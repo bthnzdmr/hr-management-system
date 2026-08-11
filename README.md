@@ -2,7 +2,7 @@
 
 > Personel kayıtlarını yöneten bir web uygulaması. Kayıt değiştiğinde bildirim maili, ana uygulamanın içinde değil, **ayrı bir servis** tarafından **mesaj kuyruğu** üzerinden gönderilir.
 
-**Durum:** Sistem uçtan uca çalışıyor. Employee Service (dokuz REST ucu — sekizi kimlik doğrulaması ister, rol bazlı yetkilendirme, transactional outbox), Notification Service (idempotent tüketici, DLQ, Feign, mail) ve React arayüzü hazır; tamamı tek komutla konteynerlerde ayağa kalkıyor.
+**Durum:** Sistem uçtan uca çalışıyor. Employee Service (on REST ucu — dokuzu kimlik doğrulaması ister, rol bazlı yetkilendirme, transactional outbox), Notification Service (idempotent tüketici, DLQ, Feign, mail) ve React arayüzü hazır; tamamı tek komutla konteynerlerde ayağa kalkıyor.
 
 ---
 
@@ -38,13 +38,13 @@ Sistem iki işi yapar:
 ┌──────────────────────────────────────────────────────────────────┐
 │  TARAYICI                                                ✅      │
 │  React + TypeScript + MUI          :5173                         │
-│  Giriş, personel listesi, kayıt formu                            │
+│  Giriş, personel listesi, detay sayfası, kayıt formu             │
 └───────────────────────┬──────────────────────────────────────────┘
                         │  HTTP (JSON) + JWT · CORS ile izinli
                         ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │  EMPLOYEE SERVICE (Spring Boot)      :8080               ✅      │
-│  • REST uçları (listele, ekle, güncelle, pasifleştir)            │
+│  • REST uçları (listele, ara, ekle, güncelle, durum değiştir)    │
 │  • JWT ile kimlik doğrulama, rol bazlı yetkilendirme             │
 │  • Doğrulama, iş kuralları, merkezî hata yönetimi                │
 │  • Verinin tek gerçek kaynağı (source of truth)                  │
@@ -161,9 +161,9 @@ Gerekçeleri proje kurallarında kayıtlıdır.
 | Teknoloji          | Ne için kullanılıyor                                           | Durum |
 | ------------------ | -------------------------------------------------------------- | ----- |
 | React + TypeScript | Arayüz ve tip güvenliği                                        | ✅    |
-| MUI                | Hazır bileşenler; Table + TablePagination ile sayfalı liste    | ✅    |
-| Redux Toolkit      | Sunucu verisi durumu (liste, sayfalama, yükleniyor, hata)      | ✅    |
-| Context API        | Oturum ve rol (seyrek değişen, her yerden okunan veri)         | ✅    |
+| MUI                | Hazır bileşenler; özel tema, sayfalı ve sıralanabilir tablo    | ✅    |
+| Redux Toolkit      | Sunucu verisi durumu (liste, arama, filtre, sıralama, hata)    | ✅    |
+| Context API        | Oturum, rol ve tema (seyrek değişen, her yerden okunan veri)   | ✅    |
 | Axios              | HTTP istemcisi; interceptor ile merkezi token ve hata yönetimi | ✅    |
 
 ### Altyapı
@@ -363,8 +363,14 @@ Backend'in bu kaynağa CORS izni vermesi gerekir (`CORS_ALLOWED_ORIGINS`).
 
 | Rol | Görebildiği |
 |---|---|
-| `USER` | Personel listesi (salt okunur) |
-| `ADMIN` | Liste + oluştur, güncelle, pasifleştir |
+| `USER` | Personel listesi ve personel detay sayfası (salt okunur) |
+| `ADMIN` | Bunlara ek olarak oluştur, güncelle, pasifleştir / yeniden aktifleştir |
+
+Arayüzde bulunanlar: yan menülü uygulama kabuğu, açık/koyu tema (seçim
+tarayıcıda saklanır, seçim yoksa işletim sisteminin tercihi izlenir), ada ve
+e-postaya göre arama, aktif/pasif filtresi, sütun sıralama, yönetici sütunu,
+astların listelendiği detay sayfası, ve yöneticiyi ID yerine adıyla seçtiren
+arama kutusu.
 
 Testler:
 
@@ -420,14 +426,24 @@ Taban adres: `http://localhost:8080`
 | Metot | Uç | Açıklama | Yetki | Başarılı |
 |---|---|---|---|---|
 | `POST` | `/api/auth/login` | Token alma | herkese açık | `200` |
-| `GET` | `/api/employees` | Sayfalı liste. `?page=0&size=20&sort=lastName,asc` | giriş yapmış | `200` |
+| `GET` | `/api/employees` | Sayfalı liste. `?page=0&size=20&sort=lastName,asc&search=liskov&active=true` | giriş yapmış | `200` |
 | `GET` | `/api/employees/{id}` | Tek kayıt | giriş yapmış | `200` |
+| `GET` | `/api/employees/{id}/direct-reports` | Doğrudan bağlı personel | giriş yapmış | `200` |
 | `POST` | `/api/employees` | Yeni kayıt | `ADMIN` | `201` + `Location` |
 | `PUT` | `/api/employees/{id}` | Güncelleme | `ADMIN` | `200` |
-| `DELETE` | `/api/employees/{id}` | Pasifleştirme (kayıt silinmez, tekrarı etkisiz) | `ADMIN` | `204` |
+| `PUT` | `/api/employees/{id}/status` | Pasifleştirme / yeniden aktifleştirme (tekrarı etkisiz) | `ADMIN` | `200` |
 | `GET` | `/api/employees/{id}/salary` | Maaş bilgisi | `ADMIN` | `200` |
 | `PUT` | `/api/employees/{id}/salary` | Maaş güncelleme | `ADMIN` | `200` |
 | `GET` | `/api/departments` | Aktif departmanlar, isme göre sıralı | giriş yapmış | `200` |
+
+`search` ada, soyada ve e-postaya bakar; `active` verilmezse aktif/pasif ayrımı
+yapılmaz. Sıralanabilir alanlar: `lastName`, `firstName`, `email`, `jobTitle`,
+`hireDate`.
+
+**Neden `DELETE` değil `PUT /{id}/status`?** Kayıt silinmiyor, durumu
+değişiyor — ve `DELETE`'in geri dönüşü yoktur. Pasifleştirme tek yönlü bir
+kapıydı; aynı uç iki yöne de çalışınca hem doğru fiil kullanılmış oluyor hem de
+işlem geri alınabiliyor.
 
 **Maaş neden ayrı uçta?** Genel personel cevabında dönseydi, `USER` rolündeki
 istemciler — Notification Service dahil — maaşı görürdü. Genel güncellemede yer
@@ -490,6 +506,7 @@ curl -X POST http://localhost:8080/api/employees \
   "departmentId": 1,
   "departmentName": "Software Development",
   "managerId": null,
+  "managerFullName": null,
   "jobTitle": "Software Engineer",
   "hireDate": "2024-01-15",
   "active": true
@@ -504,6 +521,7 @@ Hatalar RFC 7807 (`ProblemDetail`) biçiminde döner.
 |---|---|
 | Doğrulama hatası | `400` + alan bazlı `errors` listesi |
 | Geçersiz yönetici ataması (döngü) | `400` |
+| Pasif bir kişinin yönetici atanması | `400` |
 | Bozuk JSON gövdesi | `400` |
 | Geçersiz sayfalama/sıralama parametresi | `400` |
 | Kimlik doğrulanmadı / geçersiz token | `401` |
@@ -578,7 +596,7 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesi, outbox yazıcı ve relay
 │       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
 │       ├── main/resources/db/migration/   V1__ V2__ V3__ V4__
-│       └── test/               78 test
+│       └── test/               88 test
 ├── notification-service/       ✅  olayları dinleyip mail gönderen servis
 │   ├── pom.xml
 │   └── src/
@@ -591,20 +609,21 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesinin tüketici tarafı
 │       │   └── config/         kuyruk, DLX ve DLQ tanımları
 │       ├── main/resources/db/migration/   V1__
-│       └── test/               19 test
+│       └── test/               23 test
 └── frontend/                   ✅  React + TypeScript arayüz
     ├── package.json
     └── src/
         ├── api/                Axios istemcisi ve interceptor'lar
         ├── auth/               Context API: oturum, korumalı rotalar
-        ├── store/              Redux Toolkit: liste durumu, sayfalama
-        ├── pages/              Giriş, liste, form ekranları
-        ├── components/         Ortak yerleşim
+        ├── store/              Redux Toolkit: liste durumu, arama, filtre, sıralama
+        ├── theme/              Tema tanımı ve açık/koyu tema seçimi
+        ├── pages/              Giriş, liste, detay, form, 404 ekranları
+        ├── components/         Kabuk, onay penceresi, geri bildirim, hata sınırı
         ├── types/              Backend sözleşmesinin TypeScript karşılığı
-        └── *.test.ts(x)        30 test (Vitest + Testing Library)
+        └── *.test.ts(x)        67 test (Vitest + Testing Library)
 
 e2e/                            ✅  çalışan sisteme dışarıdan bakan testler
-└── src/test/java/com/proje/e2e/    5 test
+└── src/test/java/com/proje/e2e/    8 test
 ```
 
 Her Java servisinin **kendi `pom.xml`'i** vardır; ortak bir üst pom kullanılmaz. Mikroservislerin bağımsız derlenip bağımsız dağıtılabilmesi bu mimarinin amacıdır, ortak bir üst pom onları sürüm olarak birbirine bağlardı.
