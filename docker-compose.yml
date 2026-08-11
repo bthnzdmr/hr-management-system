@@ -135,6 +135,8 @@ services:
       # Salt okuyan insan hesabi; ayni sekilde opsiyonel.
       USER_EMAIL: ${USER_EMAIL:-}
       USER_PASSWORD: ${USER_PASSWORD:-}
+      # Gelistirme/tanitim verisi. Varsayilan kapali.
+      DEMO_DATA: ${DEMO_DATA:-false}
       # full profilinde Notification Service de calisiyor ve bu hesapla giris
       # yapiyor; hesap olusturulmazsa yonetici CC'si hicbir zaman calismaz.
       SERVICE_ACCOUNT_EMAIL: ${SERVICE_ACCOUNT_EMAIL:?see .env.example}

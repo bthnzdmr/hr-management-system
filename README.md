@@ -230,6 +230,7 @@ cp .env.example .env
 | `SERVICE_ACCOUNT_EMAIL` / `SERVICE_ACCOUNT_PASSWORD` | Notification Service'in Employee Service'i çağırırken kullandığı hesap | Evet |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | İlk yönetici hesabı | Hayır, verilmezse hesap oluşturulmaz |
 | `USER_EMAIL` / `USER_PASSWORD` | `EMPLOYEE` rolünde hesap; rol ayrımını denemek için | Hayır, verilmezse hesap oluşturulmaz |
+| `DEMO_DATA` | `true` ise 36 kişilik örnek bir organizasyon üretir | Hayır, varsayılan `false` |
 
 Zorunlu bir değişken eksikse `docker compose` hiçbir konteyneri başlatmaz ve
 hangisinin eksik olduğunu söyler — sistem yarım çalışmak yerine hiç başlamaz.
@@ -249,6 +250,12 @@ openssl rand -base64 48
 
 > `ADMIN_PASSWORD` yalnızca hesap **ilk kez** oluşturulurken kullanılır. Hesap
 > zaten varsa değer yok sayılır; parola değiştirmek için hesabı silmek gerekir.
+
+**Örnek veri:** `DEMO_DATA=true` ile açılışta beş departmana yayılmış, üç seviyeli
+bir hiyerarşisi ve altı yıla yayılmış işe giriş tarihleri olan 36 kişilik bir
+organizasyon üretilir. Boş bir sistemde gösterge paneli anlamlı görünsün diyedir.
+Migration'a **yazılmaz** — migration her ortamda çalışır, örnek veri üretime
+gitmemelidir. Tohumlama olay yayınlamaz; aksi halde 36 "hoş geldin" maili giderdi.
 
 ### 2. Altyapıyı başlat ✅
 

@@ -76,6 +76,11 @@ app:
     email: ${SERVICE_ACCOUNT_EMAIL:}
     password: ${SERVICE_ACCOUNT_PASSWORD:}
 
+  # Gelistirme ve tanitim verisi. Uretimde ASLA acilmaz; bu yuzden migration
+  # degil, acikca acilan bir tohumlayici.
+  demo-data:
+    enabled: ${DEMO_DATA:false}
+
   cors:
     # Sir degil ama ortama gore degisir: uretimde gercek alan adi verilir.
     # Virgulle ayrilmis liste olarak okunur.
