@@ -12,6 +12,8 @@ export interface LoginResponse {
   token: string;
   tokenType: string;
   expiresInSeconds: number;
+  // Uzun omurlu ama sunucuda kayitli: iptal edilebilir.
+  refreshToken: string;
 }
 
 export interface Department {

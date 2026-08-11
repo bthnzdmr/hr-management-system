@@ -1,19 +1,30 @@
 import axios, { AxiosError } from 'axios';
-import type { ProblemDetail } from '../types/api';
+import type { AxiosRequestConfig } from 'axios';
+import type { LoginResponse, ProblemDetail } from '../types/api';
 
 const TOKEN_KEY = 'hr.token';
+const REFRESH_KEY = 'hr.refreshToken';
 
 /**
- * Token localStorage'da tutulur.
+ * Jetonlar localStorage'da tutulur.
  *
- * Bedeli acikca bilinir: XSS varsa token okunabilir. Bunu kabul edilebilir
- * kilan sey token'in 15 dakikalik olmasidir. En guvenlisi httpOnly cerezdir
- * ama o zaman CSRF korumasinin geri acilmasi gerekir.
+ * Bedeli acikca bilinir: XSS varsa okunabilirler. En guvenlisi httpOnly
+ * cerezdir ama o zaman CSRF korumasinin geri acilmasi gerekir -- cerezi
+ * tarayici otomatik gonderdigi icin CSRF yeniden gecerli hale gelir.
+ *
+ * Erisim jetonu 15 dakikalik. Yenileme jetonu uzun omurlu ama SUNUCUDA
+ * kayitli: calindigi anlasilirsa iptal edilebilir, erisim jetonunda bu
+ * imkan yoktur.
  */
 export const tokenStorage = {
   get: () => localStorage.getItem(TOKEN_KEY),
   set: (token: string) => localStorage.setItem(TOKEN_KEY, token),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
+  getRefresh: () => localStorage.getItem(REFRESH_KEY),
+  setRefresh: (token: string) => localStorage.setItem(REFRESH_KEY, token),
+  clear: () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_KEY);
+  },
 };
 
 export const api = axios.create({
@@ -31,7 +42,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-/** Oturum gecersiz kalinca uygulamanin haberdar olmasi icin. */
+/** Oturum gercekten bitince uygulamanin haberdar olmasi icin. */
 type UnauthorizedHandler = () => void;
 let onUnauthorized: UnauthorizedHandler = () => {};
 
@@ -40,24 +51,116 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler) {
 }
 
 const LOGIN_PATH = '/api/auth/login';
+const REFRESH_PATH = '/api/auth/refresh';
+const LOGOUT_PATH = '/api/auth/logout';
+
+/** Yeniden denendigini isaretler: bir istek en fazla BIR kez tekrarlanir. */
+interface RetriableConfig extends AxiosRequestConfig {
+  _retried?: boolean;
+}
+
+/**
+ * Suren yenileme istegi.
+ *
+ * Ayni anda bes istek 401 alirsa bes yenileme yapilmamalidir: ilki eskiyi
+ * dondururken digerleri ARTIK GECERSIZ olan jetonu sunar, sunucu bunu tekrar
+ * kullanim sayar ve kullanicinin butun oturumlarini kapatir. Yani sagligi
+ * korumak icin degil, DOGRULUK icin tek ucus sart.
+ */
+let refreshInFlight: Promise<string> | null = null;
+
+async function refreshAccessToken(): Promise<string> {
+  const refreshToken = tokenStorage.getRefresh();
+  if (!refreshToken) {
+    throw new Error('No refresh token');
+  }
+
+  // Ayni ornek kullanilabilir: asagidaki interceptor kimlik uclarini zaten
+  // disarida birakiyor, dolayisiyla yenilemenin 401'i yeni bir yenileme
+  // tetiklemez ve sonsuz dongu olusmaz.
+  const { data } = await api.post<LoginResponse>(REFRESH_PATH, { refreshToken });
+
+  tokenStorage.set(data.token);
+  // Sunucu her yenilemede YENI bir yenileme jetonu verir (rotation).
+  // Eskisini saklamak, bir sonraki yenilemede tekrar kullanim alarmi demektir.
+  tokenStorage.setRefresh(data.refreshToken);
+
+  return data.token;
+}
+
+function refreshOnce(): Promise<string> {
+  if (!refreshInFlight) {
+    refreshInFlight = refreshAccessToken().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
 
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<ProblemDetail>) => {
-    // 401: kimlik gecersiz -> oturumu kapat.
-    // 403: kimlik gecerli ama yetki yok -> oturum durur, sayfa hata gosterir.
-    //
-    // Giris istegi disarida birakilir: yanlis parola da 401 doner ve bu,
-    // baska bir sekmedeki GECERLI oturumu kapatmamalidir.
-    const isLoginAttempt = error.config?.url?.endsWith(LOGIN_PATH) ?? false;
+  async (error: AxiosError<ProblemDetail>) => {
+    const config = error.config as RetriableConfig | undefined;
+    const url = config?.url ?? '';
 
-    if (error.response?.status === 401 && !isLoginAttempt) {
-      tokenStorage.clear();
-      onUnauthorized();
+    // Kimlik uclarinin kendisi disarida: yanlis parola da 401 doner ve bu,
+    // baska bir sekmedeki GECERLI oturumu kapatmamalidir. Yenileme ucunun
+    // 401'i ise zaten "oturum bitti" demektir.
+    const isAuthCall = url.endsWith(LOGIN_PATH) || url.endsWith(REFRESH_PATH)
+      || url.endsWith(LOGOUT_PATH);
+
+    // 401: kimlik gecersiz. 403: kimlik gecerli ama yetki yok -> oturum durur,
+    // sayfa hatayi gosterir; yenilemek hicbir seyi degistirmez.
+    if (error.response?.status !== 401 || isAuthCall) {
+      return Promise.reject(error);
     }
+
+    // _retried: yenilenmis token ile de 401 aliniyorsa sorun token'in eskiligi
+    // degildir; tekrar denemek sonsuz donguye girerdi.
+    const canRetry = config !== undefined
+      && !config._retried
+      && tokenStorage.getRefresh() !== null;
+
+    if (canRetry) {
+      let token: string;
+
+      // YALNIZCA yenileme cagrisi sarmalanir. Tekrarlanan istek de iceride
+      // olsaydi, onun 401'i once kendi interceptor turunde oturumu kapatir,
+      // sonra buradaki catch bir kez daha kapatirdi.
+      try {
+        token = await refreshOnce();
+      } catch {
+        tokenStorage.clear();
+        onUnauthorized();
+        return Promise.reject(error);
+      }
+
+      config._retried = true;
+      config.headers = { ...config.headers, Authorization: `Bearer ${token}` };
+
+      // Hatasi kendi turunde ele alinir: _retried isaretli oldugu icin
+      // yeniden yenilemeye kalkismaz.
+      return api.request(config);
+    }
+
+    tokenStorage.clear();
+    onUnauthorized();
     return Promise.reject(error);
   },
 );
+
+/** Cikista sunucudaki yenileme jetonunu da iptal eder. */
+export async function revokeRefreshToken(): Promise<void> {
+  const refreshToken = tokenStorage.getRefresh();
+  if (!refreshToken) return;
+
+  try {
+    await api.post(LOGOUT_PATH, { refreshToken });
+  } catch {
+    // Cikis ISTEMCI tarafinda her zaman basarilidir: sunucuya ulasilamasa
+    // bile jetonlar siliniyor. Aksi halde kullanici cikamadan kalirdi.
+  }
+}
 
 /**
  * Backend'in ProblemDetail cevabini kullaniciya gosterilecek metne cevirir.

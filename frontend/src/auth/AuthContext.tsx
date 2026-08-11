@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { api, setUnauthorizedHandler, tokenStorage } from '../api/client';
+import { api, revokeRefreshToken, setUnauthorizedHandler, tokenStorage } from '../api/client';
 import { sessionEnded, useAppDispatch } from '../store';
 import type { LoginRequest, LoginResponse, Role } from '../types/api';
 
@@ -70,7 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     dispatch(sessionEnded());
   }, [dispatch]);
 
+  // Yalnizca yerel jetonlari silmek yetmez: yenileme jetonunun bir kopyasi
+  // kalmissa oturum sunucuda yasamaya devam ederdi. Arayuz cikisi BEKLEMEZ --
+  // sunucu cevap vermese bile kullanici cikmis olmalidir.
   const logout = useCallback(() => {
+    void revokeRefreshToken();
     tokenStorage.clear();
     endSession();
   }, [endSession]);
@@ -90,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = await api.post<LoginResponse>('/api/auth/login', credentials);
 
     tokenStorage.set(data.token);
+    tokenStorage.setRefresh(data.refreshToken);
 
     const parsed = readToken(data.token);
     if (!parsed) {

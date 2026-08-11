@@ -1,6 +1,7 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { AxiosError, AxiosHeaders } from 'axios';
-import { api, errorMessage, setUnauthorizedHandler, tokenStorage } from './client';
+import type { AxiosAdapter, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { api, errorMessage, revokeRefreshToken, setUnauthorizedHandler, tokenStorage } from './client';
 import type { ProblemDetail } from '../types/api';
 
 /** Interceptor'i gercek bir istek atmadan calistirir. */
@@ -12,15 +13,19 @@ async function runRequestInterceptor() {
   return (await handler.handlers[0].fulfilled(config)) as { headers: AxiosHeaders };
 }
 
-async function runResponseErrorInterceptor(status: number) {
-  const handler = api.interceptors.response as unknown as {
-    handlers: { rejected: (error: unknown) => Promise<unknown> }[];
-  };
-  const error = new AxiosError('failed');
-  error.response = { status } as AxiosError['response'];
-
-  return handler.handlers[0].rejected(error).catch(() => undefined);
+function ok(config: AxiosRequestConfig, data: unknown): AxiosResponse {
+  return {
+    data, status: 200, statusText: 'OK', headers: {}, config: config as never,
+  } as AxiosResponse;
 }
+
+function unauthorized(config: AxiosRequestConfig): AxiosError {
+  const error = new AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config as never);
+  error.response = { status: 401, data: {} } as AxiosResponse;
+  return error;
+}
+
+const originalAdapter = api.defaults.adapter;
 
 describe('request interceptor', () => {
   beforeEach(() => tokenStorage.clear());
@@ -40,30 +45,203 @@ describe('request interceptor', () => {
   });
 });
 
-describe('response interceptor', () => {
-  beforeEach(() => tokenStorage.clear());
+describe('token refresh', () => {
+  beforeEach(() => {
+    tokenStorage.clear();
+    setUnauthorizedHandler(() => {});
+  });
 
-  it('clears the session when the server rejects the identity', async () => {
-    tokenStorage.set('expired.token.value');
+  afterEach(() => {
+    api.defaults.adapter = originalAdapter;
+  });
+
+  /**
+   * Sunucuyu taklit eder: erisim jetonu 'fresh' olana kadar 401 doner,
+   * /api/auth/refresh cagrisi yeni bir cift verir.
+   */
+  function serverThatAcceptsOnly(validToken: string) {
+    const adapter = vi.fn<AxiosAdapter>(async (config) => {
+      if (config.url?.endsWith('/api/auth/refresh')) {
+        return ok(config, {
+          token: validToken,
+          tokenType: 'Bearer',
+          expiresInSeconds: 900,
+          refreshToken: 'rotated-refresh',
+        });
+      }
+
+      const sent = new AxiosHeaders(config.headers).get('Authorization');
+      if (sent === `Bearer ${validToken}`) {
+        return ok(config, { ok: true });
+      }
+      throw unauthorized(config);
+    });
+
+    api.defaults.adapter = adapter;
+    return adapter;
+  }
+
+  it('refreshes the access token and retries the failed request', async () => {
+    tokenStorage.set('expired');
+    tokenStorage.setRefresh('valid-refresh');
+    serverThatAcceptsOnly('fresh');
+
+    const response = await api.get('/api/employees');
+
+    expect(response.data).toEqual({ ok: true });
+    expect(tokenStorage.get()).toBe('fresh');
+  });
+
+  it('stores the rotated refresh token, not the old one', async () => {
+    // Sunucu her yenilemede yeni bir jeton veriyor. Eskisi saklanirsa bir
+    // sonraki yenileme TEKRAR KULLANIM sayilir ve tum oturumlar kapatilir.
+    tokenStorage.set('expired');
+    tokenStorage.setRefresh('valid-refresh');
+    serverThatAcceptsOnly('fresh');
+
+    await api.get('/api/employees');
+
+    expect(tokenStorage.getRefresh()).toBe('rotated-refresh');
+  });
+
+  it('refreshes only once when several requests fail at the same time', async () => {
+    // Bu bir hiz meselesi degil DOGRULUK meselesi: ikinci yenileme, ilkinin
+    // cop ettigi jetonu sunar ve sunucu bunu tekrar kullanim sayip kullanicinin
+    // butun oturumlarini kapatir.
+    tokenStorage.set('expired');
+    tokenStorage.setRefresh('valid-refresh');
+    const adapter = serverThatAcceptsOnly('fresh');
+
+    await Promise.all([
+      api.get('/api/employees'),
+      api.get('/api/departments'),
+      api.get('/api/employees/1'),
+    ]);
+
+    const refreshCalls = adapter.mock.calls
+      .filter(([config]) => config.url?.endsWith('/api/auth/refresh'));
+    expect(refreshCalls).toHaveLength(1);
+  });
+
+  it('ends the session when there is no refresh token to use', async () => {
+    tokenStorage.set('expired');
     const onUnauthorized = vi.fn();
     setUnauthorizedHandler(onUnauthorized);
+    serverThatAcceptsOnly('fresh');
 
-    await runResponseErrorInterceptor(401);
+    await expect(api.get('/api/employees')).rejects.toThrow();
 
     expect(tokenStorage.get()).toBeNull();
     expect(onUnauthorized).toHaveBeenCalledOnce();
   });
 
-  it('keeps the session when the identity is valid but the permission is missing', async () => {
-    // 403 kimligin gecerli oldugunu soyler; kullaniciyi disari atmak yanlis olur.
-    tokenStorage.set('valid.token.value');
+  it('ends the session when the refresh itself is rejected', async () => {
+    tokenStorage.set('expired');
+    tokenStorage.setRefresh('revoked-refresh');
     const onUnauthorized = vi.fn();
     setUnauthorizedHandler(onUnauthorized);
 
-    await runResponseErrorInterceptor(403);
+    // Yenileme ucu de 401 doner: jeton iptal edilmis.
+    api.defaults.adapter = vi.fn<AxiosAdapter>(async (config) => {
+      throw unauthorized(config);
+    });
 
-    expect(tokenStorage.get()).toBe('valid.token.value');
+    await expect(api.get('/api/employees')).rejects.toThrow();
+
+    expect(tokenStorage.get()).toBeNull();
+    expect(tokenStorage.getRefresh()).toBeNull();
+    expect(onUnauthorized).toHaveBeenCalledOnce();
+  });
+
+  it('does not try to refresh a failed sign-in', async () => {
+    // Yanlis parola da 401 doner; bunu oturum sona erdi sanmak yanlistir.
+    const adapter = vi.fn<AxiosAdapter>(async (config) => {
+      throw unauthorized(config);
+    });
+    api.defaults.adapter = adapter;
+
+    await expect(api.post('/api/auth/login', {})).rejects.toThrow();
+
+    expect(adapter).toHaveBeenCalledOnce();
+  });
+
+  it('gives up instead of looping when the refreshed token is also rejected', async () => {
+    tokenStorage.set('expired');
+    tokenStorage.setRefresh('valid-refresh');
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+
+    // Yenileme calisiyor ama yeni jeton da reddediliyor.
+    api.defaults.adapter = vi.fn<AxiosAdapter>(async (config) => {
+      if (config.url?.endsWith('/api/auth/refresh')) {
+        return ok(config, {
+          token: 'still-rejected', tokenType: 'Bearer', expiresInSeconds: 900,
+          refreshToken: 'rotated-refresh',
+        });
+      }
+      throw unauthorized(config);
+    });
+
+    await expect(api.get('/api/employees')).rejects.toThrow();
+
+    expect(onUnauthorized).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the session when the identity is valid but the permission is missing', async () => {
+    // 403 kimligin gecerli oldugunu soyler; kullaniciyi disari atmak yanlis olur.
+    tokenStorage.set('valid');
+    tokenStorage.setRefresh('valid-refresh');
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+
+    api.defaults.adapter = vi.fn<AxiosAdapter>(async (config) => {
+      const error = new AxiosError('Forbidden', 'ERR_BAD_REQUEST', config as never);
+      error.response = { status: 403, data: {} } as AxiosResponse;
+      throw error;
+    });
+
+    await expect(api.get('/api/employees/1/salary')).rejects.toThrow();
+
+    expect(tokenStorage.get()).toBe('valid');
     expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+});
+
+describe('sign out', () => {
+  beforeEach(() => tokenStorage.clear());
+  afterEach(() => {
+    api.defaults.adapter = originalAdapter;
+  });
+
+  it('asks the server to revoke the refresh token', async () => {
+    tokenStorage.setRefresh('to-be-revoked');
+    const adapter = vi.fn<AxiosAdapter>(async (config) => ok(config, null));
+    api.defaults.adapter = adapter;
+
+    await revokeRefreshToken();
+
+    expect(adapter).toHaveBeenCalledOnce();
+    expect(adapter.mock.calls[0][0].url).toContain('/api/auth/logout');
+  });
+
+  it('does not fail when the server cannot be reached', async () => {
+    // Cikis istemci tarafinda her zaman basarilidir; aksi halde kullanici
+    // sunucu kapaliyken oturumda kilitli kalirdi.
+    tokenStorage.setRefresh('to-be-revoked');
+    api.defaults.adapter = vi.fn<AxiosAdapter>(async () => {
+      throw new AxiosError('Network Error');
+    });
+
+    await expect(revokeRefreshToken()).resolves.toBeUndefined();
+  });
+
+  it('calls nothing when there is no refresh token', async () => {
+    const adapter = vi.fn<AxiosAdapter>(async (config) => ok(config, null));
+    api.defaults.adapter = adapter;
+
+    await revokeRefreshToken();
+
+    expect(adapter).not.toHaveBeenCalled();
   });
 });
 

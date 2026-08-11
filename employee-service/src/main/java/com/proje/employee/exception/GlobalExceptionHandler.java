@@ -52,6 +52,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.UNAUTHORIZED, "Authentication failed", "Invalid credentials");
     }
 
+    // Sebep istemciye SOYLENMEZ: "bu jeton iptal edilmisti" demek, saldirgana
+    // elindekinin bir zamanlar gecerli oldugunu dogrulardi. Ayrinti loga gider.
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ProblemDetail handleInvalidRefreshToken(InvalidRefreshTokenException ex) {
+        log.warn("Refresh rejected: {}", ex.getMessage());
+        return problem(HttpStatus.UNAUTHORIZED, "Authentication failed", "Invalid refresh token");
+    }
+
     @ExceptionHandler({ManagerCycleException.class, InactiveManagerException.class})
     public ProblemDetail handleInvalidManager(RuntimeException ex) {
         return problem(HttpStatus.BAD_REQUEST, "Invalid manager assignment", ex.getMessage());

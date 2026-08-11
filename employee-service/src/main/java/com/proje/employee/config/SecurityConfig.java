@@ -83,7 +83,15 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
+                        // Ucler tek tek yazilir, "/api/auth/**" degil: yarin bu
+                        // altina eklenecek bir uc (parola degistirme gibi)
+                        // sessizce herkese acik olmasin.
                         .requestMatchers("/api/auth/login").permitAll()
+                        // Kimlik, tasinan yenileme jetonunun KENDISIDIR. Erisim
+                        // jetonu istenseydi uc anlamsiz olurdu: tam da o jetonun
+                        // suresi doldugu icin buraya geliniyor.
+                        .requestMatchers("/api/auth/refresh").permitAll()
+                        .requestMatchers("/api/auth/logout").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 

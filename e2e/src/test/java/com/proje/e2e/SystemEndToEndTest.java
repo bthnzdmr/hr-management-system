@@ -56,7 +56,14 @@ class SystemEndToEndTest {
                 """.formatted(SystemClient.API_URL), cause);
     }
 
-    private String signIn() {
+    /**
+     * Her cagri YENI bir yenileme jetonu uretir.
+     *
+     * Bu, tekrar kullanim testinin digerlerini bozmamasi icin onemlidir: o test
+     * kullanicinin tum jetonlarini iptal eder, dolayisiyla hicbir test baska
+     * bir testin jetonuna guvenmemelidir.
+     */
+    private SystemClient.Response signInFully() {
         SystemClient.Response response = client.post(
                 SystemClient.API_URL + "/api/auth/login", null,
                 """
@@ -64,7 +71,11 @@ class SystemEndToEndTest {
                 """.formatted(SystemClient.ADMIN_EMAIL, SystemClient.ADMIN_PASSWORD));
 
         assertThat(response.status()).isEqualTo(200);
-        return response.body().get("token").asText();
+        return response;
+    }
+
+    private String signIn() {
+        return signInFully().body().get("token").asText();
     }
 
     private String createEmployee(String token, String email) {
@@ -235,6 +246,80 @@ class SystemEndToEndTest {
                 SystemClient.API_URL + "/api/employees?search=" + marker + "&active=false", token);
 
         assertThat(amongInactive.body().get("totalElements").asInt()).isZero();
+    }
+
+    @Test
+    @DisplayName("Exchanges a refresh token for a working access token")
+    void refreshesTheAccessToken() {
+        SystemClient.Response login = signInFully();
+        String refreshToken = login.body().get("refreshToken").asText();
+
+        SystemClient.Response refreshed = client.post(
+                SystemClient.API_URL + "/api/auth/refresh", null,
+                """
+                {"refreshToken":"%s"}
+                """.formatted(refreshToken));
+
+        assertThat(refreshed.status()).isEqualTo(200);
+        // Dondurme: yeni bir yenileme jetonu da gelir, eskisi artik gecersizdir.
+        assertThat(refreshed.body().get("refreshToken").asText()).isNotEqualTo(refreshToken);
+
+        String newAccessToken = refreshed.body().get("token").asText();
+        assertThat(client.get(SystemClient.API_URL + "/api/employees?size=1", newAccessToken).status())
+                .isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("Revokes every session when a refresh token is presented twice")
+    void detectsRefreshTokenReuse() {
+        String refreshToken = signInFully().body().get("refreshToken").asText();
+
+        SystemClient.Response first = client.post(
+                SystemClient.API_URL + "/api/auth/refresh", null,
+                """
+                {"refreshToken":"%s"}
+                """.formatted(refreshToken));
+        assertThat(first.status()).isEqualTo(200);
+
+        // Ayni jeton ikinci kez sunuluyor: bir kopyasi dolasiyor demektir.
+        SystemClient.Response replay = client.post(
+                SystemClient.API_URL + "/api/auth/refresh", null,
+                """
+                {"refreshToken":"%s"}
+                """.formatted(refreshToken));
+        assertThat(replay.status()).isEqualTo(401);
+
+        // Tekrar kullanim tespit edildiginde YALNIZCA sunulan jeton degil,
+        // o kullanicinin butun oturumlari kapatilir -- ilk yenilemeden cikan
+        // saglam jeton da artik gecersizdir.
+        SystemClient.Response afterLockdown = client.post(
+                SystemClient.API_URL + "/api/auth/refresh", null,
+                """
+                {"refreshToken":"%s"}
+                """.formatted(first.body().get("refreshToken").asText()));
+
+        assertThat(afterLockdown.status()).isEqualTo(401);
+    }
+
+    @Test
+    @DisplayName("Signing out makes the refresh token unusable")
+    void signOutRevokesTheRefreshToken() {
+        String refreshToken = signInFully().body().get("refreshToken").asText();
+
+        SystemClient.Response logout = client.post(
+                SystemClient.API_URL + "/api/auth/logout", null,
+                """
+                {"refreshToken":"%s"}
+                """.formatted(refreshToken));
+        assertThat(logout.status()).isEqualTo(204);
+
+        SystemClient.Response afterLogout = client.post(
+                SystemClient.API_URL + "/api/auth/refresh", null,
+                """
+                {"refreshToken":"%s"}
+                """.formatted(refreshToken));
+
+        assertThat(afterLogout.status()).isEqualTo(401);
     }
 
     @Test

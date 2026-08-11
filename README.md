@@ -225,6 +225,8 @@ cp .env.example .env
 | `DB_USERNAME` / `DB_PASSWORD` | PostgreSQL kimlik bilgileri | Evet |
 | `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | RabbitMQ kimlik bilgileri | Evet |
 | `JWT_SECRET` | Token imzalama anahtarı, **base64**, en az 32 bayt | Evet |
+| `JWT_VALIDITY_MINUTES` | Erişim jetonu ömrü | Hayır, varsayılan `15` |
+| `JWT_REFRESH_VALIDITY_DAYS` | Yenileme jetonu ömrü | Hayır, varsayılan `7` |
 | `SERVICE_ACCOUNT_EMAIL` / `SERVICE_ACCOUNT_PASSWORD` | Notification Service'in Employee Service'i çağırırken kullandığı hesap | Evet |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | İlk yönetici hesabı | Hayır, verilmezse hesap oluşturulmaz |
 | `USER_EMAIL` / `USER_PASSWORD` | Salt okuyan hesap; rol ayrımını denemek için | Hayır, verilmezse hesap oluşturulmaz |
@@ -427,7 +429,9 @@ Taban adres: `http://localhost:8080`
 
 | Metot | Uç | Açıklama | Yetki | Başarılı |
 |---|---|---|---|---|
-| `POST` | `/api/auth/login` | Token alma | herkese açık | `200` |
+| `POST` | `/api/auth/login` | Token alma (erişim + yenileme) | herkese açık | `200` |
+| `POST` | `/api/auth/refresh` | Yeni erişim jetonu; yenileme jetonu da döner | herkese açık | `200` |
+| `POST` | `/api/auth/logout` | Yenileme jetonunu iptal eder | herkese açık | `204` |
 | `GET` | `/api/employees` | Sayfalı liste. `?page=0&size=20&sort=lastName,asc&search=liskov&active=true` | giriş yapmış | `200` |
 | `GET` | `/api/employees/{id}` | Tek kayıt | giriş yapmış | `200` |
 | `GET` | `/api/employees/{id}/direct-reports` | Doğrudan bağlı personel | giriş yapmış | `200` |
@@ -469,17 +473,40 @@ curl -X POST http://localhost:8080/api/auth/login \
 ```
 
 ```json
-{ "token": "eyJhbGciOiJIUzM4NCJ9...", "tokenType": "Bearer", "expiresInSeconds": 900 }
+{
+  "token": "eyJhbGciOiJIUzM4NCJ9...",
+  "tokenType": "Bearer",
+  "expiresInSeconds": 900,
+  "refreshToken": "0Xk7t9..."
+}
 ```
 
-Sonraki isteklerde token `Authorization` header'ında taşınır:
+Sonraki isteklerde erişim jetonu `Authorization` header'ında taşınır:
 
 ```bash
 curl http://localhost:8080/api/employees -H "Authorization: Bearer <token>"
 ```
 
-Token 15 dakika geçerlidir (`JWT_VALIDITY_MINUTES` ile değiştirilebilir).
+Erişim jetonu 15 dakika geçerlidir (`JWT_VALIDITY_MINUTES`). Süresi dolunca
+yenileme jetonuyla yenisi alınır:
+
+```bash
+curl -X POST http://localhost:8080/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken":"<yenileme-jetonu>"}'
+```
+
 Kimlik doğrulanmamış istek `401`, yetkisi olmayan istek `403` döner.
+
+**Yenileme jetonu hakkında bilinmesi gerekenler:**
+
+- 7 gün geçerlidir (`JWT_REFRESH_VALIDITY_DAYS`) ve veritabanında **SHA-256
+  özeti** saklanır; düz metin hiçbir yerde durmaz.
+- Her yenilemede **değişir** (rotation). Eski jeton aynı anda iptal edilir.
+- İptal edilmiş bir jeton yeniden sunulursa bu, bir kopyasının dolaştığı
+  anlamına gelir: o kullanıcının **tüm oturumları** kapatılır.
+- `POST /api/auth/logout` jetonu iptal eder. Erişim jetonu süresi dolana kadar
+  geçerli kalır — JWT'nin bilinen ve kabul edilmiş bedeli budur.
 
 ### Örnek istek
 
@@ -527,6 +554,7 @@ Hatalar RFC 7807 (`ProblemDetail`) biçiminde döner.
 | Bozuk JSON gövdesi | `400` |
 | Geçersiz sayfalama/sıralama parametresi | `400` |
 | Kimlik doğrulanmadı / geçersiz token | `401` |
+| Geçersiz, süresi dolmuş veya iptal edilmiş yenileme jetonu | `401` |
 | Yetki yok | `403` |
 | Kayıt bulunamadı | `404` |
 | Desteklenmeyen HTTP metodu | `405` |
