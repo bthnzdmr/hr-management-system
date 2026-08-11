@@ -72,7 +72,9 @@ class EmployeeEventListenerTest {
         listener.onEmployeeEvent(event(eventId));
 
         verify(mailService, never()).send(any(), any());
-        verify(processedEventRepository, never()).save(any());
+        // saveAndFlush dogrulanir: uretim kodu artik save() cagirmiyor, yani
+        // save uzerinden yazilan bir kontrol hicbir zaman basarisiz olamazdi.
+        verify(processedEventRepository, never()).saveAndFlush(any());
     }
 
     @Test

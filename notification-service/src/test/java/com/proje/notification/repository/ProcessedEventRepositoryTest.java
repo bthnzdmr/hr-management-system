@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.UUID;
@@ -33,6 +34,9 @@ class ProcessedEventRepositoryTest {
     @Autowired
     private ProcessedEventRepository processedEventRepository;
 
+    @Autowired
+    private TestEntityManager entityManager;
+
     @BeforeEach
     void setUp() {
         // Onceki calismalardan kalan veriye bagimli olmamak icin.
@@ -44,10 +48,17 @@ class ProcessedEventRepositoryTest {
     }
 
     @Test
-    @DisplayName("Rejects a second record carrying the same event id")
+    @DisplayName("The database rejects a second record carrying the same event id")
     void rejectsDuplicateEventId() {
         UUID eventId = UUID.randomUUID();
         processedEventRepository.saveAndFlush(event(eventId));
+
+        // clear() SART. Olmadan ikinci nesne ayni persistence context'te
+        // kaliyor ve Hibernate daha INSERT uretmeden birinci seviye onbellekten
+        // NonUniqueObjectException firlatiyor -- yani test, birincil anahtar
+        // TAMAMEN SILINSE BILE gecerdi. clear() ile ikinci INSERT gercekten
+        // veritabanina gidiyor ve kisit sinaniyor.
+        entityManager.clear();
 
         assertThatThrownBy(() -> processedEventRepository.saveAndFlush(event(eventId)))
                 .isInstanceOf(DataIntegrityViolationException.class);
