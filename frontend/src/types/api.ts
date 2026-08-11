@@ -21,6 +21,29 @@ export interface Department {
   name: string;
 }
 
+/** Hesap. Parola ozeti sunucudan HIC gelmez. */
+export interface User {
+  id: number;
+  email: string;
+  role: Role;
+  active: boolean;
+  employeeId: number | null;
+  employeeFullName: string | null;
+  createdAt: string;
+}
+
+export interface UserCreateRequest {
+  email: string;
+  password: string;
+  role: Role;
+  employeeId: number | null;
+}
+
+export interface PasswordChangeRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface Employee {
   id: number;
   firstName: string;

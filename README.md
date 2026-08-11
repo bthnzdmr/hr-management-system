@@ -441,6 +441,11 @@ Taban adres: `http://localhost:8080`
 | `GET` | `/api/employees/{id}/salary` | Maaş bilgisi | `ADMIN` | `200` |
 | `PUT` | `/api/employees/{id}/salary` | Maaş güncelleme | `ADMIN` | `200` |
 | `GET` | `/api/departments` | Aktif departmanlar, isme göre sıralı | giriş yapmış | `200` |
+| `GET` | `/api/users` | Hesap listesi (parola özeti **dönmez**) | `ADMIN` | `200` |
+| `POST` | `/api/users` | Hesap oluştur; `employeeId` ile personele bağlanır | `ADMIN` | `201` |
+| `PUT` | `/api/users/{id}/role` | Rol değiştir | `ADMIN` | `200` |
+| `PUT` | `/api/users/{id}/status` | Hesabı aç/kapat; kapatınca oturumlar biter | `ADMIN` | `200` |
+| `PUT` | `/api/users/me/password` | Kendi parolasını değiştir | giriş yapmış | `204` |
 
 `search` ada, soyada ve e-postaya bakar; `active` verilmezse aktif/pasif ayrımı
 yapılmaz. Sıralanabilir alanlar: `lastName`, `firstName`, `email`, `jobTitle`,
@@ -463,6 +468,12 @@ verisidir ve seçim kutusunu doldurmak için kullanılır. Büyüyebilen listele
 Yetki kuralı **okuma / yazma** ayrımına dayanır: okumak için giriş yapmış olmak
 yeterlidir, veri değiştiren her uç `ADMIN` rolü ister. Kural yazılmamış bir uç
 varsayılan olarak kimlik doğrulaması ister — açıkta kalmaz.
+
+**Hesap yönetimi kuralları:** Kimse kendi hesabını kapatamaz veya kendi
+yöneticilik rolünü düşüremez, ve sistemde en az bir aktif `ADMIN` kalmak
+zorundadır. Rol, durum veya parola değiştiğinde o hesabın **tüm yenileme
+jetonları iptal edilir**. Parolayı yalnızca sahibi değiştirir ve mevcut
+parolasını girmek zorundadır; yöneticinin parola sıfırlama yetkisi **yoktur**.
 
 ### Kimlik doğrulama
 
@@ -556,7 +567,9 @@ Hatalar RFC 7807 (`ProblemDetail`) biçiminde döner.
 | Kimlik doğrulanmadı / geçersiz token | `401` |
 | Geçersiz, süresi dolmuş veya iptal edilmiş yenileme jetonu | `401` |
 | Yetki yok | `403` |
+| Yanlış mevcut parola | `400` (oturum sonlandırmaz) |
 | Kayıt bulunamadı | `404` |
+| Son yöneticiyi düşürme / kendi hesabını kapatma | `409` |
 | Desteklenmeyen HTTP metodu | `405` |
 | E-posta zaten kayıtlı | `409` |
 

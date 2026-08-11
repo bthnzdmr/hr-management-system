@@ -9,8 +9,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { employeeApi } from '../api/employees';
 import { departmentApi } from '../api/departments';
 import { errorMessage } from '../api/client';
-import { ManagerPicker } from '../components/ManagerPicker';
-import type { ManagerOption } from '../components/ManagerPicker';
+import { EmployeePicker } from '../components/EmployeePicker';
+import type { EmployeeOption } from '../components/EmployeePicker';
 import { useSnackbar } from '../components/SnackbarProvider';
 import type { Department, EmployeeCreateRequest } from '../types/api';
 
@@ -51,7 +51,7 @@ export function EmployeeFormPage() {
   const isEdit = Boolean(id);
 
   const [form, setForm] = useState<EmployeeCreateRequest>(EMPTY_FORM);
-  const [manager, setManager] = useState<ManagerOption | null>(null);
+  const [manager, setManager] = useState<EmployeeOption | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   // Maas ayri uca yazildigi icin degisip degismedigini bilmemiz gerekiyor:
   // degismediyse gereksiz bir istek ve gereksiz bir olay uretmeyiz.
@@ -247,9 +247,11 @@ export function EmployeeFormPage() {
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <ManagerPicker
+                  <EmployeePicker
                     value={manager}
                     onChange={setManager}
+                    label="Manager"
+                    helperText="Leave empty if this employee reports to nobody"
                     excludeId={id ? Number(id) : undefined}
                   />
                 </Grid>

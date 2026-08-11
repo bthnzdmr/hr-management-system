@@ -322,6 +322,159 @@ class SystemEndToEndTest {
         assertThat(afterLogout.status()).isEqualTo(401);
     }
 
+    /** Her cagri benzersiz bir hesap uretir: testler birbirinin verisine dokunmaz. */
+    private String createAccount(String token, String email, String password, String role) {
+        SystemClient.Response response = client.post(
+                SystemClient.API_URL + "/api/users", token,
+                """
+                {"email":"%s","password":"%s","role":"%s"}
+                """.formatted(email, password, role));
+
+        assertThat(response.status()).isEqualTo(201);
+        return response.body().get("id").asText();
+    }
+
+    private SystemClient.Response signIn(String email, String password) {
+        return client.post(SystemClient.API_URL + "/api/auth/login", null,
+                """
+                {"email":"%s","password":"%s"}
+                """.formatted(email, password));
+    }
+
+    @Test
+    @DisplayName("An account created by an administrator can sign in with read-only access")
+    void createdAccountCanSignIn() {
+        String adminToken = signIn();
+        String email = "e2e.account." + UUID.randomUUID() + "@example.com";
+        createAccount(adminToken, email, "a-long-enough-password", "USER");
+
+        SystemClient.Response login = signIn(email, "a-long-enough-password");
+        assertThat(login.status()).isEqualTo(200);
+
+        String userToken = login.body().get("token").asText();
+        assertThat(client.get(SystemClient.API_URL + "/api/employees?size=1", userToken).status())
+                .isEqualTo(200);
+
+        // Rolu USER: hesap yonetimi ona kapali.
+        assertThat(client.get(SystemClient.API_URL + "/api/users", userToken).status())
+                .isEqualTo(403);
+    }
+
+    @Test
+    @DisplayName("The password hash never appears in any account response")
+    void neverExposesPasswordHash() {
+        String adminToken = signIn();
+        String email = "e2e.nohash." + UUID.randomUUID() + "@example.com";
+        createAccount(adminToken, email, "a-long-enough-password", "USER");
+
+        String listed = client.get(SystemClient.API_URL + "/api/users?size=100", adminToken)
+                .body().toString();
+
+        // BCrypt ozetleri "$2a$" / "$2b$" ile baslar.
+        assertThat(listed).doesNotContain("$2a$").doesNotContain("$2b$");
+    }
+
+    @Test
+    @DisplayName("Deactivating an account ends the session it already had")
+    void deactivationEndsExistingSession() {
+        // Bu tam da duzeltilen kusurdur: pasif hesap giris yapamiyordu ama
+        // elindeki yenileme jetonuyla oturumunu suresiz surduruyordu.
+        String adminToken = signIn();
+        String email = "e2e.revoked." + UUID.randomUUID() + "@example.com";
+        String id = createAccount(adminToken, email, "a-long-enough-password", "USER");
+
+        String refreshToken = signIn(email, "a-long-enough-password")
+                .body().get("refreshToken").asText();
+
+        SystemClient.Response deactivated = client.put(
+                SystemClient.API_URL + "/api/users/" + id + "/status", adminToken,
+                """
+                {"active":false}
+                """);
+        assertThat(deactivated.status()).isEqualTo(200);
+
+        assertThat(signIn(email, "a-long-enough-password").status()).isEqualTo(401);
+        assertThat(client.post(SystemClient.API_URL + "/api/auth/refresh", null,
+                """
+                {"refreshToken":"%s"}
+                """.formatted(refreshToken)).status()).isEqualTo(401);
+    }
+
+    @Test
+    @DisplayName("Changing the password ends every existing session")
+    void passwordChangeEndsSessions() {
+        String adminToken = signIn();
+        String email = "e2e.password." + UUID.randomUUID() + "@example.com";
+        createAccount(adminToken, email, "a-long-enough-password", "USER");
+
+        SystemClient.Response login = signIn(email, "a-long-enough-password");
+        String userToken = login.body().get("token").asText();
+        String refreshToken = login.body().get("refreshToken").asText();
+
+        SystemClient.Response changed = client.put(
+                SystemClient.API_URL + "/api/users/me/password", userToken,
+                """
+                {"currentPassword":"a-long-enough-password","newPassword":"a-different-password"}
+                """);
+        assertThat(changed.status()).isEqualTo(204);
+
+        assertThat(client.post(SystemClient.API_URL + "/api/auth/refresh", null,
+                """
+                {"refreshToken":"%s"}
+                """.formatted(refreshToken)).status()).isEqualTo(401);
+
+        assertThat(signIn(email, "a-different-password").status()).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("Rejects a password change that gives the wrong current password")
+    void rejectsWrongCurrentPassword() {
+        String adminToken = signIn();
+        String email = "e2e.wrongpass." + UUID.randomUUID() + "@example.com";
+        createAccount(adminToken, email, "a-long-enough-password", "USER");
+
+        String userToken = signIn(email, "a-long-enough-password").body().get("token").asText();
+
+        SystemClient.Response response = client.put(
+                SystemClient.API_URL + "/api/users/me/password", userToken,
+                """
+                {"currentPassword":"not-the-password","newPassword":"a-different-password"}
+                """);
+
+        // 401 DEGIL 400: 401 arayuze "oturum bitti" der ve kullanici parolasini
+        // yanlis yazdi diye sistemden atilirdi.
+        assertThat(response.status()).isEqualTo(400);
+    }
+
+    @Test
+    @DisplayName("Refuses to let an administrator deactivate their own account")
+    void refusesSelfDeactivation() {
+        String adminToken = signIn();
+
+        String ownId = null;
+        for (com.fasterxml.jackson.databind.JsonNode account
+                : client.get(SystemClient.API_URL + "/api/users?size=100", adminToken)
+                .body().get("content")) {
+
+            if (SystemClient.ADMIN_EMAIL.equals(account.get("email").asText())) {
+                ownId = account.get("id").asText();
+            }
+        }
+        assertThat(ownId).isNotNull();
+
+        SystemClient.Response response = client.put(
+                SystemClient.API_URL + "/api/users/" + ownId + "/status", adminToken,
+                """
+                {"active":false}
+                """);
+
+        assertThat(response.status()).isEqualTo(409);
+        // Hesap hala calisiyor olmali: kural yalnizca reddetmekle kalmayip
+        // gercekten korumali.
+        assertThat(signIn(SystemClient.ADMIN_EMAIL, SystemClient.ADMIN_PASSWORD).status())
+                .isEqualTo(200);
+    }
+
     @Test
     @DisplayName("Serves the departments used by the employee form")
     void servesDepartments() {

@@ -12,8 +12,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/users")
@@ -54,20 +53,25 @@ public class UserController {
     // Islemi YAPAN kullanici, kimlik dogrulama sonucundan okunur -- istek
     // govdesinden DEGIL. Istemcinin gonderdigi kimlige guvenmek, herkesin
     // kendini baskasi gibi gostermesine izin verirdi.
+    //
+    // Tip Principal, @AuthenticationPrincipal UserDetails DEGIL: JWT filtresi
+    // principal olarak duz bir String (e-posta) koyuyor ve UserDetails istemek
+    // uretimde null verip 500 uretiyordu. @WithMockUser gercek bir UserDetails
+    // urettigi icin birim test bunu goremedi, uctan uca kosu yakaladi.
     @PutMapping("/{id}/role")
     public UserResponse changeRole(@PathVariable Long id,
                                    @Valid @RequestBody UserRoleRequest request,
-                                   @AuthenticationPrincipal UserDetails actingUser) {
+                                   Principal actingUser) {
 
-        return userService.changeRole(id, request.role(), actingUser.getUsername());
+        return userService.changeRole(id, request.role(), actingUser.getName());
     }
 
     @PutMapping("/{id}/status")
     public UserResponse changeStatus(@PathVariable Long id,
                                      @Valid @RequestBody UserStatusRequest request,
-                                     @AuthenticationPrincipal UserDetails actingUser) {
+                                     Principal actingUser) {
 
-        return userService.changeStatus(id, request.active(), actingUser.getUsername());
+        return userService.changeStatus(id, request.active(), actingUser.getName());
     }
 
     /**
@@ -80,9 +84,9 @@ public class UserController {
     @PutMapping("/me/password")
     public ResponseEntity<Void> changeOwnPassword(
             @Valid @RequestBody PasswordChangeRequest request,
-            @AuthenticationPrincipal UserDetails actingUser) {
+            Principal actingUser) {
 
-        userService.changeOwnPassword(actingUser.getUsername(), request);
+        userService.changeOwnPassword(actingUser.getName(), request);
 
         return ResponseEntity.noContent().build();
     }

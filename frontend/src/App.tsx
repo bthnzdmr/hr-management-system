@@ -6,6 +6,8 @@ import { LoginPage } from './pages/LoginPage';
 import { EmployeeListPage } from './pages/EmployeeListPage';
 import { EmployeeDetailPage } from './pages/EmployeeDetailPage';
 import { EmployeeFormPage } from './pages/EmployeeFormPage';
+import { UserListPage } from './pages/UserListPage';
+import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export default function App() {
@@ -23,9 +25,13 @@ export default function App() {
 
           {/* Yazma ekranlari yalnizca ADMIN'e: USER formu doldurduktan sonra
               kacinilmaz olarak 403 alirdi. */}
+          {/* Kendi parolasini herkes degistirir. */}
+          <Route path="/account/password" element={<ChangePasswordPage />} />
+
           <Route element={<AdminRoute />}>
             <Route path="/employees/new" element={<EmployeeFormPage />} />
             <Route path="/employees/:id" element={<EmployeeFormPage />} />
+            <Route path="/users" element={<UserListPage />} />
           </Route>
 
           {/* Bilinmeyen adres kabugun ICINDE karsilanir: kullanici menusunu

@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';
 import { employeeApi } from '../api/employees';
 
-export interface ManagerOption {
+export interface EmployeeOption {
   id: number;
   label: string;
 }
 
 interface Props {
-  value: ManagerOption | null;
-  onChange: (option: ManagerOption | null) => void;
-  /** Duzenlenen kaydin id'si; kimse kendi yoneticisi olamaz. */
+  value: EmployeeOption | null;
+  onChange: (option: EmployeeOption | null) => void;
+  label: string;
+  helperText?: string;
+  /** Listeden cikarilacak kayit; kimse kendi yoneticisi olamaz. */
   excludeId?: number;
   disabled?: boolean;
 }
@@ -19,16 +21,22 @@ const DEBOUNCE_MS = 300;
 const MAX_OPTIONS = 10;
 
 /**
- * Yoneticiyi ID yazarak degil, adiyla secmek icin.
+ * Personeli ID yazarak degil, adiyla secmek icin.
  *
  * Onceki hali ham bir sayi kutusuydu: kullanicinin id'yi ezberlemesini ya da
  * baska bir ekrandan kopyalamasini gerektiriyordu. Liste SUNUCUDAN aranir --
  * tum personeli indirip tarayicida filtrelemek, kayit sayisi buyudugunde
  * calismayacak bir cozumdur.
+ *
+ * Once yalnizca yonetici secimi icindi; hesabi personele baglama ekrani ikinci
+ * gercek kullanim olunca genellestirildi. Iki kullanim da "aktif personel ara,
+ * birini sec" demek.
  */
-export function ManagerPicker({ value, onChange, excludeId, disabled = false }: Props) {
+export function EmployeePicker({
+  value, onChange, label, helperText, excludeId, disabled = false,
+}: Props) {
   const [query, setQuery] = useState('');
-  const [options, setOptions] = useState<ManagerOption[]>([]);
+  const [options, setOptions] = useState<EmployeeOption[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -49,7 +57,7 @@ export function ManagerPicker({ value, onChange, excludeId, disabled = false }: 
           if (!active) return;
           setOptions(
             page.content
-              .filter((employee) => employee.id !== excludeId)
+              .filter((employee) => excludeId === undefined || employee.id !== excludeId)
               .map((employee) => ({
                 id: employee.id,
                 label: `${employee.firstName} ${employee.lastName} — ${employee.jobTitle}`,
@@ -91,8 +99,8 @@ export function ManagerPicker({ value, onChange, excludeId, disabled = false }: 
       renderInput={(params) => (
         <TextField
           {...params}
-          label="Manager"
-          helperText="Leave empty if this employee reports to nobody"
+          label={label}
+          helperText={helperText}
           slotProps={{
             ...params.slotProps,
             input: {

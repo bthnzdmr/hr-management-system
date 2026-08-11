@@ -22,7 +22,9 @@ import {
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import PersonAddAltOutlinedIcon from '@mui/icons-material/PersonAddAltOutlined';
 import { useAuth } from '../auth/AuthContext';
@@ -40,6 +42,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon, adminOnly: false },
   { label: 'New employee', to: '/employees/new', icon: PersonAddAltOutlinedIcon, adminOnly: true },
+  { label: 'Accounts', to: '/users', icon: ManageAccountsOutlinedIcon, adminOnly: true },
 ];
 
 export function Layout() {
@@ -166,6 +169,16 @@ export function Layout() {
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'right' }}
               >
+                <MenuItem
+                  component={NavLink}
+                  to="/account/password"
+                  onClick={() => setUserMenu(null)}
+                >
+                  <ListItemIcon>
+                    <LockOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  Change password
+                </MenuItem>
                 <MenuItem
                   onClick={() => {
                     setUserMenu(null);
