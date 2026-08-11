@@ -225,7 +225,11 @@ cp .env.example .env
 | `DB_USERNAME` / `DB_PASSWORD` | PostgreSQL kimlik bilgileri | Evet |
 | `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | RabbitMQ kimlik bilgileri | Evet |
 | `JWT_SECRET` | Token imzalama anahtarı, **base64**, en az 32 bayt | Evet |
+| `SERVICE_ACCOUNT_EMAIL` / `SERVICE_ACCOUNT_PASSWORD` | Notification Service'in Employee Service'i çağırırken kullandığı hesap | Evet |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | İlk yönetici hesabı | Hayır, verilmezse hesap oluşturulmaz |
+
+Zorunlu bir değişken eksikse `docker compose` hiçbir konteyneri başlatmaz ve
+hangisinin eksik olduğunu söyler — sistem yarım çalışmak yerine hiç başlamaz.
 
 Değerleri sen seçersin; konteynerler ilk açılışta bu değerlerle kurulur.
 `JWT_SECRET` üretmek için:
