@@ -6,3 +6,8 @@ dist/
 .vite/
 Dockerfile
 .dockerignore
+
+# Vite, VITE_ ile baslayan her degeri PAKETE GOMER. Yerel bir .env dosyasi
+# build baglamina girerse degerleri uretim paketinde tarayiciya gider.
+.env
+.env.*

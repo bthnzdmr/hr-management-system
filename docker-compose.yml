@@ -14,6 +14,8 @@ services:
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: hr-rabbitmq
+    # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
+    restart: unless-stopped
     ports:
       - "5672:5672"     # AMQP
       - "15672:15672"   # web panel -> http://localhost:15672
@@ -28,11 +30,16 @@ services:
     deploy:
       resources:
         limits:
+          # Bellek siniri vardi ama CPU yoktu: tek bir servis makinenin tum
+          # cekirdeklerini tuketebiliyordu.
+          cpus: '1.0'
           memory: 512M
 
   postgres:
     image: postgres:16
     container_name: hr-postgres
+    # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
+    restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
@@ -54,17 +61,25 @@ services:
     deploy:
       resources:
         limits:
+          # Bellek siniri vardi ama CPU yoktu: tek bir servis makinenin tum
+          # cekirdeklerini tuketebiliyordu.
+          cpus: '1.0'
           memory: 512M
 
   mailhog:
-    image: mailhog/mailhog:latest
+    image: mailhog/mailhog:v1.0.1
     container_name: hr-mailhog
+    # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
+    restart: unless-stopped
     ports:
       - "1025:1025"     # SMTP -> Notification Service buraya mail atar
       - "8025:8025"     # web arayuz -> http://localhost:8025
     deploy:
       resources:
         limits:
+          # Bellek siniri vardi ama CPU yoktu: tek bir servis makinenin tum
+          # cekirdeklerini tuketebiliyordu.
+          cpus: '1.0'
           memory: 128M
 
   # ---------- Uygulamalar (yalnizca "full" profilinde) ----------
@@ -73,6 +88,8 @@ services:
     build: ./eureka-server
     image: hr/eureka-server:1.0.0
     container_name: hr-eureka
+    # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
+    restart: unless-stopped
     profiles: ["full"]
     ports:
       - "8761:8761"
@@ -85,12 +102,17 @@ services:
     deploy:
       resources:
         limits:
+          # Bellek siniri vardi ama CPU yoktu: tek bir servis makinenin tum
+          # cekirdeklerini tuketebiliyordu.
+          cpus: '1.0'
           memory: 512M
 
   employee-service:
     build: ./employee-service
     image: hr/employee-service:1.0.0
     container_name: hr-employee-service
+    # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
+    restart: unless-stopped
     profiles: ["full"]
     ports:
       - "8080:8080"
@@ -122,7 +144,7 @@ services:
       rabbitmq:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/health"]
       interval: 10s
@@ -132,12 +154,17 @@ services:
     deploy:
       resources:
         limits:
+          # Bellek siniri vardi ama CPU yoktu: tek bir servis makinenin tum
+          # cekirdeklerini tuketebiliyordu.
+          cpus: '1.0'
           memory: 768M
 
   notification-service:
     build: ./notification-service
     image: hr/notification-service:1.0.0
     container_name: hr-notification-service
+    # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
+    restart: unless-stopped
     profiles: ["full"]
     ports:
       - "8081:8081"
@@ -161,7 +188,7 @@ services:
       rabbitmq:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/actuator/health"]
       interval: 10s
@@ -171,6 +198,9 @@ services:
     deploy:
       resources:
         limits:
+          # Bellek siniri vardi ama CPU yoktu: tek bir servis makinenin tum
+          # cekirdeklerini tuketebiliyordu.
+          cpus: '1.0'
           memory: 768M
 
   frontend:
@@ -182,6 +212,8 @@ services:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
     image: hr/frontend:1.0.0
     container_name: hr-frontend
+    # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
+    restart: unless-stopped
     profiles: ["full"]
     ports:
       - "5173:8080"
@@ -196,6 +228,9 @@ services:
     deploy:
       resources:
         limits:
+          # Bellek siniri vardi ama CPU yoktu: tek bir servis makinenin tum
+          # cekirdeklerini tuketebiliyordu.
+          cpus: '1.0'
           memory: 128M
 
 volumes:

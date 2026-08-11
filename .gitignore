@@ -26,9 +26,11 @@ dist/
 # ---------- Ortam degiskenleri ve sirlar ----------
 # Git gecmisi kalicidir: commit edilen bir parola sonraki commit'te silinse bile
 # eski commit'te okunabilir kalir. Sizan sir, degistirilmesi gereken sirdir.
+# .env* deseni butun turevleri kapsar: .env.local, .env.production,
+# .env.development... Once yalnizca birkaci yaziliydi ve Vite'in mod
+# dosyalari (.env.production) tam da en cok olusturulan yerde acikta kaliyordu.
 .env
-.env.local
-.env.*.local
+.env.*
 application-local.yml
 
 # Ornek dosya commit EDILIR: hangi degiskenlerin gerektigini gosterir,

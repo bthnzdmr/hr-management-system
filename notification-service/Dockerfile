@@ -20,4 +20,6 @@ COPY --from=build --chown=app:app /build/target/*.jar app.jar
 
 EXPOSE 8081
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# MaxRAMPercentage olmadan JVM, konteyner sinirinin yalnizca %25'ini heap
+# olarak kullanir; 768M sinirin ~500M'i bos kalirdi.
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]
