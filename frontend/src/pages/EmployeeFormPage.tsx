@@ -52,8 +52,18 @@ export function EmployeeFormPage() {
     if (!id) return;
 
     // Maas ayri uctan gelir; genel personel cevabinda yer almaz.
-    Promise.all([employeeApi.getById(Number(id)), employeeApi.getSalary(Number(id))])
+    // Maas cagrisi basarisiz olursa form YINE acilir: ikincil bir bilgi
+    // yuzunden birincil isi engellemek, projenin kendi ilkesine aykiri olurdu.
+    Promise.all([
+      employeeApi.getById(Number(id)),
+      employeeApi.getSalary(Number(id)).catch(() => null),
+    ])
       .then(([employee, salary]) => {
+        // Sunucu sayi doner, girdi alani metin tutar. Ikisini AYNI bicime
+        // cevirmek sart: aksi halde "95000" ile 95000 farkli gorunur ve
+        // dokunulmamis maas guncellenmis sayilirdi.
+        const asText = salary?.salary == null ? null : String(salary.salary);
+
         setForm({
           firstName: employee.firstName,
           lastName: employee.lastName,
@@ -63,9 +73,9 @@ export function EmployeeFormPage() {
           managerId: employee.managerId,
           jobTitle: employee.jobTitle,
           hireDate: employee.hireDate,
-          salary: salary.salary,
+          salary: asText,
         });
-        setInitialSalary(salary.salary);
+        setInitialSalary(asText);
       })
       .catch((err) => setError(errorMessage(err)))
       .finally(() => setLoading(false));
@@ -87,8 +97,9 @@ export function EmployeeFormPage() {
         const { salary, ...employeeFields } = form;
         await employeeApi.update(Number(id), employeeFields);
 
+        // Metin karsilastirilir (ikisi de ayni bicimde), sunucuya SAYI gider.
         if (salary !== null && salary !== initialSalary) {
-          await employeeApi.updateSalary(Number(id), { salary });
+          await employeeApi.updateSalary(Number(id), { salary: Number(salary) });
         }
       } else {
         await employeeApi.create(form);

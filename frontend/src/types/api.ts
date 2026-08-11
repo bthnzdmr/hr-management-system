@@ -55,11 +55,14 @@ export type EmployeeUpdateRequest = Omit<EmployeeCreateRequest, 'salary'>;
 
 export interface SalaryResponse {
   employeeId: number;
-  salary: string | null;
+  // Backend BigDecimal donuyor ve Jackson bunu JSON SAYISI olarak yaziyor.
+  // Burada string demek, "degisti mi" karsilastirmasini sessizce bozar:
+  // "95000" !== 95000 oldugu icin degismemis maas guncellenmis sayilirdi.
+  salary: number | null;
 }
 
 export interface SalaryUpdateRequest {
-  salary: string;
+  salary: number;
 }
 
 /** Spring Data'nin Page cevabinin kullandigimiz alanlari. */
