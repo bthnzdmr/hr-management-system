@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api, setUnauthorizedHandler, tokenStorage } from '../api/client';
+import { sessionEnded, useAppDispatch } from '../store';
 import type { LoginRequest, LoginResponse, Role } from '../types/api';
 
 interface AuthUser {
@@ -52,16 +53,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return parsed;
   });
 
+  const dispatch = useAppDispatch();
+
+  // Oturum bittiginde Redux store da sifirlanir; aksi halde ayni tarayicida
+  // giris yapan ikinci kullanici oncekinin listesini gorur.
+  const endSession = useCallback(() => {
+    setUser(null);
+    dispatch(sessionEnded());
+  }, [dispatch]);
+
   const logout = useCallback(() => {
     tokenStorage.clear();
-    setUser(null);
-  }, []);
+    endSession();
+  }, [endSession]);
 
   // Sunucu token'i reddettiginde (401) oturum burada da kapanir; aksi halde
   // arayuz kullaniciyi giris yapmis sanmaya devam ederdi.
   useEffect(() => {
-    setUnauthorizedHandler(() => setUser(null));
-  }, []);
+    setUnauthorizedHandler(endSession);
+
+    // Temizlik sart: handler modul seviyesinde tek bir yuvada duruyor.
+    // Birakilmazsa bu saglayici sokuldukten sonra bile eski setUser'i
+    // tutmaya devam eder.
+    return () => setUnauthorizedHandler(() => {});
+  }, [endSession]);
 
   const login = useCallback(async (credentials: LoginRequest) => {
     const { data } = await api.post<LoginResponse>('/api/auth/login', credentials);

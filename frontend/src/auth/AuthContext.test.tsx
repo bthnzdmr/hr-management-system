@@ -1,6 +1,9 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
+import employeesReducer from '../store/employeesSlice';
 import { AuthProvider, useAuth } from './AuthContext';
 import { api, tokenStorage } from '../api/client';
 
@@ -23,11 +26,17 @@ function Probe() {
   );
 }
 
+// AuthProvider oturum bitince store'u sifirladigi icin Redux saglayicisi
+// gerektirir; uygulamadaki agac burada birebir kurulur.
 function renderProbe() {
+  const store = configureStore({ reducer: { employees: employeesReducer } });
+
   return render(
-    <AuthProvider>
-      <Probe />
-    </AuthProvider>,
+    <Provider store={store}>
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>
+    </Provider>,
   );
 }
 

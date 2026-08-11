@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { configureStore } from '@reduxjs/toolkit';
 import reducer, {
   deactivateEmployee, errorCleared, fetchEmployees, pageChanged, pageSizeChanged,
 } from './employeesSlice';
+import { rootReducer, sessionEnded } from './index';
 import type { Employee } from '../types/api';
 
 const employee = (id: number, active = true): Employee => ({
@@ -78,5 +80,23 @@ describe('employees reducer', () => {
     const state = reducer({ ...initial, error: 'boom' }, errorCleared());
 
     expect(state.error).toBeNull();
+  });
+});
+
+describe('session reset', () => {
+  it('drops the loaded employees when the session ends', () => {
+    // Ortak kullanilan bir bilgisayarda, cikis yapan kullanicinin listesi
+    // sonraki kullaniciya gorunmemelidir.
+    const store = configureStore({ reducer: rootReducer });
+    store.dispatch(fetchEmployees.fulfilled(
+      { content: [employee(1)], totalElements: 1, totalPages: 1, number: 0, size: 10 },
+      '', { page: 0, size: 10 },
+    ));
+    expect(store.getState().employees.items).toHaveLength(1);
+
+    store.dispatch(sessionEnded());
+
+    expect(store.getState().employees.items).toHaveLength(0);
+    expect(store.getState().employees.status).toBe('idle');
   });
 });
