@@ -90,7 +90,12 @@ public class SecurityConfig {
                         // Maas kurali GENEL okuma kuralindan ONCE gelmek zorunda:
                         // Spring Security ilk eslesen kurali uygular. Sonra yazilsaydi
                         // "/api/employees/**" once eslesir ve maas USER'a acik kalirdi.
-                        .requestMatchers(HttpMethod.GET, "/api/employees/*/salary").hasRole("ADMIN")
+                        //
+                        // Metot BELIRTILMEZ. HttpMethod.GET yazildiginda HEAD kapsam
+                        // disinda kaliyordu: Spring Security HEAD'i GET saymaz ama
+                        // Spring MVC HEAD istegini @GetMapping metoduna yonlendirir.
+                        // Sonuc: USER rolu HEAD ile 200 aliyordu (olculdu).
+                        .requestMatchers("/api/employees/*/salary").hasRole("ADMIN")
 
                         // Yazma uclari yalnizca yoneticiye.
                         .requestMatchers(HttpMethod.POST, "/api/employees/**").hasRole("ADMIN")

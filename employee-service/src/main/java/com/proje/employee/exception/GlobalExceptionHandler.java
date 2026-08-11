@@ -3,6 +3,8 @@ package com.proje.employee.exception;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -73,6 +75,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         detail.setProperty("errors", errors);
 
         return handleExceptionInternal(ex, detail, headers, HttpStatus.BAD_REQUEST, request);
+    }
+
+    /**
+     * Gecersiz sayfalama/siralama parametresi.
+     *
+     * ResponseEntityExceptionHandler bu ikisini kapsamaz; kapsamasaydi
+     * "?sort=olmayanAlan" catch-all'a dusup 500 donerdi -- olculdu. Istemcinin
+     * yazdigi bir alan adi sunucu hatasi degildir.
+     */
+    @ExceptionHandler({PropertyReferenceException.class, InvalidDataAccessApiUsageException.class})
+    public ProblemDetail handleInvalidQueryParameter(Exception ex) {
+        log.warn("Rejected an invalid query parameter: {}", ex.getMessage());
+        return problem(HttpStatus.BAD_REQUEST, "Invalid request parameter",
+                "One of the paging or sorting parameters is not valid");
     }
 
     // Kod tarafindaki kontrol ile kayit arasindaki yaris durumunda veritabani

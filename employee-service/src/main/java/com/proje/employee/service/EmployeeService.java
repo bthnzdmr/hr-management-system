@@ -22,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -142,6 +143,15 @@ public class EmployeeService {
     public SalaryResponse updateSalary(Long id, SalaryUpdateRequest request) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException(id));
+
+        // Deger degismediyse olay uretilmez. PUT idempotent olmalidir; aksi
+        // halde ayni tutarla yapilan her istek YENI bir eventId uretir ve
+        // personel her seferinde bir "kaydiniz guncellendi" maili daha alir.
+        // compareTo kullanilir: 95000 ile 95000.00 esittir ama equals degildir.
+        BigDecimal current = employee.getSalary();
+        if (current != null && current.compareTo(request.salary()) == 0) {
+            return new SalaryResponse(employee.getId(), current);
+        }
 
         employee.setSalary(request.salary());
 

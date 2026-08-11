@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -177,6 +178,20 @@ class EmployeeControllerTest {
         // "/api/employees/**" okuma kuralindan once gelmezse maas USER'a acilir.
         // Notification Service USER rolundedir; bu kural onu da disarida tutar.
         mockMvc.perform(get("/api/employees/1/salary"))
+                .andExpect(status().isForbidden());
+
+        verify(employeeService, never()).getSalary(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    @DisplayName("USER role cannot probe a salary with HEAD either")
+    void userRoleCannotProbeSalaryWithHead() throws Exception {
+        // Olculdu: kural HttpMethod.GET ile yazildiginda HEAD kapsam disinda
+        // kaliyor ve 200 donuyordu. Spring Security HEAD'i GET saymaz, ama
+        // Spring MVC HEAD istegini @GetMapping metoduna yonlendirir; cevap
+        // govdesiz gitse de Content-Length maasin basamak sayisini sizdirir.
+        mockMvc.perform(head("/api/employees/1/salary"))
                 .andExpect(status().isForbidden());
 
         verify(employeeService, never()).getSalary(any());

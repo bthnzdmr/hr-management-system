@@ -8,6 +8,8 @@ import com.proje.employee.controller.EmployeeController;
 import com.proje.employee.service.EmployeeService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -16,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -67,6 +70,20 @@ class ClientErrorStatusTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("An unknown sort field is a client error, not a server error")
+    void unknownSortFieldIsClientError() throws Exception {
+        // Olculdu: bu istek 500 donuyordu. Istemcinin yazdigi bir alan adi
+        // sunucu hatasi degildir; ResponseEntityExceptionHandler bu istisnayi
+        // kapsamadigi icin acikca ele alinmasi gerekiyor.
+        when(employeeService.getAll(ArgumentMatchers.any()))
+                .thenThrow(new InvalidDataAccessApiUsageException("Unknown sort property"));
+
+        mockMvc.perform(get("/api/employees?sort=noSuchField,asc"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
