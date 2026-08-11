@@ -227,6 +227,7 @@ cp .env.example .env
 | `JWT_SECRET` | Token imzalama anahtarı, **base64**, en az 32 bayt | Evet |
 | `SERVICE_ACCOUNT_EMAIL` / `SERVICE_ACCOUNT_PASSWORD` | Notification Service'in Employee Service'i çağırırken kullandığı hesap | Evet |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | İlk yönetici hesabı | Hayır, verilmezse hesap oluşturulmaz |
+| `USER_EMAIL` / `USER_PASSWORD` | Salt okuyan hesap; rol ayrımını denemek için | Hayır, verilmezse hesap oluşturulmaz |
 
 Zorunlu bir değişken eksikse `docker compose` hiçbir konteyneri başlatmaz ve
 hangisinin eksik olduğunu söyler — sistem yarım çalışmak yerine hiç başlamaz.
@@ -355,7 +356,8 @@ npm run dev
 ```
 
 http://localhost:5173 adresinde açılır. Giriş için `.env` dosyasındaki
-`ADMIN_EMAIL` / `ADMIN_PASSWORD` değerleri kullanılır.
+`ADMIN_EMAIL` / `ADMIN_PASSWORD` değerleri kullanılır. Rol ayrımını görmek için
+`USER_EMAIL` / `USER_PASSWORD` ile de giriş yapılabilir.
 
 Arayüz Employee Service'e doğrudan gider; API adresi varsayılan olarak
 `http://localhost:8080`'dir ve `VITE_API_URL` ortam değişkeniyle değiştirilebilir.

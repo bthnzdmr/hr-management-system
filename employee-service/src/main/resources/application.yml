@@ -66,6 +66,11 @@ app:
     email: ${ADMIN_EMAIL:}
     password: ${ADMIN_PASSWORD:}
 
+  # Salt okuyan insan hesabi. Rol ayrimini denemek icin; zorunlu degil.
+  user:
+    email: ${USER_EMAIL:}
+    password: ${USER_PASSWORD:}
+
   # Notification Service'in kullandigi okuma yetkili servis hesabi.
   service-account:
     email: ${SERVICE_ACCOUNT_EMAIL:}

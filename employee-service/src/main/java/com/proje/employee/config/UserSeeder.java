@@ -27,6 +27,18 @@ public class UserSeeder {
                 "Admin account", "ADMIN_EMAIL / ADMIN_PASSWORD");
     }
 
+    // Salt okuyan INSAN hesabi. Servis hesabinin rolu de USER'dir ama o bir
+    // programa aittir; rol ayrimini elle denemek icin ayri bir hesap gerekir.
+    @Bean
+    ApplicationRunner seedReadOnlyUser(UserRepository userRepository,
+                                       PasswordEncoder passwordEncoder,
+                                       @Value("${app.user.email:}") String email,
+                                       @Value("${app.user.password:}") String password) {
+
+        return args -> seed(userRepository, passwordEncoder, email, password, Role.USER,
+                "Read-only user account", "USER_EMAIL / USER_PASSWORD");
+    }
+
     // Notification Service bu hesapla giris yapar. Rolu USER: bildirim gonderen
     // bir servisin personel kaydi degistirmeye ihtiyaci yoktur (en az yetki).
     @Bean

@@ -132,6 +132,9 @@ services:
       # Korumasiz kalmasi bilincli, digerlerinden farkli.
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Salt okuyan insan hesabi; ayni sekilde opsiyonel.
+      USER_EMAIL: ${USER_EMAIL:-}
+      USER_PASSWORD: ${USER_PASSWORD:-}
       # full profilinde Notification Service de calisiyor ve bu hesapla giris
       # yapiyor; hesap olusturulmazsa yonetici CC'si hicbir zaman calismaz.
       SERVICE_ACCOUNT_EMAIL: ${SERVICE_ACCOUNT_EMAIL:?see .env.example}
