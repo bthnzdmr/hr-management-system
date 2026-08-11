@@ -52,8 +52,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.UNAUTHORIZED, "Authentication failed", "Invalid credentials");
     }
 
-    @ExceptionHandler(ManagerCycleException.class)
-    public ProblemDetail handleManagerCycle(ManagerCycleException ex) {
+    @ExceptionHandler({ManagerCycleException.class, InactiveManagerException.class})
+    public ProblemDetail handleInvalidManager(RuntimeException ex) {
         return problem(HttpStatus.BAD_REQUEST, "Invalid manager assignment", ex.getMessage());
     }
 

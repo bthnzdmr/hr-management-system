@@ -42,7 +42,8 @@ public class RabbitConfig {
     private static final List<String> ROUTING_KEYS = List.of(
             "employee.created",
             "employee.updated",
-            "employee.deactivated");
+            "employee.deactivated",
+            "employee.reactivated");
 
     @Bean
     TopicExchange employeeExchange() {

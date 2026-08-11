@@ -105,8 +105,14 @@ class EmployeeMapperTest {
         EmployeeResponse response = mapper.toResponse(secondPage.get(0));
 
         assertThat(response.managerId()).isEqualTo(managerId);
+        // Adin da gelmesi sart: bu alan olmadan arayuzde "Yonetici: 42" yazardi.
+        assertThat(response.managerFullName()).isEqualTo("Grace Hopper");
+
+        // Asil koruma bu: LEFT JOIN FETCH silinirse vekil burada yuklenir ve
+        // sayfadaki her satir icin ayri bir SELECT calisir. Olculdu: FETCH
+        // olmadan iki satirlik sayfada bile 2 sorgu 3'e cikiyor.
         assertThat(statistics.getPrepareStatementCount())
-                .as("mapping a proxied manager must not hit the database")
+                .as("reading the manager name must not hit the database")
                 .isEqualTo(queriesBeforeMapping);
     }
 

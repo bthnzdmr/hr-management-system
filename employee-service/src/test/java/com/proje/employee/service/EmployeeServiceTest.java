@@ -12,6 +12,7 @@ import com.proje.employee.event.OutboxWriter;
 import com.proje.employee.exception.DepartmentNotFoundException;
 import com.proje.employee.exception.EmailAlreadyExistsException;
 import com.proje.employee.exception.EmployeeNotFoundException;
+import com.proje.employee.exception.InactiveManagerException;
 import com.proje.employee.exception.ManagerCycleException;
 import com.proje.employee.mapper.EmployeeMapper;
 import com.proje.employee.repository.DepartmentRepository;
@@ -24,15 +25,20 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -135,6 +141,30 @@ class EmployeeServiceTest {
 
         assertThat(response.firstName()).isEqualTo("Ada");
         assertThat(response.departmentName()).isEqualTo("Sales");
+    }
+
+    @Test
+    @DisplayName("Wraps the search text in wildcards and lowercases it")
+    void wrapsSearchTextInWildcards() {
+        when(employeeRepository.search(any(), any(), any())).thenReturn(Page.empty());
+
+        employeeService.getAll("  LoVe  ", true, PageRequest.of(0, 10));
+
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(employeeRepository).search(captor.capture(), eq(true), any());
+        assertThat(captor.getValue()).isEqualTo("%love%");
+    }
+
+    @Test
+    @DisplayName("Passes no search pattern when the text is blank")
+    void passesNoPatternForBlankSearch() {
+        // null gecmek sorgudaki kosulu tamamen devre disi birakir; bos dizge
+        // gecseydi "%%" deseni her satirla eslesir ama gereksiz is yaratirdi.
+        when(employeeRepository.search(any(), any(), any())).thenReturn(Page.empty());
+
+        employeeService.getAll("   ", null, PageRequest.of(0, 10));
+
+        verify(employeeRepository).search(isNull(), isNull(), any());
     }
 
     @Test
@@ -285,10 +315,52 @@ class EmployeeServiceTest {
         Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
 
-        employeeService.deactivate(1L);
+        employeeService.changeStatus(1L, false);
 
         assertThat(ada.isActive()).isFalse();
         verify(employeeRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("Brings a deactivated employee back and announces it as REACTIVATED")
+    void reactivationRestoresTheEmployee() {
+        Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
+        ada.setActive(false);
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+
+        employeeService.changeStatus(1L, true);
+
+        assertThat(ada.isActive()).isTrue();
+        assertThat(capturePublishedEvent().eventType()).isEqualTo(EmployeeEventType.REACTIVATED);
+    }
+
+    @Test
+    @DisplayName("Refuses to assign an inactive employee as a manager")
+    void refusesInactiveManager() {
+        // Mevcut atamalar korunur ama YENI kimse pasif birine baglanamaz.
+        Department department = new Department("Sales");
+        Employee ada = employeeWithId(1L, "ada@example.com", department);
+        Employee retired = employeeWithId(9L, "retired@example.com", department);
+        retired.setActive(false);
+
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+        when(employeeRepository.findById(9L)).thenReturn(Optional.of(retired));
+
+        assertThatThrownBy(() ->
+                employeeService.update(1L, updateRequest("ada@example.com", 1L, 9L)))
+                .isInstanceOf(InactiveManagerException.class);
+    }
+
+    @Test
+    @DisplayName("Lists the people who report directly to an employee")
+    void listsDirectReports() {
+        Department department = new Department("Sales");
+        when(employeeRepository.existsById(1L)).thenReturn(true);
+        when(employeeRepository.findByManagerIdOrderByLastNameAsc(1L))
+                .thenReturn(List.of(employeeWithId(2L, "a@example.com", department)));
+
+        assertThat(employeeService.getDirectReports(1L)).hasSize(1);
     }
 
     @Test
@@ -328,7 +400,7 @@ class EmployeeServiceTest {
         Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
 
-        employeeService.deactivate(1L);
+        employeeService.changeStatus(1L, false);
 
         EmployeeEvent event = capturePublishedEvent();
         assertThat(event.eventType()).isEqualTo(EmployeeEventType.DEACTIVATED);
@@ -344,7 +416,7 @@ class EmployeeServiceTest {
         ada.setActive(false);
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
 
-        employeeService.deactivate(1L);
+        employeeService.changeStatus(1L, false);
 
         verify(outboxWriter, never()).write(any());
     }

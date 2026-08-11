@@ -11,6 +11,11 @@ public record EmployeeResponse(
         Long departmentId,
         String departmentName,
         Long managerId,
+        // Yalnizca id donmek arayuzde "Yonetici: 42" demek olurdu. Bu alan
+        // eklendigi anda findAllWithDepartment'a LEFT JOIN FETCH e.manager
+        // zorunlu hale geldi: proxy'nin ID'sini okumak bedava, ADINI okumak
+        // her satir icin ayri sorgu uretir (olculdu).
+        String managerFullName,
         String jobTitle,
         LocalDate hireDate,
         boolean active

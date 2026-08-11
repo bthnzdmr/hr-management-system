@@ -36,6 +36,7 @@ public class NotificationMailService {
             case CREATED -> "Welcome to the team, " + event.firstName();
             case UPDATED -> "Your employee record has been updated";
             case DEACTIVATED -> "Your employee record has been deactivated";
+            case REACTIVATED -> "Welcome back, " + event.firstName();
         };
     }
 
@@ -72,6 +73,17 @@ public class NotificationMailService {
                     have access to the system.
 
                     HR System""".formatted(event.fullName());
+
+            case REACTIVATED -> """
+                    Hello %s,
+
+                    Your employee record has been reactivated and your access
+                    has been restored.
+
+                    Department: %s
+                    Job title: %s
+
+                    HR System""".formatted(event.fullName(), event.departmentName(), event.jobTitle());
         };
     }
 }

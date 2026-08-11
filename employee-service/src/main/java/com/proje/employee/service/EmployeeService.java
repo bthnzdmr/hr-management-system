@@ -13,6 +13,7 @@ import com.proje.employee.event.OutboxWriter;
 import com.proje.employee.exception.DepartmentNotFoundException;
 import com.proje.employee.exception.EmailAlreadyExistsException;
 import com.proje.employee.exception.EmployeeNotFoundException;
+import com.proje.employee.exception.InactiveManagerException;
 import com.proje.employee.exception.ManagerCycleException;
 import com.proje.employee.mapper.EmployeeMapper;
 import com.proje.employee.repository.DepartmentRepository;
@@ -24,6 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
+// Locale.ROOT sart: Turkce locale'de "I".toLowerCase() "ı" uretir ve
+// "ISMAIL" araması "ismail" kaydini bulamaz. Kucultme dile bagli olmamali.
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -47,9 +52,20 @@ public class EmployeeService {
         this.outboxWriter = outboxWriter;
     }
 
+    /**
+     * @param search ad, soyad veya e-postada gecen metin; bos ise filtre yok
+     * @param active true/false ile duruma gore suzer; null ise hepsi
+     */
     @Transactional(readOnly = true)
-    public Page<EmployeeResponse> getAll(Pageable pageable) {
-        return employeeRepository.findAllWithDepartment(pageable)
+    public Page<EmployeeResponse> getAll(String search, Boolean active, Pageable pageable) {
+        // Joker karakterler burada eklenir, sorguda degil: "%" karakterini
+        // sorgu metnine gomup parametreyle birlestirmek okunmasi zor bir
+        // ifade uretir ve LIKE deseni ile veriyi karistirir.
+        String pattern = (search == null || search.isBlank())
+                ? null
+                : "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
+
+        return employeeRepository.search(pattern, active, pageable)
                 .map(employeeMapper::toResponse);
     }
 
@@ -162,21 +178,45 @@ public class EmployeeService {
         return new SalaryResponse(employee.getId(), employee.getSalary());
     }
 
+    /**
+     * Personeli pasiflestirir veya yeniden aktiflestirir.
+     *
+     * Tek uc iki yonu de yonetir ve dogasi geregi idempotenttir: ayni durumu
+     * ikinci kez yazmak hicbir sey degistirmez ve olay uretmez. Aksi halde her
+     * tekrar YENI bir eventId ureteceginden tuketicinin idempotency'si onu
+     * ayiklayamaz ve personel her tiklamada bir mail daha alirdi.
+     */
     @Transactional
-    public void deactivate(Long id) {
+    public EmployeeResponse changeStatus(Long id, boolean active) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException(id));
 
-        // Zaten pasifse hicbir sey yapilmaz. Aksi halde tekrarlanan her istek
-        // YENI bir eventId ile yeni bir olay uretirdi; tuketicinin eventId'ye
-        // dayanan idempotency'si bunu ayiklayamaz ve personel her tiklamada
-        // bir mail daha alirdi. DELETE idempotent olmak zorundadir.
-        if (!employee.isActive()) {
-            return;
+        if (employee.isActive() == active) {
+            return employeeMapper.toResponse(employee);
         }
 
-        employee.setActive(false);
-        publish(EmployeeEventType.DEACTIVATED, employee);
+        employee.setActive(active);
+        publish(active ? EmployeeEventType.REACTIVATED : EmployeeEventType.DEACTIVATED, employee);
+
+        return employeeMapper.toResponse(employee);
+    }
+
+    /**
+     * Dogrudan bagli personel.
+     *
+     * Iki yerde kullanilir: detay ekraninda ekibi gostermek ve pasiflestirme
+     * onayindan once "bu kisinin astlari var" uyarisini verebilmek. Yonetici
+     * pasiflestiginde astlarin manager_id'si oldugu gibi kalir; kullanicinin
+     * bunu BILEREK yapmasi gerekir.
+     */
+    @Transactional(readOnly = true)
+    public List<EmployeeResponse> getDirectReports(Long id) {
+        if (!employeeRepository.existsById(id)) {
+            throw new EmployeeNotFoundException(id);
+        }
+        return employeeRepository.findByManagerIdOrderByLastNameAsc(id).stream()
+                .map(employeeMapper::toResponse)
+                .toList();
     }
 
     // Olay, is verisiyle ayni transaction icinde outbox tablosuna yazilir.
@@ -206,6 +246,13 @@ public class EmployeeService {
 
         Employee manager = employeeRepository.findById(managerId)
                 .orElseThrow(() -> new EmployeeNotFoundException(managerId));
+
+        // Pasif bir kisi yonetici olarak ATANAMAZ. Mevcut atamalar korunur:
+        // bir yonetici pasiflestiginde astlarinin bagi kopmaz, ama yeni kimse
+        // ona baglanamaz.
+        if (!manager.isActive()) {
+            throw new InactiveManagerException(managerId);
+        }
 
         assertNoCycle(employee, manager);
         return manager;

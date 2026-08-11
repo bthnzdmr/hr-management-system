@@ -79,7 +79,8 @@ class ClientErrorStatusTest {
         // Olculdu: bu istek 500 donuyordu. Istemcinin yazdigi bir alan adi
         // sunucu hatasi degildir; ResponseEntityExceptionHandler bu istisnayi
         // kapsamadigi icin acikca ele alinmasi gerekiyor.
-        when(employeeService.getAll(ArgumentMatchers.any()))
+        when(employeeService.getAll(ArgumentMatchers.any(), ArgumentMatchers.any(),
+                ArgumentMatchers.any()))
                 .thenThrow(new InvalidDataAccessApiUsageException("Unknown sort property"));
 
         mockMvc.perform(get("/api/employees?sort=noSuchField,asc"))

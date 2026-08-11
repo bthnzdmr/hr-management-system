@@ -97,12 +97,14 @@ public class SecurityConfig {
                         // Sonuc: USER rolu HEAD ile 200 aliyordu (olculdu).
                         .requestMatchers("/api/employees/*/salary").hasRole("ADMIN")
 
-                        // Yazma uclari yalnizca yoneticiye.
+                        // Yazma uclari yalnizca yoneticiye. Durum degisikligi de
+                        // buraya girer: PUT /{id}/status bir yazma islemidir.
                         .requestMatchers(HttpMethod.POST, "/api/employees/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/employees/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasRole("ADMIN")
 
                         // Okuma uclari icin giris yapmis olmak yeterli.
+                        // Astlarin listesi de okuma sayilir: organizasyon yapisini
+                        // gormek maas gormekten farklidir.
                         .requestMatchers(HttpMethod.GET, "/api/employees/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/departments").authenticated()
 

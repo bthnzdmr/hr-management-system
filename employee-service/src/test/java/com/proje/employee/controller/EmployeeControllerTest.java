@@ -24,12 +24,13 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -70,7 +71,7 @@ class EmployeeControllerTest {
     void createReturns201WithLocation() throws Exception {
         EmployeeResponse response = new EmployeeResponse(
                 42L, "Ada", "Lovelace", "ada@example.com", null,
-                1L, "Software Development", null, "Software Engineer",
+                1L, "Software Development", null, null, "Software Engineer",
                 LocalDate.of(2024, 1, 15), true);
 
         when(employeeService.create(any())).thenReturn(response);
@@ -162,12 +163,38 @@ class EmployeeControllerTest {
 
     @Test
     @WithMockUser(roles = "USER")
-    @DisplayName("USER role cannot delete: DELETE returns 403")
-    void userRoleCannotDelete() throws Exception {
-        mockMvc.perform(delete("/api/employees/1"))
+    @DisplayName("USER role cannot change an employee status")
+    void userRoleCannotChangeStatus() throws Exception {
+        mockMvc.perform(put("/api/employees/1/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\":false}"))
                 .andExpect(status().isForbidden());
 
-        verify(employeeService, never()).deactivate(any());
+        verify(employeeService, never()).changeStatus(any(), anyBoolean());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("Rejects a status change with no active flag")
+    void rejectsStatusChangeWithoutFlag() throws Exception {
+        mockMvc.perform(put("/api/employees/1/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        verify(employeeService, never()).changeStatus(any(), anyBoolean());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    @DisplayName("USER role may read who reports to an employee")
+    void userRoleMayReadDirectReports() throws Exception {
+        // Organizasyon yapisini gormek maasi gormekten farklidir: bu uc
+        // bilerek ADMIN'e kisitli DEGIL.
+        when(employeeService.getDirectReports(1L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/employees/1/direct-reports"))
+                .andExpect(status().isOk());
     }
 
     @Test
