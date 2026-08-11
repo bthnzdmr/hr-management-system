@@ -178,6 +178,27 @@ class RefreshTokenServiceTest {
     }
 
     @Test
+    @DisplayName("Refuses to refresh the session of a deactivated account")
+    void refusesDeactivatedAccount() {
+        // Olculdu: bu kontrol olmadan pasiflestirilen hesap giris yapamiyor ama
+        // elindeki jetonla oturumunu SURESIZ yeniliyordu.
+        User dismissed = user(3L, "gone@example.com");
+        dismissed.setActive(false);
+        String presented = "still-held";
+
+        when(refreshTokenRepository.findByTokenHash(sha256(presented)))
+                .thenReturn(Optional.of(storedToken(
+                        dismissed, presented, Instant.now().plusSeconds(600))));
+
+        assertThatThrownBy(() -> service().rotate(presented))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+
+        // Yalnizca reddedilmez, kalan oturumlar da kapatilir.
+        verify(refreshTokenRepository).revokeAllForUser(eq(3L), any());
+        verify(refreshTokenRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("Signing out revokes the presented token")
     void revokesOnLogout() {
         service().revoke("some-token");

@@ -78,21 +78,47 @@ public class RefreshTokenService {
             throw new InvalidRefreshTokenException("Refresh token has expired");
         }
 
+        // Hesap kapatilmissa oturum da bitmelidir.
+        //
+        // Olculdu: bu kontrol olmadan pasiflestirilen bir hesap giris YAPAMIYOR
+        // ama elindeki jetonla oturumunu SURESIZ yeniliyordu. Yani "hesabi kapat"
+        // islemi, isten ayrilmis birine karsi hicbir sey yapmiyordu. Iptal
+        // mekanizmasi vardi; kararin sahibine sormayi unutmustuk.
+        if (!stored.getUser().isActive()) {
+            revokeAllFor(stored.getUser().getId(), "account is disabled");
+            throw new InvalidRefreshTokenException("Account is disabled");
+        }
+
         // Atomik kapma: kosul ve yazma tek ifadede. 0 donmesi jetonun ZATEN
         // iptal edilmis oldugunu soyler.
         if (refreshTokenRepository.revokeIfActive(hash, Instant.now()) == 0) {
             // Iptal edilmis bir jeton yeniden sunuldu. Mesru istemci onu
             // atmisti; demek ki bir kopyasi dolasiyor. Hangi tarafin saldirgan
             // oldugunu bilemeyiz, bu yuzden TUM oturumlar kapatilir.
-            int revoked = refreshTokenRepository.revokeAllForUser(stored.getUser().getId(), Instant.now());
-            log.warn("Refresh token reuse detected for user {}; revoked {} active tokens",
-                    stored.getUser().getId(), revoked);
-
+            revokeAllFor(stored.getUser().getId(), "token reuse detected");
             throw new InvalidRefreshTokenException("Refresh token was already used");
         }
 
         User user = stored.getUser();
         return new Rotation(user.getEmail(), user.getRole().name(), issueFor(user));
+    }
+
+    /**
+     * Bir kullanicinin butun oturumlarini kapatir.
+     *
+     * Parola degisiminde ve hesap pasiflestirmede de cagrilir: ikisi de
+     * "bu kimlikle acilmis her sey artik gecersiz" demektir.
+     */
+    @Transactional
+    public int revokeAllFor(Long userId, String reason) {
+        int revoked = refreshTokenRepository.revokeAllForUser(userId, Instant.now());
+
+        // Kullanici id'si loglanir, jeton DEGIL: gecerli bir jeton dogrudan
+        // kimlik bilgisidir ve loga girmemelidir.
+        if (revoked > 0) {
+            log.warn("Revoked {} active refresh tokens for user {}: {}", revoked, userId, reason);
+        }
+        return revoked;
     }
 
     /** Cikista cagrilir. Bilinmeyen jeton sessizce yok sayilir: cikis her zaman basarilidir. */
