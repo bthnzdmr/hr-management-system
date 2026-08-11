@@ -17,7 +17,8 @@ export function EmployeeListPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
-  const { items, totalElements, page, size, status, error } = useAppSelector((s) => s.employees);
+  const { items, totalElements, page, size, status, error, deactivatingId } =
+    useAppSelector((s) => s.employees);
 
   // Sayfa veya boyut degistiginde veri yeniden cekilir.
   useEffect(() => {
@@ -88,9 +89,12 @@ export function EmployeeListPage() {
                         </Tooltip>
                         <Tooltip title={employee.active ? 'Deactivate' : 'Already inactive'}>
                           <span>
+                            {/* Istek surerken devre disi: cift tiklama iki
+                                DELETE gonderirdi. Sunucu artik idempotent
+                                oldugu icin zarari yok, ama gereksiz. */}
                             <IconButton
                               size="small"
-                              disabled={!employee.active}
+                              disabled={!employee.active || deactivatingId === employee.id}
                               onClick={() => dispatch(deactivateEmployee(employee.id))}
                             >
                               <BlockIcon fontSize="small" />
@@ -103,10 +107,15 @@ export function EmployeeListPage() {
                 </TableRow>
               ))}
 
-              {status === 'succeeded' && items.length === 0 && (
+              {/* 'succeeded' yerine 'yuklenmiyor' kosulu: hata sonrasi kullanici
+                  uyariyi kapattiginda status 'failed' kaliyor ve tablo tamamen
+                  bos gorunuyordu -- ne satir, ne hata, ne de bir aciklama. */}
+              {status !== 'loading' && items.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                    <Typography color="text.secondary">No employees yet</Typography>
+                    <Typography color="text.secondary">
+                      {status === 'failed' ? 'Could not load employees' : 'No employees yet'}
+                    </Typography>
                   </TableCell>
                 </TableRow>
               )}

@@ -39,12 +39,19 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler) {
   onUnauthorized = handler;
 }
 
+const LOGIN_PATH = '/api/auth/login';
+
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ProblemDetail>) => {
     // 401: kimlik gecersiz -> oturumu kapat.
     // 403: kimlik gecerli ama yetki yok -> oturum durur, sayfa hata gosterir.
-    if (error.response?.status === 401) {
+    //
+    // Giris istegi disarida birakilir: yanlis parola da 401 doner ve bu,
+    // baska bir sekmedeki GECERLI oturumu kapatmamalidir.
+    const isLoginAttempt = error.config?.url?.endsWith(LOGIN_PATH) ?? false;
+
+    if (error.response?.status === 401 && !isLoginAttempt) {
       tokenStorage.clear();
       onUnauthorized();
     }

@@ -29,10 +29,18 @@ const AuthContext = createContext<AuthContextValue | null>(null);
  */
 function readToken(token: string): AuthUser | null {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const expiresAtMs = payload.exp * 1000;
+    // base64url -> base64: JWT '+' ve '/' yerine '-' ve '_' kullanabilir,
+    // atob bunlari kabul etmez.
+    const encoded = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(encoded));
 
-    if (Date.now() >= expiresAtMs) {
+    // exp YOKSA gecersiz sayilir. Onceden eksik exp icin karsilastirma
+    // NaN uretiyor, NaN karsilastirmasi false donuyor ve token sonsuza
+    // kadar gecerli kabul ediliyordu.
+    if (typeof payload.exp !== 'number' || Date.now() >= payload.exp * 1000) {
+      return null;
+    }
+    if (typeof payload.sub !== 'string') {
       return null;
     }
     return { email: payload.sub, role: payload.role as Role };

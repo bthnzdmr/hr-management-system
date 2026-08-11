@@ -30,10 +30,18 @@ describe('employees reducer', () => {
     expect(state.error).toBeNull();
   });
 
+  /** Gercek akis daima pending ile baslar; cevap ancak eslesen istege aittir. */
+  function afterRequest(requestId: string) {
+    return reducer(initial, fetchEmployees.pending(requestId, { page: 0, size: 10 }));
+  }
+
   it('replaces the list with the fetched page', () => {
     const page = { content: [employee(1), employee(2)], totalElements: 42, totalPages: 5, number: 0, size: 10 };
 
-    const state = reducer(initial, fetchEmployees.fulfilled(page, '', { page: 0, size: 10 }));
+    const state = reducer(
+      afterRequest('req-1'),
+      fetchEmployees.fulfilled(page, 'req-1', { page: 0, size: 10 }),
+    );
 
     expect(state.status).toBe('succeeded');
     expect(state.items).toHaveLength(2);
@@ -41,12 +49,11 @@ describe('employees reducer', () => {
   });
 
   it('keeps the failure message so the page can show it', () => {
-    const action = {
+    const state = reducer(afterRequest('req-1'), {
       type: fetchEmployees.rejected.type,
       payload: 'The server could not be reached',
-    };
-
-    const state = reducer(initial, action);
+      meta: { requestId: 'req-1' },
+    });
 
     expect(state.status).toBe('failed');
     expect(state.error).toBe('The server could not be reached');
@@ -81,6 +88,45 @@ describe('employees reducer', () => {
 
     expect(state.error).toBeNull();
   });
+
+  it('drops the previous rows when a fetch fails', () => {
+    // Hata bandi ustte dururken altta baska bir sayfanin verisini
+    // gostermek, kullaniciya yanlis veriyi dogruymus gibi sunar.
+    const loaded = {
+      ...afterRequest('req-1'),
+      items: [employee(1)],
+      totalElements: 5,
+    };
+
+    const state = reducer(loaded, {
+      type: fetchEmployees.rejected.type,
+      payload: 'boom',
+      meta: { requestId: 'req-1' },
+    });
+
+    expect(state.items).toHaveLength(0);
+    expect(state.error).toBe('boom');
+  });
+
+  it('ignores a stale response that arrives after a newer request', () => {
+    const inFlight = reducer(initial, fetchEmployees.pending('req-2', { page: 1, size: 10 }));
+
+    // 'req-1' daha once baslamis ama GEC donmus bir istek.
+    const state = reducer(inFlight, {
+      type: fetchEmployees.fulfilled.type,
+      payload: { content: [employee(9)], totalElements: 1, totalPages: 1, number: 0, size: 10 },
+      meta: { requestId: 'req-1' },
+    });
+
+    expect(state.items).toHaveLength(0);
+    expect(state.status).toBe('loading');
+  });
+
+  it('marks the row as being deactivated while the request is in flight', () => {
+    const state = reducer(initial, deactivateEmployee.pending('req-1', 7));
+
+    expect(state.deactivatingId).toBe(7);
+  });
 });
 
 describe('session reset', () => {
@@ -88,9 +134,10 @@ describe('session reset', () => {
     // Ortak kullanilan bir bilgisayarda, cikis yapan kullanicinin listesi
     // sonraki kullaniciya gorunmemelidir.
     const store = configureStore({ reducer: rootReducer });
+    store.dispatch(fetchEmployees.pending('req-1', { page: 0, size: 10 }));
     store.dispatch(fetchEmployees.fulfilled(
       { content: [employee(1)], totalElements: 1, totalPages: 1, number: 0, size: 10 },
-      '', { page: 0, size: 10 },
+      'req-1', { page: 0, size: 10 },
     ));
     expect(store.getState().employees.items).toHaveLength(1);
 

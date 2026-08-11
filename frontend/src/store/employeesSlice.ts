@@ -10,6 +10,10 @@ interface EmployeesState {
   size: number;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
+  /** Ust uste binen isteklerde yalnizca EN SON istegin cevabi kabul edilir. */
+  currentRequestId: string | null;
+  /** Pasiflestirme suren kaydin id'si; dugme bu sirada devre disi kalir. */
+  deactivatingId: number | null;
 }
 
 const initialState: EmployeesState = {
@@ -19,6 +23,8 @@ const initialState: EmployeesState = {
   size: 10,
   status: 'idle',
   error: null,
+  currentRequestId: null,
+  deactivatingId: null,
 };
 
 /**
@@ -67,18 +73,36 @@ const employeesSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchEmployees.pending, (state) => {
+      .addCase(fetchEmployees.pending, (state, action) => {
         state.status = 'loading';
         state.error = null;
+        state.currentRequestId = action.meta.requestId;
       })
       .addCase(fetchEmployees.fulfilled, (state, action) => {
+        // Hizli sayfa degisiminde istekler ust uste biner. Gec donen ESKI
+        // cevabin yeni sayfanin uzerine yazmasini engelliyoruz.
+        if (state.currentRequestId !== action.meta.requestId) {
+          return;
+        }
         state.status = 'succeeded';
         state.items = action.payload.content;
         state.totalElements = action.payload.totalElements;
+        state.currentRequestId = null;
       })
       .addCase(fetchEmployees.rejected, (state, action) => {
+        if (state.currentRequestId !== action.meta.requestId) {
+          return;
+        }
         state.status = 'failed';
         state.error = action.payload as string;
+        // Eski sayfanin satirlari temizlenir: hata bandi ustte dururken
+        // altta baska bir sayfanin verisini gostermek yaniltici olur.
+        state.items = [];
+        state.totalElements = 0;
+        state.currentRequestId = null;
+      })
+      .addCase(deactivateEmployee.pending, (state, action) => {
+        state.deactivatingId = action.meta.arg;
       })
       .addCase(deactivateEmployee.fulfilled, (state, action) => {
         // Sunucu 204 donuyor, guncel satiri gondermiyor. Listeyi yeniden
@@ -87,9 +111,11 @@ const employeesSlice = createSlice({
         if (employee) {
           employee.active = false;
         }
+        state.deactivatingId = null;
       })
       .addCase(deactivateEmployee.rejected, (state, action) => {
         state.error = action.payload as string;
+        state.deactivatingId = null;
       });
   },
 });

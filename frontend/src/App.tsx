@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './auth/ProtectedRoute';
+import { AdminRoute } from './auth/AdminRoute';
 import { LoginPage } from './pages/LoginPage';
 import { EmployeeListPage } from './pages/EmployeeListPage';
 import { EmployeeFormPage } from './pages/EmployeeFormPage';
@@ -13,8 +14,13 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/employees" element={<EmployeeListPage />} />
-          <Route path="/employees/new" element={<EmployeeFormPage />} />
-          <Route path="/employees/:id" element={<EmployeeFormPage />} />
+
+          {/* Yazma ekranlari yalnizca ADMIN'e: USER formu doldurduktan sonra
+              kacinilmaz olarak 403 alirdi. */}
+          <Route element={<AdminRoute />}>
+            <Route path="/employees/new" element={<EmployeeFormPage />} />
+            <Route path="/employees/:id" element={<EmployeeFormPage />} />
+          </Route>
         </Route>
       </Route>
 
