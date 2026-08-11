@@ -336,6 +336,46 @@ class EmployeeServiceTest {
     }
 
     @Test
+    @DisplayName("Deactivating an already inactive employee changes nothing and publishes nothing")
+    void deactivationIsIdempotent() {
+        // Aksi halde her tekrar YENI bir eventId uretir; tuketicinin eventId'ye
+        // dayanan idempotency'si bunu ayiklayamaz ve personel mail yagmuruna tutulur.
+        Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
+        ada.setActive(false);
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+
+        employeeService.deactivate(1L);
+
+        verify(outboxWriter, never()).write(any());
+    }
+
+    @Test
+    @DisplayName("Fails loudly instead of accepting the assignment when the chain is too deep")
+    void failsLoudlyOnUnreasonablyDeepChain() {
+        // Bozuk veride dongu ust sinira kadar yurur. Onceden dongu burada
+        // sessizce bitiyor ve atama KABUL EDILIYORDU.
+        Department department = new Department("Sales");
+        Employee ada = employeeWithId(1L, "ada@example.com", department);
+
+        Employee head = employeeWithId(1000L, "m1000@example.com", department);
+        Employee current = head;
+        for (int i = 0; i < 150; i++) {
+            Employee next = employeeWithId(2000L + i, "m" + i + "@example.com", department);
+            current.setManager(next);
+            current = next;
+        }
+
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+        when(employeeRepository.findById(1000L)).thenReturn(Optional.of(head));
+
+        assertThatThrownBy(() ->
+                employeeService.update(1L, updateRequest("ada@example.com", 1L, 1000L)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Manager chain exceeded");
+    }
+
+    @Test
     @DisplayName("Publishes nothing when creation fails validation")
     void publishesNothingWhenCreationFails() {
         when(employeeRepository.existsByEmail("ada@example.com")).thenReturn(true);

@@ -157,6 +157,14 @@ public class EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException(id));
 
+        // Zaten pasifse hicbir sey yapilmaz. Aksi halde tekrarlanan her istek
+        // YENI bir eventId ile yeni bir olay uretirdi; tuketicinin eventId'ye
+        // dayanan idempotency'si bunu ayiklayamaz ve personel her tiklamada
+        // bir mail daha alirdi. DELETE idempotent olmak zorundadir.
+        if (!employee.isActive()) {
+            return;
+        }
+
         employee.setActive(false);
         publish(EmployeeEventType.DEACTIVATED, employee);
     }
@@ -199,10 +207,21 @@ public class EmployeeService {
     private void assertNoCycle(Employee employee, Employee newManager) {
         Employee current = newManager;
 
-        for (int depth = 0; current != null && depth < MAX_HIERARCHY_DEPTH; depth++) {
+        for (int depth = 0; current != null; depth++) {
             if (current.getId().equals(employee.getId())) {
                 throw new ManagerCycleException(employee.getId(), newManager.getId());
             }
+
+            // Ust sinira ULASMAK basarili bir kontrol degildir. Onceden dongu
+            // burada sessizce sona eriyor ve atama KABUL EDILIYORDU; yani
+            // engellemek icin var olan kontrol, tam da anormal veride
+            // devre disi kaliyordu. Gurultulu basarisiz ol.
+            if (depth >= MAX_HIERARCHY_DEPTH) {
+                throw new IllegalStateException(
+                        "Manager chain exceeded " + MAX_HIERARCHY_DEPTH
+                                + " levels starting from employee " + newManager.getId());
+            }
+
             current = current.getManager();
         }
     }
