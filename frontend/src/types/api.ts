@@ -28,6 +28,9 @@ export interface Employee {
   departmentId: number;
   departmentName: string;
   managerId: number | null;
+  // Sunucu adi da gonderiyor; aksi halde arayuz her satir icin yoneticiyi
+  // ayrica sorgulamak zorunda kalirdi (liste boyunca N+1 istek).
+  managerFullName: string | null;
   jobTitle: string;
   hireDate: string;
   active: boolean;
