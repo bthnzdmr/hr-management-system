@@ -4,6 +4,7 @@ import { ProtectedRoute } from './auth/ProtectedRoute';
 import { AdminRoute } from './auth/AdminRoute';
 import { LoginPage } from './pages/LoginPage';
 import { EmployeeListPage } from './pages/EmployeeListPage';
+import { EmployeeDetailPage } from './pages/EmployeeDetailPage';
 import { EmployeeFormPage } from './pages/EmployeeFormPage';
 
 export default function App() {
@@ -14,6 +15,10 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/employees" element={<EmployeeListPage />} />
+
+          {/* Detay okumadir: her oturum acmis kullaniciya acik. Duzenleme
+              ekrani olmadan USER'in tiklayacagi hicbir sey yoktu. */}
+          <Route path="/employees/:id/details" element={<EmployeeDetailPage />} />
 
           {/* Yazma ekranlari yalnizca ADMIN'e: USER formu doldurduktan sonra
               kacinilmaz olarak 403 alirdi. */}

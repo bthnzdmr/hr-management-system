@@ -5,6 +5,7 @@ import { Provider } from 'react-redux';
 import { store } from './store';
 import { AuthProvider } from './auth/AuthContext';
 import { ColorModeProvider } from './theme/ColorModeContext';
+import { SnackbarProvider } from './components/SnackbarProvider';
 import App from './App';
 
 // Saglayicilarin sirasi onemli: AuthProvider ici Router'in yonlendirme
@@ -13,11 +14,13 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
       <ColorModeProvider>
-        <BrowserRouter>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
-        </BrowserRouter>
+        <SnackbarProvider>
+          <BrowserRouter>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </BrowserRouter>
+        </SnackbarProvider>
       </ColorModeProvider>
     </Provider>
   </StrictMode>,
