@@ -16,6 +16,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -82,6 +83,31 @@ class EmployeeMapperTest {
 
         assertThat(responses).hasSize(2);
         assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Reading the id of a manager outside the page issues no extra query")
+    void readingProxyIdOutsidePageIssuesNoExtraQuery() {
+        // Onceki test aslinda PROXY'yi sinamiyor: yonetici de ayni sayfada
+        // dondugu icin getManager() zaten yuklenmis bir nesneye cozuluyor.
+        // Burada sayfa boyutu 1: yonetici sonuc kumesinin DISINDA kaliyor ve
+        // getManager() gercek bir HibernateProxy donuyor.
+        // Sirala: lastName asc -> Hopper (yonetici), Lovelace (calisan).
+        List<Employee> secondPage = employeeRepository
+                .findAllWithDepartment(PageRequest.of(1, 1, Sort.by("lastName")))
+                .getContent();
+
+        assertThat(secondPage).hasSize(1);
+        assertThat(secondPage.get(0).getLastName()).isEqualTo("Lovelace");
+
+        long queriesBeforeMapping = statistics.getPrepareStatementCount();
+
+        EmployeeResponse response = mapper.toResponse(secondPage.get(0));
+
+        assertThat(response.managerId()).isEqualTo(managerId);
+        assertThat(statistics.getPrepareStatementCount())
+                .as("mapping a proxied manager must not hit the database")
+                .isEqualTo(queriesBeforeMapping);
     }
 
     @Test
