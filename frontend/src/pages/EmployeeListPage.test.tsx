@@ -10,7 +10,7 @@ import { AuthProvider } from '../auth/AuthContext';
 import { SnackbarProvider } from '../components/SnackbarProvider';
 import { tokenStorage } from '../api/client';
 import { employeeApi } from '../api/employees';
-import type { Employee } from '../types/api';
+import type { Employee, Role } from '../types/api';
 
 vi.mock('../api/employees', () => ({
   employeeApi: {
@@ -38,13 +38,17 @@ function makeEmployee(overrides: Partial<Employee> = {}): Employee {
   };
 }
 
-function fakeToken(role: 'ADMIN' | 'USER'): string {
-  const body = { sub: `${role.toLowerCase()}@example.com`, role, exp: Math.floor(Date.now() / 1000) + 900 };
+function fakeToken(roles: Role[]): string {
+  const body = {
+    sub: `${roles[0].toLowerCase()}@example.com`,
+    roles,
+    exp: Math.floor(Date.now() / 1000) + 900,
+  };
   return `header.${btoa(JSON.stringify(body))}.signature`;
 }
 
-function renderPage(role: 'ADMIN' | 'USER') {
-  tokenStorage.set(fakeToken(role));
+function renderPage(roles: Role[]) {
+  tokenStorage.set(fakeToken(roles));
 
   const store = configureStore({ reducer: { employees: employeesReducer } });
 
@@ -83,7 +87,7 @@ describe('EmployeeListPage', () => {
   });
 
   it('lists the employees returned by the server', async () => {
-    renderPage('ADMIN');
+    renderPage(['HR_SPECIALIST']);
 
     expect(await screen.findByText('Grace Hopper')).toBeInTheDocument();
     expect(screen.getByText('Software Development')).toBeInTheDocument();
@@ -96,19 +100,19 @@ describe('EmployeeListPage', () => {
       pageOf([makeEmployee({ managerId: 9, managerFullName: 'Barbara Liskov' })]),
     );
 
-    renderPage('USER');
+    renderPage(['EMPLOYEE']);
 
     expect(await screen.findByText('Barbara Liskov')).toBeInTheDocument();
   });
 
   it('says so when an employee has no manager', async () => {
-    renderPage('USER');
+    renderPage(['EMPLOYEE']);
 
     expect(await screen.findByText('No manager')).toBeInTheDocument();
   });
 
   it('offers the write actions to an administrator', async () => {
-    renderPage('ADMIN');
+    renderPage(['HR_SPECIALIST']);
 
     expect(await screen.findByRole('button', { name: /new employee/i })).toBeInTheDocument();
     expect(screen.getByLabelText('Edit')).toBeInTheDocument();
@@ -117,7 +121,7 @@ describe('EmployeeListPage', () => {
   it('hides the write actions from a plain user', async () => {
     // Bu bir guvenlik onlemi degil: sunucu zaten 403 doner. Amac kullaniciya
     // kacinilmaz olarak reddedilecek bir dugmeyi hic gostermemek.
-    renderPage('USER');
+    renderPage(['EMPLOYEE']);
 
     await screen.findByText('Grace Hopper');
     expect(screen.queryByRole('button', { name: /new employee/i })).not.toBeInTheDocument();
@@ -125,14 +129,14 @@ describe('EmployeeListPage', () => {
   });
 
   it('leaves the read-only user a way into the record', async () => {
-    renderPage('USER');
+    renderPage(['EMPLOYEE']);
 
     expect(await screen.findByLabelText('View details')).toBeInTheDocument();
   });
 
   it('sends the search term to the server after the user stops typing', async () => {
     const user = userEvent.setup();
-    renderPage('ADMIN');
+    renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
     await user.type(screen.getByPlaceholderText('Search by name or email'), 'liskov');
@@ -145,7 +149,7 @@ describe('EmployeeListPage', () => {
 
   it('asks the server for inactive records only when that filter is chosen', async () => {
     const user = userEvent.setup();
-    renderPage('ADMIN');
+    renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
     await user.click(screen.getByRole('button', { name: 'Inactive' }));
@@ -155,7 +159,7 @@ describe('EmployeeListPage', () => {
   });
 
   it('does not filter by status at all when "All" is selected', async () => {
-    renderPage('ADMIN');
+    renderPage(['HR_SPECIALIST']);
 
     await waitFor(() => expect(employeeApi.list).toHaveBeenCalled());
     // active: false gonderilseydi yalnizca pasifler gelirdi; ayrim
@@ -165,7 +169,7 @@ describe('EmployeeListPage', () => {
 
   it('flips the sort direction when the same column header is clicked twice', async () => {
     const user = userEvent.setup();
-    renderPage('ADMIN');
+    renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
     // Tam ad eslesmesi: /employee/i olsaydi "New employee" dugmesine de uyardi.
@@ -184,7 +188,7 @@ describe('EmployeeListPage', () => {
       makeEmployee({ id: 3 }),
     ]);
 
-    renderPage('ADMIN');
+    renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
     // Rol ile sorulur: Tooltip sarmalayici span'e de bir etiket koyuyor ve
@@ -203,7 +207,7 @@ describe('EmployeeListPage', () => {
 
   it('sends nothing when the confirmation is cancelled', async () => {
     const user = userEvent.setup();
-    renderPage('ADMIN');
+    renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
     // Rol ile sorulur: Tooltip sarmalayici span'e de bir etiket koyuyor ve
@@ -222,7 +226,7 @@ describe('EmployeeListPage', () => {
     vi.mocked(employeeApi.list).mockResolvedValue(pageOf([inactive]));
     vi.mocked(employeeApi.changeStatus).mockResolvedValue({ ...inactive, active: true });
 
-    renderPage('ADMIN');
+    renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
     await user.click(screen.getByRole('button', { name: 'Reactivate' }));
@@ -237,7 +241,7 @@ describe('EmployeeListPage', () => {
     vi.mocked(employeeApi.list).mockResolvedValue(pageOf([inactive]));
     vi.mocked(employeeApi.changeStatus).mockRejectedValue(new Error('boom'));
 
-    renderPage('ADMIN');
+    renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
     await user.click(screen.getByRole('button', { name: 'Reactivate' }));
@@ -248,7 +252,7 @@ describe('EmployeeListPage', () => {
   it('shows the failure message when the list cannot be loaded', async () => {
     vi.mocked(employeeApi.list).mockRejectedValue(new Error('boom'));
 
-    renderPage('ADMIN');
+    renderPage(['HR_SPECIALIST']);
 
     await waitFor(() =>
       expect(screen.getByText('An unexpected error occurred')).toBeInTheDocument());
@@ -256,7 +260,7 @@ describe('EmployeeListPage', () => {
 
   it('tells the user when the filters match nothing', async () => {
     const user = userEvent.setup();
-    renderPage('ADMIN');
+    renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
     vi.mocked(employeeApi.list).mockResolvedValue(pageOf([]));

@@ -46,7 +46,7 @@ class RefreshTokenServiceTest {
     }
 
     private User user(Long id, String email) {
-        User user = new User(email, "hash", Role.USER);
+        User user = new User(email, "hash", User.rolesOf(Role.EMPLOYEE));
         ReflectionTestUtils.setField(user, "id", id);
         return user;
     }
@@ -123,7 +123,7 @@ class RefreshTokenServiceTest {
         RefreshTokenService.Rotation rotation = service().rotate(presented);
 
         assertThat(rotation.email()).isEqualTo("ada@example.com");
-        assertThat(rotation.role()).isEqualTo("USER");
+        assertThat(rotation.roles()).containsExactly("EMPLOYEE");
         // Yeni jeton eskisiyle ayni olsaydi dondurmenin hicbir anlami kalmazdi.
         assertThat(rotation.refreshToken()).isNotEqualTo(presented);
         verify(refreshTokenRepository).revokeIfActive(eq(sha256(presented)), any());

@@ -82,8 +82,11 @@ class EmployeeRepositoryTest {
     @Test
     @DisplayName("JOIN FETCH loads departments in the same query")
     void issuesSingleQueryWithJoinFetch() {
-        Page<Employee> page = employeeRepository.findAllWithDepartment(
-                PageRequest.of(0, 10, Sort.by("lastName")));
+        // Uretimin gercekten cagirdigi sorgu olculur. Onceden yalnizca
+        // testlerde kullanilan ayri bir metot vardi ve olcum, kullanilmayan
+        // sorguyu koruyordu.
+        Page<Employee> page = employeeRepository.search(
+                null, null, null, false, PageRequest.of(0, 10, Sort.by("lastName")));
 
         page.getContent().forEach(employee -> employee.getDepartment().getName());
 

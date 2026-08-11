@@ -37,6 +37,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
@@ -45,6 +46,10 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class EmployeeServiceTest {
+
+    /** Kapsam testleri ayri dosyada; burada kisitsiz gorunum varsayilir. */
+    private static final AccessScope UNRESTRICTED =
+            new AccessScope(AccessScope.Kind.ALL, null);
 
     @Mock
     private EmployeeRepository employeeRepository;
@@ -146,12 +151,12 @@ class EmployeeServiceTest {
     @Test
     @DisplayName("Wraps the search text in wildcards and lowercases it")
     void wrapsSearchTextInWildcards() {
-        when(employeeRepository.search(any(), any(), any())).thenReturn(Page.empty());
+        when(employeeRepository.search(any(), any(), any(), anyBoolean(), any())).thenReturn(Page.empty());
 
-        employeeService.getAll("  LoVe  ", true, PageRequest.of(0, 10));
+        employeeService.getAll("  LoVe  ", true, UNRESTRICTED, PageRequest.of(0, 10));
 
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-        verify(employeeRepository).search(captor.capture(), eq(true), any());
+        verify(employeeRepository).search(captor.capture(), eq(true), isNull(), anyBoolean(), any());
         assertThat(captor.getValue()).isEqualTo("%love%");
     }
 
@@ -160,11 +165,11 @@ class EmployeeServiceTest {
     void passesNoPatternForBlankSearch() {
         // null gecmek sorgudaki kosulu tamamen devre disi birakir; bos dizge
         // gecseydi "%%" deseni her satirla eslesir ama gereksiz is yaratirdi.
-        when(employeeRepository.search(any(), any(), any())).thenReturn(Page.empty());
+        when(employeeRepository.search(any(), any(), any(), anyBoolean(), any())).thenReturn(Page.empty());
 
-        employeeService.getAll("   ", null, PageRequest.of(0, 10));
+        employeeService.getAll("   ", null, UNRESTRICTED, PageRequest.of(0, 10));
 
-        verify(employeeRepository).search(isNull(), isNull(), any());
+        verify(employeeRepository).search(isNull(), isNull(), isNull(), anyBoolean(), any());
     }
 
     @Test
@@ -172,7 +177,7 @@ class EmployeeServiceTest {
     void throwsForMissingId() {
         when(employeeRepository.findById(42L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> employeeService.getById(42L))
+        assertThatThrownBy(() -> employeeService.getById(42L, UNRESTRICTED))
                 .isInstanceOf(EmployeeNotFoundException.class)
                 .hasMessageContaining("42");
     }
@@ -377,11 +382,12 @@ class EmployeeServiceTest {
     @DisplayName("Lists the people who report directly to an employee")
     void listsDirectReports() {
         Department department = new Department("Sales");
-        when(employeeRepository.existsById(1L)).thenReturn(true);
+        when(employeeRepository.findById(1L))
+                .thenReturn(Optional.of(employeeWithId(1L, "boss@example.com", department)));
         when(employeeRepository.findByManagerIdOrderByLastNameAsc(1L))
                 .thenReturn(List.of(employeeWithId(2L, "a@example.com", department)));
 
-        assertThat(employeeService.getDirectReports(1L)).hasSize(1);
+        assertThat(employeeService.getDirectReports(1L, UNRESTRICTED)).hasSize(1);
     }
 
     @Test

@@ -31,7 +31,7 @@ function Field({ label, value }: { label: string; value: string }) {
 export function EmployeeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { canEditEmployees } = useAuth();
 
   const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -123,7 +123,7 @@ export function EmployeeDetailPage() {
             </Box>
           </Stack>
 
-          {isAdmin && (
+          {canEditEmployees && (
             <Button
               variant="outlined"
               startIcon={<EditOutlinedIcon />}

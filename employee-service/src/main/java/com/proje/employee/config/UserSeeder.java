@@ -11,6 +11,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Set;
+
 @Configuration
 public class UserSeeder {
 
@@ -23,39 +25,81 @@ public class UserSeeder {
                                 @Value("${app.admin.email:}") String email,
                                 @Value("${app.admin.password:}") String password) {
 
-        return args -> seed(userRepository, passwordEncoder, email, password, Role.ADMIN,
+        // Ilk hesap iki isi birden yapar: Ik verisini yonetir VE hesaplari
+        // yonetir. Sistemi ayaga kaldiran kisinin baska turlu ikinci bir hesap
+        // acmasi mumkun olmazdi -- yumurta-tavuk.
+        return args -> seed(userRepository, passwordEncoder, email, password,
+                User.rolesOf(Role.HR_SPECIALIST, Role.SYSTEM_ADMIN),
                 "Admin account", "ADMIN_EMAIL / ADMIN_PASSWORD");
     }
 
-    // Salt okuyan INSAN hesabi. Servis hesabinin rolu de USER'dir ama o bir
-    // programa aittir; rol ayrimini elle denemek icin ayri bir hesap gerekir.
+    // Salt okuyan INSAN hesabi. Rol ayrimini elle denemek icin.
     @Bean
     ApplicationRunner seedReadOnlyUser(UserRepository userRepository,
                                        PasswordEncoder passwordEncoder,
                                        @Value("${app.user.email:}") String email,
                                        @Value("${app.user.password:}") String password) {
 
-        return args -> seed(userRepository, passwordEncoder, email, password, Role.USER,
+        return args -> seed(userRepository, passwordEncoder, email, password,
+                User.rolesOf(Role.EMPLOYEE),
                 "Read-only user account", "USER_EMAIL / USER_PASSWORD");
     }
 
-    // Notification Service bu hesapla giris yapar. Rolu USER: bildirim gonderen
-    // bir servisin personel kaydi degistirmeye ihtiyaci yoktur (en az yetki).
+    /**
+     * Notification Service bu hesapla giris yapar.
+     *
+     * Rolu SERVICE: bildirimi hazirlarken personelin yoneticisini sormasi
+     * gerekiyor, yani rehberi okumali -- ama baska hicbir seye ihtiyaci yok.
+     * EMPLOYEE verilseydi yalnizca "kendi" kaydini gorurdu ve personel kaydi
+     * olmadigi icin hicbir sey goremezdi; HR_SPECIALIST verilseydi personel
+     * silebilirdi. Ikisi de yanlis olurdu.
+     */
     @Bean
     ApplicationRunner seedServiceAccount(UserRepository userRepository,
                                          PasswordEncoder passwordEncoder,
                                          @Value("${app.service-account.email:}") String email,
                                          @Value("${app.service-account.password:}") String password) {
 
-        return args -> seed(userRepository, passwordEncoder, email, password, Role.USER,
-                "Service account", "SERVICE_ACCOUNT_EMAIL / SERVICE_ACCOUNT_PASSWORD");
+        return args -> {
+            seed(userRepository, passwordEncoder, email, password, User.rolesOf(Role.SERVICE),
+                    "Service account", "SERVICE_ACCOUNT_EMAIL / SERVICE_ACCOUNT_PASSWORD");
+
+            reconcileServiceRoles(userRepository, email);
+        };
+    }
+
+    /**
+     * Servis hesabinin rolunu her acilista dogrular.
+     *
+     * Makine kimliginin rolu VERI degil YAPILANDIRMADIR: hangi role sahip
+     * olacagi kodda yazar, kimse arayuzden degistirmemelidir. Parola ise
+     * korunur -- o gercekten bir sirdir.
+     *
+     * Somut sebep: roller bolundugunde bu hesap migration'da EMPLOYEE'ye
+     * dustu ve tohumlayici var olan hesabi atladigi icin rehberi okuyamaz
+     * hale geldi. Bildirim maili yine gider ama yonetici CC'si SESSIZCE
+     * calismazdi -- fark edilmesi zor bir bozulma.
+     */
+    private void reconcileServiceRoles(UserRepository userRepository, String email) {
+        if (email.isBlank()) {
+            return;
+        }
+
+        userRepository.findByEmail(email).ifPresent(account -> {
+            if (account.getRoles().equals(User.rolesOf(Role.SERVICE))) {
+                return;
+            }
+            log.warn("Service account had roles {}; resetting to [SERVICE]", account.getRoles());
+            account.setRoles(User.rolesOf(Role.SERVICE));
+            userRepository.save(account);
+        });
     }
 
     private void seed(UserRepository userRepository,
                       PasswordEncoder passwordEncoder,
                       String email,
                       String password,
-                      Role role,
+                      Set<Role> roles,
                       String label,
                       String variables) {
 
@@ -72,7 +116,7 @@ public class UserSeeder {
             return;
         }
 
-        userRepository.save(new User(email, passwordEncoder.encode(password), role));
-        log.info("{} created: {}", label, email);
+        userRepository.save(new User(email, passwordEncoder.encode(password), roles));
+        log.info("{} created: {} with roles {}", label, email, roles);
     }
 }

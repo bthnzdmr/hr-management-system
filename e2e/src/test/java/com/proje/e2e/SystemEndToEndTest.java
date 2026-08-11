@@ -327,7 +327,7 @@ class SystemEndToEndTest {
         SystemClient.Response response = client.post(
                 SystemClient.API_URL + "/api/users", token,
                 """
-                {"email":"%s","password":"%s","role":"%s"}
+                {"email":"%s","password":"%s","roles":["%s"]}
                 """.formatted(email, password, role));
 
         assertThat(response.status()).isEqualTo(201);
@@ -346,7 +346,7 @@ class SystemEndToEndTest {
     void createdAccountCanSignIn() {
         String adminToken = signIn();
         String email = "e2e.account." + UUID.randomUUID() + "@example.com";
-        createAccount(adminToken, email, "a-long-enough-password", "USER");
+        createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
 
         SystemClient.Response login = signIn(email, "a-long-enough-password");
         assertThat(login.status()).isEqualTo(200);
@@ -355,7 +355,7 @@ class SystemEndToEndTest {
         assertThat(client.get(SystemClient.API_URL + "/api/employees?size=1", userToken).status())
                 .isEqualTo(200);
 
-        // Rolu USER: hesap yonetimi ona kapali.
+        // Rolu EMPLOYEE: hesap yonetimi ona kapali.
         assertThat(client.get(SystemClient.API_URL + "/api/users", userToken).status())
                 .isEqualTo(403);
     }
@@ -365,7 +365,7 @@ class SystemEndToEndTest {
     void neverExposesPasswordHash() {
         String adminToken = signIn();
         String email = "e2e.nohash." + UUID.randomUUID() + "@example.com";
-        createAccount(adminToken, email, "a-long-enough-password", "USER");
+        createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
 
         String listed = client.get(SystemClient.API_URL + "/api/users?size=100", adminToken)
                 .body().toString();
@@ -381,7 +381,7 @@ class SystemEndToEndTest {
         // elindeki yenileme jetonuyla oturumunu suresiz surduruyordu.
         String adminToken = signIn();
         String email = "e2e.revoked." + UUID.randomUUID() + "@example.com";
-        String id = createAccount(adminToken, email, "a-long-enough-password", "USER");
+        String id = createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
 
         String refreshToken = signIn(email, "a-long-enough-password")
                 .body().get("refreshToken").asText();
@@ -405,7 +405,7 @@ class SystemEndToEndTest {
     void passwordChangeEndsSessions() {
         String adminToken = signIn();
         String email = "e2e.password." + UUID.randomUUID() + "@example.com";
-        createAccount(adminToken, email, "a-long-enough-password", "USER");
+        createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
 
         SystemClient.Response login = signIn(email, "a-long-enough-password");
         String userToken = login.body().get("token").asText();
@@ -431,7 +431,7 @@ class SystemEndToEndTest {
     void rejectsWrongCurrentPassword() {
         String adminToken = signIn();
         String email = "e2e.wrongpass." + UUID.randomUUID() + "@example.com";
-        createAccount(adminToken, email, "a-long-enough-password", "USER");
+        createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
 
         String userToken = signIn(email, "a-long-enough-password").body().get("token").asText();
 

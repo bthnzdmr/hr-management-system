@@ -41,7 +41,7 @@ const COLUMNS: { label: string; sortField?: SortField }[] = [
 export function EmployeeListPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { canEditEmployees } = useAuth();
   const { notify } = useSnackbar();
 
   const {
@@ -114,7 +114,7 @@ export function EmployeeListPage() {
 
         {/* Yazma yetkisi yoksa dugme hic gosterilmez. Bu bir guvenlik onlemi
             degil, kullaniciya kacinilmaz bir 403 yasatmama tercihidir. */}
-        {isAdmin && (
+        {canEditEmployees && (
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -264,7 +264,7 @@ export function EmployeeListPage() {
                         </IconButton>
                       </Tooltip>
 
-                      {isAdmin && (
+                      {canEditEmployees && (
                         <>
                           <Tooltip title="Edit">
                             <IconButton

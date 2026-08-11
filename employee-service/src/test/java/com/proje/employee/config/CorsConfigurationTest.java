@@ -1,6 +1,7 @@
 package com.proje.employee.config;
 
 import com.proje.employee.controller.EmployeeController;
+import com.proje.employee.service.AccessScopeResolver;
 import com.proje.employee.service.EmployeeService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,10 @@ class CorsConfigurationTest {
 
     @MockBean
     private JwtService jwtService;
+
+    // Controller kapsami bu bilesenden aliyor.
+    @MockBean
+    private AccessScopeResolver accessScopeResolver;
 
     @Test
     @DisplayName("Answers the preflight request of the allowed origin without authentication")

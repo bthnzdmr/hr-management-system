@@ -58,12 +58,12 @@ public class UserController {
     // principal olarak duz bir String (e-posta) koyuyor ve UserDetails istemek
     // uretimde null verip 500 uretiyordu. @WithMockUser gercek bir UserDetails
     // urettigi icin birim test bunu goremedi, uctan uca kosu yakaladi.
-    @PutMapping("/{id}/role")
-    public UserResponse changeRole(@PathVariable Long id,
-                                   @Valid @RequestBody UserRoleRequest request,
-                                   Principal actingUser) {
+    @PutMapping("/{id}/roles")
+    public UserResponse changeRoles(@PathVariable Long id,
+                                    @Valid @RequestBody UserRoleRequest request,
+                                    Principal actingUser) {
 
-        return userService.changeRole(id, request.role(), actingUser.getName());
+        return userService.changeRoles(id, request.roles(), actingUser.getName());
     }
 
     @PutMapping("/{id}/status")

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -48,9 +49,8 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken(request.email(), request.password()));
 
         String email = authentication.getName();
-        String role = roleOf(authentication);
 
-        return respond(email, role, refreshTokenService.issue(email));
+        return respond(email, rolesOf(authentication), refreshTokenService.issue(email));
     }
 
     /**
@@ -64,7 +64,7 @@ public class AuthController {
     public LoginResponse refresh(@Valid @RequestBody RefreshRequest request) {
         RefreshTokenService.Rotation rotation = refreshTokenService.rotate(request.refreshToken());
 
-        return respond(rotation.email(), rotation.role(), rotation.refreshToken());
+        return respond(rotation.email(), rotation.roles(), rotation.refreshToken());
     }
 
     /**
@@ -81,20 +81,27 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
-    private LoginResponse respond(String email, String role, String refreshToken) {
+    private LoginResponse respond(String email, List<String> roles, String refreshToken) {
         return new LoginResponse(
-                jwtService.generateToken(email, role),
+                jwtService.generateToken(email, roles),
                 TOKEN_TYPE,
                 TimeUnit.MINUTES.toSeconds(validityMinutes),
                 refreshToken);
     }
 
-    private String roleOf(Authentication authentication) {
-        return authentication.getAuthorities().stream()
+    // "ROLE_" oneki Spring Security'nin ic sozlesmesidir; token'a onsuz yazilir
+    // ve filtre okurken yeniden ekler. Onek token'a girseydi, ic detay disariya
+    // sizmis olurdu.
+    private List<String> rolesOf(Authentication authentication) {
+        List<String> roles = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .filter(authority -> authority.startsWith(ROLE_PREFIX))
                 .map(authority -> authority.substring(ROLE_PREFIX.length()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Authenticated user has no role"));
+                .toList();
+
+        if (roles.isEmpty()) {
+            throw new IllegalStateException("Authenticated user has no role");
+        }
+        return roles;
     }
 }

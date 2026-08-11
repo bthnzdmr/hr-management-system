@@ -1,7 +1,37 @@
 // Backend'in sozlesmesinin TypeScript karsiligi.
 // Alan adlari birebir ayni olmalidir; Jackson bu adlarla serilestiriyor.
 
-export type Role = 'ADMIN' | 'USER';
+/**
+ * Roller IS ISLEVINE gore adlandirilir.
+ *
+ * SERVICE bir makine kimligidir (Notification Service); arayuzde secilebilir
+ * olmasi gerekmez ama sunucudan gelebilir, bu yuzden tipte yer alir.
+ */
+export type Role = 'EMPLOYEE' | 'MANAGER' | 'HR_SPECIALIST' | 'SYSTEM_ADMIN' | 'SERVICE';
+
+/** Insan tarafindan secilebilen roller; SERVICE listede yer almaz. */
+export const ASSIGNABLE_ROLES: Role[] = [
+  'EMPLOYEE',
+  'MANAGER',
+  'HR_SPECIALIST',
+  'SYSTEM_ADMIN',
+];
+
+export const ROLE_LABELS: Record<Role, string> = {
+  EMPLOYEE: 'Employee',
+  MANAGER: 'Manager',
+  HR_SPECIALIST: 'HR specialist',
+  SYSTEM_ADMIN: 'System administrator',
+  SERVICE: 'Service account',
+};
+
+export const ROLE_DESCRIPTIONS: Record<Role, string> = {
+  EMPLOYEE: 'Sees only their own record',
+  MANAGER: 'Sees their own record and their direct reports',
+  HR_SPECIALIST: 'Sees and edits everyone, including salaries',
+  SYSTEM_ADMIN: 'Manages accounts and access; cannot edit HR data or see salaries',
+  SERVICE: 'Machine identity used by the notification service',
+};
 
 export interface LoginRequest {
   email: string;
@@ -25,7 +55,7 @@ export interface Department {
 export interface User {
   id: number;
   email: string;
-  role: Role;
+  roles: Role[];
   active: boolean;
   employeeId: number | null;
   employeeFullName: string | null;
@@ -35,7 +65,7 @@ export interface User {
 export interface UserCreateRequest {
   email: string;
   password: string;
-  role: Role;
+  roles: Role[];
   employeeId: number | null;
 }
 

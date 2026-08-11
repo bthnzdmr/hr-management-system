@@ -20,6 +20,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Set;
+
 @Service
 public class UserService {
 
@@ -57,7 +59,7 @@ public class UserService {
         User user = new User(
                 request.email(),
                 passwordEncoder.encode(request.password()),
-                request.role());
+                request.roles());
 
         if (request.employeeId() != null) {
             Employee employee = employeeRepository.findById(request.employeeId())
@@ -69,24 +71,27 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponse changeRole(Long id, Role role, String actingUserEmail) {
+    public UserResponse changeRoles(Long id, Set<Role> roles, String actingUserEmail) {
         User user = find(id);
 
-        // Kendi rolunu dusurmek, yonetici arayuzunu kendine kapatmaktir.
-        // Baska bir yonetici geri veremezse sistem yonetilemez hale gelir.
-        if (user.getEmail().equals(actingUserEmail) && role != Role.ADMIN) {
-            throw new UserRuleViolationException("You cannot remove your own administrator role");
+        // Kendi sistem yoneticiligini birakmak, hesap yonetimini kendine
+        // kapatmaktir. Baska bir yonetici geri veremezse sistem yonetilemez.
+        if (user.getEmail().equals(actingUserEmail) && !roles.contains(Role.SYSTEM_ADMIN)) {
+            throw new UserRuleViolationException(
+                    "You cannot remove your own system administrator role");
         }
 
-        if (user.getRole() == role) {
+        if (user.getRoles().equals(roles)) {
             return userMapper.toResponse(user);
         }
 
-        if (user.getRole() == Role.ADMIN) {
-            assertNotLastActiveAdmin(user);
+        // Yalnizca SYSTEM_ADMIN kaybediliyorsa kontrol edilir: Ik uzmanligini
+        // birakmak sistemi yonetilemez hale getirmez.
+        if (user.hasRole(Role.SYSTEM_ADMIN) && !roles.contains(Role.SYSTEM_ADMIN)) {
+            assertNotLastActiveSystemAdmin(user);
         }
 
-        user.setRole(role);
+        user.setRoles(roles);
 
         // Rol JWT'nin ICINDE tasiniyor: dusurulen kullanicinin elindeki token
         // suresi dolana kadar hala ADMIN diyor. Yenileme jetonlarini iptal etmek
@@ -108,8 +113,8 @@ public class UserService {
             return userMapper.toResponse(user);
         }
 
-        if (!active && user.getRole() == Role.ADMIN) {
-            assertNotLastActiveAdmin(user);
+        if (!active && user.hasRole(Role.SYSTEM_ADMIN)) {
+            assertNotLastActiveSystemAdmin(user);
         }
 
         user.setActive(active);
@@ -146,17 +151,23 @@ public class UserService {
     }
 
     /**
-     * Sistemde en az bir aktif yonetici kalmasini garanti eder.
+     * Sistemde en az bir aktif SISTEM YONETICISI kalmasini garanti eder.
      *
      * Sorgu satirlari KILITLER: kilitsiz olsaydi iki yonetici ayni anda birbirini
-     * dusurur, ikisi de "hala iki admin var" gorur ve sistem yoneticisiz kalirdi.
+     * dusurur, ikisi de "hala baska bir admin var" gorur ve sistem yoneticisiz
+     * kalirdi -- ne hesap acilabilir ne rol verilebilirdi.
+     *
+     * Ik uzmanligi icin ayni kural YOK: son Ik uzmani gitse bile sistem
+     * yoneticisi yenisini atayabilir. Kilitlenmeye yol acan tek rol budur.
      */
-    private void assertNotLastActiveAdmin(User target) {
-        boolean anotherAdminRemains = userRepository.findActiveByRoleForUpdate(Role.ADMIN).stream()
+    private void assertNotLastActiveSystemAdmin(User target) {
+        boolean anotherRemains = userRepository
+                .findActiveByRoleForUpdate(Role.SYSTEM_ADMIN).stream()
                 .anyMatch(admin -> !admin.getId().equals(target.getId()));
 
-        if (!anotherAdminRemains) {
-            throw new UserRuleViolationException("At least one active administrator must remain");
+        if (!anotherRemains) {
+            throw new UserRuleViolationException(
+                    "At least one active system administrator must remain");
         }
     }
 }

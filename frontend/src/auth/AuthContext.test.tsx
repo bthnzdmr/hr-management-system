@@ -14,12 +14,14 @@ function fakeToken(payload: Record<string, unknown>, expiresInSeconds = 900): st
 }
 
 function Probe() {
-  const { user, isAdmin, login, logout } = useAuth();
+  const { user, canEditEmployees, canManageAccounts, login, logout } = useAuth();
 
   return (
     <div>
       <span data-testid="email">{user?.email ?? 'anonymous'}</span>
-      <span data-testid="role">{isAdmin ? 'admin' : 'not-admin'}</span>
+      <span data-testid="roles">{user?.roles.join(",") ?? 'none'}</span>
+      <span data-testid="canEdit">{canEditEmployees ? 'yes' : 'no'}</span>
+      <span data-testid="canManage">{canManageAccounts ? 'yes' : 'no'}</span>
       <button onClick={() => login({ email: 'a@b.c', password: 'secret' })}>login</button>
       <button onClick={logout}>logout</button>
     </div>
@@ -53,16 +55,17 @@ describe('AuthProvider', () => {
   });
 
   it('restores the session from the stored token after a page reload', () => {
-    tokenStorage.set(fakeToken({ sub: 'admin@example.com', role: 'ADMIN' }));
+    tokenStorage.set(fakeToken({ sub: 'admin@example.com', roles: ['HR_SPECIALIST', 'SYSTEM_ADMIN'] }));
 
     renderProbe();
 
     expect(screen.getByTestId('email')).toHaveTextContent('admin@example.com');
-    expect(screen.getByTestId('role')).toHaveTextContent('admin');
+    expect(screen.getByTestId('canEdit')).toHaveTextContent('yes');
+    expect(screen.getByTestId('canManage')).toHaveTextContent('yes');
   });
 
   it('discards an expired token instead of trusting it', () => {
-    tokenStorage.set(fakeToken({ sub: 'admin@example.com', role: 'ADMIN' }, -60));
+    tokenStorage.set(fakeToken({ sub: 'admin@example.com', roles: ['SYSTEM_ADMIN'] }, -60));
 
     renderProbe();
 
@@ -78,16 +81,17 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('email')).toHaveTextContent('anonymous');
   });
 
-  it('reads role USER as not admin', () => {
-    tokenStorage.set(fakeToken({ sub: 'user@example.com', role: 'USER' }));
+  it('grants no write capability to a plain employee', () => {
+    tokenStorage.set(fakeToken({ sub: 'user@example.com', roles: ['EMPLOYEE'] }));
 
     renderProbe();
 
-    expect(screen.getByTestId('role')).toHaveTextContent('not-admin');
+    expect(screen.getByTestId('canEdit')).toHaveTextContent('no');
+    expect(screen.getByTestId('canManage')).toHaveTextContent('no');
   });
 
   it('stores the token and identifies the user after signing in', async () => {
-    const token = fakeToken({ sub: 'admin@example.com', role: 'ADMIN' });
+    const token = fakeToken({ sub: 'admin@example.com', roles: ['HR_SPECIALIST', 'SYSTEM_ADMIN'] });
     vi.spyOn(api, 'post').mockResolvedValue({ data: { token } });
 
     renderProbe();
@@ -98,7 +102,7 @@ describe('AuthProvider', () => {
   });
 
   it('removes the stored token when signing out', async () => {
-    tokenStorage.set(fakeToken({ sub: 'admin@example.com', role: 'ADMIN' }));
+    tokenStorage.set(fakeToken({ sub: 'admin@example.com', roles: ['HR_SPECIALIST', 'SYSTEM_ADMIN'] }));
 
     renderProbe();
     await userEvent.click(screen.getByText('logout'));

@@ -6,6 +6,7 @@ import com.proje.employee.dto.EmployeeStatusRequest;
 import com.proje.employee.dto.EmployeeUpdateRequest;
 import com.proje.employee.dto.SalaryResponse;
 import com.proje.employee.dto.SalaryUpdateRequest;
+import com.proje.employee.service.AccessScopeResolver;
 import com.proje.employee.service.EmployeeService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -30,24 +32,30 @@ import java.util.List;
 public class EmployeeController {
 
     private final EmployeeService employeeService;
+    private final AccessScopeResolver accessScopeResolver;
 
-    public EmployeeController(EmployeeService employeeService) {
+    public EmployeeController(EmployeeService employeeService,
+                              AccessScopeResolver accessScopeResolver) {
         this.employeeService = employeeService;
+        this.accessScopeResolver = accessScopeResolver;
     }
 
+    // Okuma uclari kapsam alir: kimin girebilecegine SecurityConfig, hangi
+    // satirlari gorecegine servis karar verir.
     @GetMapping
     public Page<EmployeeResponse> getAll(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean active,
             @PageableDefault(size = 20, sort = "lastName", direction = Sort.Direction.ASC)
-            Pageable pageable) {
+            Pageable pageable,
+            Principal caller) {
 
-        return employeeService.getAll(search, active, pageable);
+        return employeeService.getAll(search, active, accessScopeResolver.resolve(caller), pageable);
     }
 
     @GetMapping("/{id}")
-    public EmployeeResponse getById(@PathVariable Long id) {
-        return employeeService.getById(id);
+    public EmployeeResponse getById(@PathVariable Long id, Principal caller) {
+        return employeeService.getById(id, accessScopeResolver.resolve(caller));
     }
 
     @PostMapping
@@ -82,11 +90,11 @@ public class EmployeeController {
         return employeeService.changeStatus(id, request.active());
     }
 
-    // Ekip gorunumu ve pasiflestirme uyarisi icin. Okuma oldugu icin giris
-    // yapmis her kullaniciya acik.
+    // Ekip gorunumu ve pasiflestirme uyarisi icin. Kural: astlarini
+    // gorebilmen icin once o kisiyi gorebiliyor olman gerekir.
     @GetMapping("/{id}/direct-reports")
-    public List<EmployeeResponse> getDirectReports(@PathVariable Long id) {
-        return employeeService.getDirectReports(id);
+    public List<EmployeeResponse> getDirectReports(@PathVariable Long id, Principal caller) {
+        return employeeService.getDirectReports(id, accessScopeResolver.resolve(caller));
     }
 
     // Maas ayri bir alt kaynaktir: genel personel cevabinda donmez ve genel

@@ -229,7 +229,7 @@ cp .env.example .env
 | `JWT_REFRESH_VALIDITY_DAYS` | Yenileme jetonu ömrü | Hayır, varsayılan `7` |
 | `SERVICE_ACCOUNT_EMAIL` / `SERVICE_ACCOUNT_PASSWORD` | Notification Service'in Employee Service'i çağırırken kullandığı hesap | Evet |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | İlk yönetici hesabı | Hayır, verilmezse hesap oluşturulmaz |
-| `USER_EMAIL` / `USER_PASSWORD` | Salt okuyan hesap; rol ayrımını denemek için | Hayır, verilmezse hesap oluşturulmaz |
+| `USER_EMAIL` / `USER_PASSWORD` | `EMPLOYEE` rolünde hesap; rol ayrımını denemek için | Hayır, verilmezse hesap oluşturulmaz |
 
 Zorunlu bir değişken eksikse `docker compose` hiçbir konteyneri başlatmaz ve
 hangisinin eksik olduğunu söyler — sistem yarım çalışmak yerine hiç başlamaz.
@@ -358,17 +358,16 @@ npm run dev
 ```
 
 http://localhost:5173 adresinde açılır. Giriş için `.env` dosyasındaki
-`ADMIN_EMAIL` / `ADMIN_PASSWORD` değerleri kullanılır. Rol ayrımını görmek için
-`USER_EMAIL` / `USER_PASSWORD` ile de giriş yapılabilir.
+`ADMIN_EMAIL` / `ADMIN_PASSWORD` değerleri kullanılır (bu hesap hem `HR_SPECIALIST`
+hem `SYSTEM_ADMIN`). Rol ayrımını görmek için `USER_EMAIL` / `USER_PASSWORD` ile de
+giriş yapılabilir; o hesap yalnızca `EMPLOYEE`'dir.
 
 Arayüz Employee Service'e doğrudan gider; API adresi varsayılan olarak
 `http://localhost:8080`'dir ve `VITE_API_URL` ortam değişkeniyle değiştirilebilir.
 Backend'in bu kaynağa CORS izni vermesi gerekir (`CORS_ALLOWED_ORIGINS`).
 
-| Rol | Görebildiği |
-|---|---|
-| `USER` | Personel listesi ve personel detay sayfası (salt okunur) |
-| `ADMIN` | Bunlara ek olarak oluştur, güncelle, pasifleştir / yeniden aktifleştir |
+Arayüz **rol değil yetenek** sorar: "düzenle düğmesini göstereyim mi?" Rol modeli
+değiştiğinde her ekranı tek tek değiştirmek gerekmesin diye.
 
 Arayüzde bulunanlar: yan menülü uygulama kabuğu, açık/koyu tema (seçim
 tarayıcıda saklanır, seçim yoksa işletim sisteminin tercihi izlenir), ada ve
@@ -435,16 +434,16 @@ Taban adres: `http://localhost:8080`
 | `GET` | `/api/employees` | Sayfalı liste. `?page=0&size=20&sort=lastName,asc&search=liskov&active=true` | giriş yapmış | `200` |
 | `GET` | `/api/employees/{id}` | Tek kayıt | giriş yapmış | `200` |
 | `GET` | `/api/employees/{id}/direct-reports` | Doğrudan bağlı personel | giriş yapmış | `200` |
-| `POST` | `/api/employees` | Yeni kayıt | `ADMIN` | `201` + `Location` |
-| `PUT` | `/api/employees/{id}` | Güncelleme | `ADMIN` | `200` |
-| `PUT` | `/api/employees/{id}/status` | Pasifleştirme / yeniden aktifleştirme (tekrarı etkisiz) | `ADMIN` | `200` |
-| `GET` | `/api/employees/{id}/salary` | Maaş bilgisi | `ADMIN` | `200` |
-| `PUT` | `/api/employees/{id}/salary` | Maaş güncelleme | `ADMIN` | `200` |
+| `POST` | `/api/employees` | Yeni kayıt | `HR_SPECIALIST` | `201` + `Location` |
+| `PUT` | `/api/employees/{id}` | Güncelleme | `HR_SPECIALIST` | `200` |
+| `PUT` | `/api/employees/{id}/status` | Pasifleştirme / yeniden aktifleştirme (tekrarı etkisiz) | `HR_SPECIALIST` | `200` |
+| `GET` | `/api/employees/{id}/salary` | Maaş bilgisi | `HR_SPECIALIST` | `200` |
+| `PUT` | `/api/employees/{id}/salary` | Maaş güncelleme | `HR_SPECIALIST` | `200` |
 | `GET` | `/api/departments` | Aktif departmanlar, isme göre sıralı | giriş yapmış | `200` |
-| `GET` | `/api/users` | Hesap listesi (parola özeti **dönmez**) | `ADMIN` | `200` |
-| `POST` | `/api/users` | Hesap oluştur; `employeeId` ile personele bağlanır | `ADMIN` | `201` |
-| `PUT` | `/api/users/{id}/role` | Rol değiştir | `ADMIN` | `200` |
-| `PUT` | `/api/users/{id}/status` | Hesabı aç/kapat; kapatınca oturumlar biter | `ADMIN` | `200` |
+| `GET` | `/api/users` | Hesap listesi (parola özeti **dönmez**) | `SYSTEM_ADMIN` | `200` |
+| `POST` | `/api/users` | Hesap oluştur; `employeeId` ile personele bağlanır | `SYSTEM_ADMIN` | `201` |
+| `PUT` | `/api/users/{id}/roles` | Rol kümesini komple değiştir | `SYSTEM_ADMIN` | `200` |
+| `PUT` | `/api/users/{id}/status` | Hesabı aç/kapat; kapatınca oturumlar biter | `SYSTEM_ADMIN` | `200` |
 | `PUT` | `/api/users/me/password` | Kendi parolasını değiştir | giriş yapmış | `204` |
 
 `search` ada, soyada ve e-postaya bakar; `active` verilmezse aktif/pasif ayrımı
@@ -465,13 +464,43 @@ Departman listesi sayfasızdır: sayısı kurumsal olarak sınırlı bir referan
 verisidir ve seçim kutusunu doldurmak için kullanılır. Büyüyebilen listelerde
 (personel gibi) sayfalama zorunludur.
 
-Yetki kuralı **okuma / yazma** ayrımına dayanır: okumak için giriş yapmış olmak
-yeterlidir, veri değiştiren her uç `ADMIN` rolü ister. Kural yazılmamış bir uç
-varsayılan olarak kimlik doğrulaması ister — açıkta kalmaz.
+### Roller
+
+Bir hesap **birden fazla rol** taşıyabilir; aynı kişi hem İK uzmanı hem sistem
+yöneticisi olabilir.
+
+| Rol | Personel okuma | Yazma | Maaş | Hesaplar |
+|---|---|---|---|---|
+| `EMPLOYEE` | yalnızca kendi kaydı | – | – | – |
+| `MANAGER` | kendi kaydı + doğrudan astları | – | – | – |
+| `HR_SPECIALIST` | hepsi | ✅ | ✅ | – |
+| `SYSTEM_ADMIN` | rehber (maaşsız) | – | – | ✅ |
+| `SERVICE` | rehber (maaşsız) | – | – | – |
+
+**Neden `SYSTEM_ADMIN` maaşı göremiyor?** Erişimi yöneten kişinin ücret bilgisine
+ihtiyacı yoktur. Rehberi okuyabilir çünkü hesabı personele bağlamak için kimin var
+olduğunu bilmesi gerekir.
+
+**`SERVICE` neden ayrı bir rol?** Notification Service, bildirim hazırlarken
+personelin yöneticisini sorar. `EMPLOYEE` verilseydi personel kaydı olmadığı için
+hiçbir şey göremezdi; `HR_SPECIALIST` verilseydi bildirim gönderen bir program
+personel silebilirdi.
+
+### İki farklı yetkilendirme
+
+Yetkilendirme iki katmanda çalışır:
+
+- **Dikey (hangi uca girebilirsin):** `SecurityConfig` içinde uç bazlı kurallar.
+- **Yatay (hangi satırları görebilirsin):** servis katmanında, sorgunun içinde.
+
+İkincisi olmadan giriş yapan herkes herkesi görürdü. Bir uç kuralı "bu kayıt senin
+ekibinde mi" diye **soramaz** — satırı hiç görmez. Kapsam dışındaki kayıt `403`
+değil **`404`** döner: "bu kayıt var ama göremezsin" demek, id deneyerek personel
+sayısının öğrenilmesine izin verirdi.
 
 **Hesap yönetimi kuralları:** Kimse kendi hesabını kapatamaz veya kendi
-yöneticilik rolünü düşüremez, ve sistemde en az bir aktif `ADMIN` kalmak
-zorundadır. Rol, durum veya parola değiştiğinde o hesabın **tüm yenileme
+`SYSTEM_ADMIN` rolünü düşüremez, ve sistemde en az bir aktif `SYSTEM_ADMIN`
+kalmak zorundadır. Rol, durum veya parola değiştiğinde o hesabın **tüm yenileme
 jetonları iptal edilir**. Parolayı yalnızca sahibi değiştirir ve mevcut
 parolasını girmek zorundadır; yöneticinin parola sıfırlama yetkisi **yoktur**.
 
@@ -639,7 +668,7 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesi, outbox yazıcı ve relay
 │       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
 │       ├── main/resources/db/migration/   V1__ V2__ V3__ V4__
-│       └── test/               88 test
+│       └── test/               148 test
 ├── notification-service/       ✅  olayları dinleyip mail gönderen servis
 │   ├── pom.xml
 │   └── src/
@@ -663,10 +692,10 @@ HR Management System/
         ├── pages/              Giriş, liste, detay, form, 404 ekranları
         ├── components/         Kabuk, onay penceresi, geri bildirim, hata sınırı
         ├── types/              Backend sözleşmesinin TypeScript karşılığı
-        └── *.test.ts(x)        67 test (Vitest + Testing Library)
+        └── *.test.ts(x)        91 test (Vitest + Testing Library)
 
 e2e/                            ✅  çalışan sisteme dışarıdan bakan testler
-└── src/test/java/com/proje/e2e/    8 test
+└── src/test/java/com/proje/e2e/    17 test
 ```
 
 Her Java servisinin **kendi `pom.xml`'i** vardır; ortak bir üst pom kullanılmaz. Mikroservislerin bağımsız derlenip bağımsız dağıtılabilmesi bu mimarinin amacıdır, ortak bir üst pom onları sürüm olarak birbirine bağlardı.

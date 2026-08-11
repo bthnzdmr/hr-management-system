@@ -1,6 +1,7 @@
 package com.proje.employee.service;
 
 import com.proje.employee.entity.RefreshToken;
+import com.proje.employee.entity.Role;
 import com.proje.employee.entity.User;
 import com.proje.employee.exception.InvalidRefreshTokenException;
 import com.proje.employee.repository.RefreshTokenRepository;
@@ -19,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
 
 @Service
 public class RefreshTokenService {
@@ -100,7 +102,9 @@ public class RefreshTokenService {
         }
 
         User user = stored.getUser();
-        return new Rotation(user.getEmail(), user.getRole().name(), issueFor(user));
+        List<String> roles = user.getRoles().stream().map(Role::name).toList();
+
+        return new Rotation(user.getEmail(), roles, issueFor(user));
     }
 
     /**
@@ -161,6 +165,6 @@ public class RefreshTokenService {
         }
     }
 
-    public record Rotation(String email, String role, String refreshToken) {
+    public record Rotation(String email, List<String> roles, String refreshToken) {
     }
 }

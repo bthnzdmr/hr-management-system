@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import type { SyntheticEvent } from 'react';
 import {
-  Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField,
+  Alert, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, ListItemText,
+  MenuItem, Stack, TextField,
 } from '@mui/material';
 import { userApi } from '../api/users';
 import { errorMessage } from '../api/client';
 import { EmployeePicker } from './EmployeePicker';
 import type { EmployeeOption } from './EmployeePicker';
+import { ASSIGNABLE_ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS } from '../types/api';
 import type { Role, User } from '../types/api';
 
 interface Props {
@@ -22,7 +24,7 @@ const MIN_PASSWORD_LENGTH = 12;
 export function UserCreateDialog({ open, onClose, onCreated }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('USER');
+  const [roles, setRoles] = useState<Role[]>(['EMPLOYEE']);
   const [employee, setEmployee] = useState<EmployeeOption | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export function UserCreateDialog({ open, onClose, onCreated }: Props) {
   const reset = () => {
     setEmail('');
     setPassword('');
-    setRole('USER');
+    setRoles(['EMPLOYEE']);
     setEmployee(null);
     setError(null);
   };
@@ -44,7 +46,7 @@ export function UserCreateDialog({ open, onClose, onCreated }: Props) {
       const created = await userApi.create({
         email,
         password,
-        role,
+        roles,
         employeeId: employee?.id ?? null,
       });
       reset();
@@ -82,15 +84,27 @@ export function UserCreateDialog({ open, onClose, onCreated }: Props) {
               helperText={`At least ${MIN_PASSWORD_LENGTH} characters. Only the owner can change it later.`}
             />
 
+            {/* Coklu secim: ayni kisi hem Ik uzmani hem sistem yoneticisi
+                olabilir ve bunlar farkli islerdir. */}
             <TextField
-              select label="Role" value={role} required fullWidth
-              onChange={(event) => setRole(event.target.value as Role)}
-              helperText={role === 'ADMIN'
-                ? 'Can create, update and deactivate records'
-                : 'Read-only access'}
+              select label="Roles" value={roles} required fullWidth
+              onChange={(event) => setRoles(event.target.value as unknown as Role[])}
+              helperText="An account must have at least one role"
+              slotProps={{
+                select: {
+                  multiple: true,
+                  renderValue: (selected) => (selected as Role[])
+                    .map((item) => ROLE_LABELS[item])
+                    .join(', '),
+                },
+              }}
             >
-              <MenuItem value="USER">USER</MenuItem>
-              <MenuItem value="ADMIN">ADMIN</MenuItem>
+              {ASSIGNABLE_ROLES.map((item) => (
+                <MenuItem key={item} value={item}>
+                  <Checkbox size="small" checked={roles.includes(item)} sx={{ mr: 0.5 }} />
+                  <ListItemText primary={ROLE_LABELS[item]} secondary={ROLE_DESCRIPTIONS[item]} />
+                </MenuItem>
+              ))}
             </TextField>
 
             <EmployeePicker

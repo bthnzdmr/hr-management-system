@@ -14,7 +14,7 @@ public class UserMapper {
         return new UserResponse(
                 user.getId(),
                 user.getEmail(),
-                user.getRole(),
+                user.getRoles(),
                 user.isActive(),
                 // Vekilin id'sini okumak onu yuklemez.
                 employee == null ? null : employee.getId(),

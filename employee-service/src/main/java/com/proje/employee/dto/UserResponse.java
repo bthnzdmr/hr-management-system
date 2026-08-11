@@ -3,6 +3,7 @@ package com.proje.employee.dto;
 import com.proje.employee.entity.Role;
 
 import java.time.Instant;
+import java.util.Set;
 
 /**
  * Hesap bilgisi.
@@ -13,7 +14,7 @@ import java.time.Instant;
 public record UserResponse(
         Long id,
         String email,
-        Role role,
+        Set<Role> roles,
         boolean active,
         Long employeeId,
         String employeeFullName,

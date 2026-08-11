@@ -55,9 +55,18 @@ public class EmployeeService {
     /**
      * @param search ad, soyad veya e-postada gecen metin; bos ise filtre yok
      * @param active true/false ile duruma gore suzer; null ise hepsi
+     * @param scope cagiranin hangi satirlari gorebildigi
      */
     @Transactional(readOnly = true)
-    public Page<EmployeeResponse> getAll(String search, Boolean active, Pageable pageable) {
+    public Page<EmployeeResponse> getAll(String search, Boolean active,
+                                         AccessScope scope, Pageable pageable) {
+
+        // Rolu var ama personel kaydina bagli degil: gorebilecegi hicbir satir yok.
+        // Bos sayfa donmek dogru cevaptir; hata degil, sadece bos bir sonuc.
+        if (scope.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
         // Joker karakterler burada eklenir, sorguda degil: "%" karakterini
         // sorgu metnine gomup parametreyle birlestirmek okunmasi zor bir
         // ifade uretir ve LIKE deseni ile veriyi karistirir.
@@ -65,16 +74,43 @@ public class EmployeeService {
                 ? null
                 : "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
 
-        return employeeRepository.search(pattern, active, pageable)
+        return employeeRepository
+                .search(pattern, active, visibleId(scope), scope.kind() == AccessScope.Kind.TEAM, pageable)
                 .map(employeeMapper::toResponse);
     }
 
     @Transactional(readOnly = true)
-    public EmployeeResponse getById(Long id) {
+    public EmployeeResponse getById(Long id, AccessScope scope) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException(id));
 
+        // Kapsam disindaki kayit icin 403 DEGIL 404 donulur: "bu kayit var ama
+        // goremezsin" demek, kaydin varligini sizdirir ve id deneyerek personel
+        // sayisi ogrenilebilirdi.
+        if (!canSee(employee, scope)) {
+            throw new EmployeeNotFoundException(id);
+        }
+
         return employeeMapper.toResponse(employee);
+    }
+
+    private Long visibleId(AccessScope scope) {
+        return scope.isUnrestricted() ? null : scope.employeeId();
+    }
+
+    private boolean canSee(Employee employee, AccessScope scope) {
+        if (scope.isUnrestricted()) {
+            return true;
+        }
+        if (scope.isEmpty()) {
+            return false;
+        }
+        if (scope.employeeId().equals(employee.getId())) {
+            return true;
+        }
+        return scope.kind() == AccessScope.Kind.TEAM
+                && employee.getManager() != null
+                && scope.employeeId().equals(employee.getManager().getId());
     }
 
     @Transactional
@@ -209,10 +245,16 @@ public class EmployeeService {
      * bunu BILEREK yapmasi gerekir.
      */
     @Transactional(readOnly = true)
-    public List<EmployeeResponse> getDirectReports(Long id) {
-        if (!employeeRepository.existsById(id)) {
+    public List<EmployeeResponse> getDirectReports(Long id, AccessScope scope) {
+        Employee manager = employeeRepository.findById(id)
+                .orElseThrow(() -> new EmployeeNotFoundException(id));
+
+        // Astlarini gorebilmen icin once o kisiyi gorebiliyor olman gerekir.
+        // Aksi halde kapsam disindaki birinin ekibi, id denenerek okunabilirdi.
+        if (!canSee(manager, scope)) {
             throw new EmployeeNotFoundException(id);
         }
+
         return employeeRepository.findByManagerIdOrderByLastNameAsc(id).stream()
                 .map(employeeMapper::toResponse)
                 .toList();

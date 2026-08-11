@@ -44,7 +44,7 @@ class RefreshTokenRepositoryTest {
         // Onceki durumdan bagimsiz baslamak icin.
         refreshTokenRepository.deleteAllInBatch();
         owner = userRepository.save(
-                new User("token.owner." + System.nanoTime() + "@example.com", "hash", Role.USER));
+                new User("token.owner." + System.nanoTime() + "@example.com", "hash", User.rolesOf(Role.EMPLOYEE)));
     }
 
     private RefreshToken store(String hash, Instant expiresAt) {
@@ -81,7 +81,7 @@ class RefreshTokenRepositoryTest {
         store("hash-b", future());
 
         User other = userRepository.save(new User("other." + System.nanoTime() + "@example.com",
-                "hash", Role.USER));
+                "hash", User.rolesOf(Role.EMPLOYEE)));
         refreshTokenRepository.save(new RefreshToken("hash-c", other, Instant.now(), future()));
 
         assertThat(refreshTokenRepository.revokeAllForUser(owner.getId(), Instant.now())).isEqualTo(2);

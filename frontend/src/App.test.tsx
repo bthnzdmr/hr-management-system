@@ -10,18 +10,23 @@ import { ColorModeProvider } from './theme/ColorModeContext';
 import { SnackbarProvider } from './components/SnackbarProvider';
 import { tokenStorage } from './api/client';
 import { employeeApi } from './api/employees';
+import type { Role } from './types/api';
 
 vi.mock('./api/employees', () => ({
   employeeApi: { list: vi.fn(), changeStatus: vi.fn(), getDirectReports: vi.fn() },
 }));
 
-function fakeToken(role: 'ADMIN' | 'USER'): string {
-  const body = { sub: `${role.toLowerCase()}@example.com`, role, exp: Math.floor(Date.now() / 1000) + 900 };
+function fakeToken(roles: Role[]): string {
+  const body = {
+    sub: `${roles[0].toLowerCase()}@example.com`,
+    roles,
+    exp: Math.floor(Date.now() / 1000) + 900,
+  };
   return `header.${btoa(JSON.stringify(body))}.signature`;
 }
 
-function renderAt(path: string, role: 'ADMIN' | 'USER' | null = 'ADMIN') {
-  if (role) tokenStorage.set(fakeToken(role));
+function renderAt(path: string, roles: Role[] | null = ['HR_SPECIALIST']) {
+  if (roles) tokenStorage.set(fakeToken(roles));
 
   const store = configureStore({ reducer: { employees: employeesReducer } });
 

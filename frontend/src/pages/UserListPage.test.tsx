@@ -16,7 +16,7 @@ vi.mock('../api/users', () => ({
   userApi: {
     list: vi.fn(),
     create: vi.fn(),
-    changeRole: vi.fn(),
+    changeRoles: vi.fn(),
     changeStatus: vi.fn(),
   },
 }));
@@ -29,7 +29,7 @@ function account(overrides: Partial<User> = {}): User {
   return {
     id: 1,
     email: 'ada@example.com',
-    role: 'USER',
+    roles: ['EMPLOYEE'],
     active: true,
     employeeId: null,
     employeeFullName: null,
@@ -39,7 +39,11 @@ function account(overrides: Partial<User> = {}): User {
 }
 
 function fakeToken(email: string): string {
-  const body = { sub: email, role: 'ADMIN', exp: Math.floor(Date.now() / 1000) + 900 };
+  const body = {
+    sub: email,
+    roles: ['SYSTEM_ADMIN'],
+    exp: Math.floor(Date.now() / 1000) + 900,
+  };
   return `header.${btoa(JSON.stringify(body))}.signature`;
 }
 
@@ -103,32 +107,51 @@ describe('UserListPage', () => {
     expect(document.body.textContent).not.toMatch(/\$2[aby]\$/);
   });
 
-  it('promotes an account through the server', async () => {
+  it('adds a role without dropping the ones already held', async () => {
+    // Coklu rol modelinin can alici noktasi: yeni bir rol vermek eskisini
+    // silmemeli. Kume komple gonderildigi icin eksik gonderim sessizce
+    // yetki kaybettirirdi.
     const user = userEvent.setup();
-    vi.mocked(userApi.changeRole).mockResolvedValue(account({ role: 'ADMIN' }));
+    vi.mocked(userApi.changeRoles)
+      .mockResolvedValue(account({ roles: ['EMPLOYEE', 'HR_SPECIALIST'] }));
 
     renderPage();
     await screen.findByText('ada@example.com');
 
     // Sayfa boyutu secimi de bir combobox; rol kutusu adiyla ayirt edilir.
-    await user.click(screen.getByRole('combobox', { name: 'Role for ada@example.com' }));
-    await user.click(await screen.findByRole('option', { name: 'ADMIN' }));
+    await user.click(screen.getByRole('combobox', { name: 'Roles for ada@example.com' }));
+    await user.click(await screen.findByRole('option', { name: /HR specialist/ }));
 
-    await waitFor(() => expect(userApi.changeRole).toHaveBeenCalledWith(1, 'ADMIN'));
+    await waitFor(() => expect(userApi.changeRoles)
+      .toHaveBeenCalledWith(1, ['EMPLOYEE', 'HR_SPECIALIST']));
+  });
+
+  it('refuses to send an empty role set', async () => {
+    // Rolsuz hesap giris yapabilir ama hicbir sey goremez; sunucu da
+    // reddediyor, arayuz istegi hic gondermiyor.
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText('ada@example.com');
+
+    await user.click(screen.getByRole('combobox', { name: 'Roles for ada@example.com' }));
+    await user.click(await screen.findByRole('option', { name: /Employee/ }));
+
+    expect(await screen.findByText('An account must keep at least one role')).toBeInTheDocument();
+    expect(userApi.changeRoles).not.toHaveBeenCalled();
   });
 
   it('does not let an administrator act on their own account', async () => {
     // Sunucu da reddediyor; amac kacinilmaz olarak reddedilecek bir dugmeyi
     // hic sunmamak.
     vi.mocked(userApi.list).mockResolvedValue(
-      pageOf([account({ email: 'admin@example.com', role: 'ADMIN' })]),
+      pageOf([account({ email: 'admin@example.com', roles: ['SYSTEM_ADMIN'] })]),
     );
 
     renderPage('admin@example.com');
 
     expect(await screen.findByText('You')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Deactivate' })).toBeDisabled();
-    expect(screen.getByRole('combobox', { name: 'Role for admin@example.com' }))
+    expect(screen.getByRole('combobox', { name: 'Roles for admin@example.com' }))
       .toHaveAttribute('aria-disabled', 'true');
   });
 

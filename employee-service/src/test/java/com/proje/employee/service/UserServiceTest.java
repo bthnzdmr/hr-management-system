@@ -56,7 +56,7 @@ class UserServiceTest {
     }
 
     private User user(Long id, String email, Role role, boolean active) {
-        User user = new User(email, "stored-hash", role);
+        User user = new User(email, "stored-hash", User.rolesOf(role));
         ReflectionTestUtils.setField(user, "id", id);
         user.setActive(active);
         return user;
@@ -80,7 +80,7 @@ class UserServiceTest {
         when(userRepository.save(any(User.class))).thenAnswer(call -> call.getArgument(0));
 
         service().create(new UserCreateRequest(
-                "new@example.com", "correct horse battery", Role.USER, null));
+                "new@example.com", "correct horse battery", User.rolesOf(Role.EMPLOYEE), null));
 
         ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(saved.capture());
@@ -92,7 +92,7 @@ class UserServiceTest {
     void neverReturnsPasswordHash() {
         // Bir kez cevaba girerse her istemciye, her loga ve her tarayici
         // gecmisine girer.
-        User ada = user(1L, "ada@example.com", Role.USER, true);
+        User ada = user(1L, "ada@example.com", Role.EMPLOYEE, true);
 
         assertThat(userMapper.toResponse(ada).toString()).doesNotContain("stored-hash");
     }
@@ -103,7 +103,7 @@ class UserServiceTest {
         when(userRepository.existsByEmail("taken@example.com")).thenReturn(true);
 
         assertThatThrownBy(() -> service().create(
-                new UserCreateRequest("taken@example.com", "a-long-password", Role.USER, null)))
+                new UserCreateRequest("taken@example.com", "a-long-password", User.rolesOf(Role.EMPLOYEE), null)))
                 .isInstanceOf(EmailAlreadyExistsException.class);
 
         verify(userRepository, never()).save(any());
@@ -123,7 +123,7 @@ class UserServiceTest {
     void refusesSelfDeactivation() {
         // Kendini disari kilitlemek geri alinamaz: hesabi geri acacak kimse
         // kalmayabilir.
-        User admin = user(1L, "admin@example.com", Role.ADMIN, true);
+        User admin = user(1L, "admin@example.com", Role.SYSTEM_ADMIN, true);
         existing(admin);
 
         assertThatThrownBy(() -> service().changeStatus(1L, false, "admin@example.com"))
@@ -136,22 +136,22 @@ class UserServiceTest {
     @Test
     @DisplayName("Refuses to let an administrator drop their own role")
     void refusesSelfDemotion() {
-        User admin = user(1L, "admin@example.com", Role.ADMIN, true);
+        User admin = user(1L, "admin@example.com", Role.SYSTEM_ADMIN, true);
         existing(admin);
 
-        assertThatThrownBy(() -> service().changeRole(1L, Role.USER, "admin@example.com"))
+        assertThatThrownBy(() -> service().changeRoles(1L, User.rolesOf(Role.EMPLOYEE), "admin@example.com"))
                 .isInstanceOf(UserRuleViolationException.class);
 
-        assertThat(admin.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(admin.getRoles()).contains(Role.SYSTEM_ADMIN);
     }
 
     @Test
     @DisplayName("Refuses to deactivate the last active administrator")
     void refusesToRemoveLastAdmin() {
         // Sistem yoneticisiz kalirsa hicbir hesap acilamaz, rol degistirilemez.
-        User lastAdmin = user(1L, "last@example.com", Role.ADMIN, true);
+        User lastAdmin = user(1L, "last@example.com", Role.SYSTEM_ADMIN, true);
         existing(lastAdmin);
-        when(userRepository.findActiveByRoleForUpdate(Role.ADMIN)).thenReturn(List.of(lastAdmin));
+        when(userRepository.findActiveByRoleForUpdate(Role.SYSTEM_ADMIN)).thenReturn(List.of(lastAdmin));
 
         assertThatThrownBy(() -> service().changeStatus(1L, false, "other@example.com"))
                 .isInstanceOf(UserRuleViolationException.class)
@@ -163,10 +163,10 @@ class UserServiceTest {
     @Test
     @DisplayName("Allows deactivating an administrator while another one remains")
     void allowsDeactivationWhenAnotherAdminRemains() {
-        User target = user(1L, "one@example.com", Role.ADMIN, true);
-        User other = user(2L, "two@example.com", Role.ADMIN, true);
+        User target = user(1L, "one@example.com", Role.SYSTEM_ADMIN, true);
+        User other = user(2L, "two@example.com", Role.SYSTEM_ADMIN, true);
         existing(target);
-        when(userRepository.findActiveByRoleForUpdate(Role.ADMIN))
+        when(userRepository.findActiveByRoleForUpdate(Role.SYSTEM_ADMIN))
                 .thenReturn(List.of(target, other));
 
         service().changeStatus(1L, false, "two@example.com");
@@ -179,7 +179,7 @@ class UserServiceTest {
     void revokesSessionsOnDeactivation() {
         // Yalnizca girisi engellemek yetmez: elindeki yenileme jetonuyla
         // oturumunu suresiz surdururdu.
-        User target = user(5L, "leaver@example.com", Role.USER, true);
+        User target = user(5L, "leaver@example.com", Role.EMPLOYEE, true);
         existing(target);
 
         service().changeStatus(5L, false, "admin@example.com");
@@ -190,7 +190,7 @@ class UserServiceTest {
     @Test
     @DisplayName("Changes nothing and revokes nothing when the status already matches")
     void statusChangeIsIdempotent() {
-        User target = user(5L, "leaver@example.com", Role.USER, false);
+        User target = user(5L, "leaver@example.com", Role.EMPLOYEE, false);
         existing(target);
 
         service().changeStatus(5L, false, "admin@example.com");
@@ -203,19 +203,19 @@ class UserServiceTest {
     void revokesSessionsOnRoleChange() {
         // Rol JWT'nin icinde tasiniyor; jetonlari iptal etmek pencereyi
         // erisim jetonunun omruyle sinirlar.
-        User target = user(5L, "promoted@example.com", Role.USER, true);
+        User target = user(5L, "promoted@example.com", Role.EMPLOYEE, true);
         existing(target);
 
-        service().changeRole(5L, Role.ADMIN, "admin@example.com");
+        service().changeRoles(5L, User.rolesOf(Role.HR_SPECIALIST), "admin@example.com");
 
-        assertThat(target.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(target.getRoles()).containsExactly(Role.HR_SPECIALIST);
         verify(refreshTokenService).revokeAllFor(eq(5L), anyString());
     }
 
     @Test
     @DisplayName("Refuses a password change when the current password is wrong")
     void refusesWrongCurrentPassword() {
-        User ada = user(1L, "ada@example.com", Role.USER, true);
+        User ada = user(1L, "ada@example.com", Role.EMPLOYEE, true);
         signedIn(ada);
         when(passwordEncoder.matches("wrong", "stored-hash")).thenReturn(false);
 
@@ -232,7 +232,7 @@ class UserServiceTest {
     void revokesSessionsOnPasswordChange() {
         // Parola degistirmenin amaci zaten budur: baskasinin elindeki her sey
         // gecersiz olsun. Oturumlar acik kalsaydi islem bir sey ifade etmezdi.
-        User ada = user(1L, "ada@example.com", Role.USER, true);
+        User ada = user(1L, "ada@example.com", Role.EMPLOYEE, true);
         signedIn(ada);
         when(passwordEncoder.matches("current-password", "stored-hash")).thenReturn(true);
         when(passwordEncoder.encode("a-brand-new-password")).thenReturn("new-hash");

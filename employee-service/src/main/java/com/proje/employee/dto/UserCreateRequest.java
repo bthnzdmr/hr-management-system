@@ -3,8 +3,10 @@ package com.proje.employee.dto;
 import com.proje.employee.entity.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
+
+import java.util.Set;
 
 public record UserCreateRequest(
         @NotBlank(message = "Email is required")
@@ -18,8 +20,8 @@ public record UserCreateRequest(
         @Size(min = 12, max = 72, message = "Password must be between 12 and 72 characters")
         String password,
 
-        @NotNull(message = "Role is required")
-        Role role,
+        @NotEmpty(message = "At least one role is required")
+        Set<Role> roles,
 
         // Opsiyonel: sistem hesaplarinin personel kaydi olmayabilir.
         Long employeeId

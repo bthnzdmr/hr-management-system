@@ -6,12 +6,26 @@ import type { LoginRequest, LoginResponse, Role } from '../types/api';
 
 interface AuthUser {
   email: string;
-  role: Role;
+  roles: Role[];
 }
 
+/**
+ * Arayuz ROL degil YETENEK sorar.
+ *
+ * Bilesenlerin icine "rol HR_SPECIALIST mi" diye yazsaydik, rol modeli her
+ * degistiginde her ekran degisirdi -- nitekim ADMIN/USER'dan bes role gecerken
+ * tam da bu oldu. Yetenek, ekranin gercekten ihtiyac duydugu sorudur:
+ * "duzenle dugmesini gostereyim mi?"
+ */
 interface AuthContextValue {
   user: AuthUser | null;
-  isAdmin: boolean;
+  hasRole: (role: Role) => boolean;
+  /** Personel kaydi olusturma, guncelleme, durum degistirme. */
+  canEditEmployees: boolean;
+  /** Hesap acma, rol verme, erisim yonetimi. */
+  canManageAccounts: boolean;
+  /** Maas okuma ve yazma. */
+  canSeeSalaries: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => void;
 }
@@ -43,7 +57,11 @@ function readToken(token: string): AuthUser | null {
     if (typeof payload.sub !== 'string') {
       return null;
     }
-    return { email: payload.sub, role: payload.role as Role };
+    // Roller DIZI olarak gelir. Dizi degilse token bizim uretmedigimiz bir
+    // bicimdedir; rolsuz kabul etmek, yetkisiz gostermekten iyidir.
+    const roles = Array.isArray(payload.roles) ? (payload.roles as Role[]) : [];
+
+    return { email: payload.sub, roles };
   } catch {
     return null;
   }
@@ -107,7 +125,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // useMemo olmadan her render'da yeni bir nesne uretilir ve context'i
   // tuketen her bilesen sebepsiz yeniden render olur.
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isAdmin: user?.role === 'ADMIN', login, logout }),
+    () => {
+      const roles = user?.roles ?? [];
+      const hasRole = (role: Role) => roles.includes(role);
+
+      return {
+        user,
+        hasRole,
+        canEditEmployees: hasRole('HR_SPECIALIST'),
+        canManageAccounts: hasRole('SYSTEM_ADMIN'),
+        // Maas ve personel duzenleme ayni role ait; ayri alanlar olmasi
+        // ilerde birinin degismesini kolaylastirir.
+        canSeeSalaries: hasRole('HR_SPECIALIST'),
+        login,
+        logout,
+      };
+    },
     [user, login, logout],
   );
 

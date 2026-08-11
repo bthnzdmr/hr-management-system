@@ -9,18 +9,19 @@ import employeesReducer from '../store/employeesSlice';
 import { AuthProvider } from '../auth/AuthContext';
 import { ColorModeProvider } from '../theme/ColorModeContext';
 import { tokenStorage } from '../api/client';
+import type { Role } from '../types/api';
 
-function fakeToken(role: 'ADMIN' | 'USER'): string {
+function fakeToken(roles: Role[]): string {
   const body = {
-    sub: `${role.toLowerCase()}@example.com`,
-    role,
+    sub: 'ada@example.com',
+    roles,
     exp: Math.floor(Date.now() / 1000) + 900,
   };
   return `header.${btoa(JSON.stringify(body))}.signature`;
 }
 
-function renderShell(role: 'ADMIN' | 'USER') {
-  tokenStorage.set(fakeToken(role));
+function renderShell(roles: Role[]) {
+  tokenStorage.set(fakeToken(roles));
 
   const store = configureStore({ reducer: { employees: employeesReducer } });
 
@@ -42,15 +43,17 @@ describe('Layout', () => {
     tokenStorage.clear();
   });
 
-  it('shows the signed-in identity and role', () => {
-    renderShell('ADMIN');
+  it('shows the signed-in identity and every role it carries', () => {
+    renderShell(['HR_SPECIALIST', 'SYSTEM_ADMIN']);
 
-    expect(screen.getByText('admin@example.com')).toBeInTheDocument();
-    expect(screen.getByText('ADMIN')).toBeInTheDocument();
+    expect(screen.getByText('ada@example.com')).toBeInTheDocument();
+    // Coklu rol: tek rozet artik kimligi anlatmiyor.
+    expect(screen.getByText('HR specialist')).toBeInTheDocument();
+    expect(screen.getByText('System administrator')).toBeInTheDocument();
   });
 
   it('offers the create shortcut to an administrator', () => {
-    renderShell('ADMIN');
+    renderShell(['HR_SPECIALIST', 'SYSTEM_ADMIN']);
 
     expect(screen.getByRole('link', { name: 'New employee' })).toBeInTheDocument();
   });
@@ -58,7 +61,7 @@ describe('Layout', () => {
   it('hides the create shortcut from a plain user', () => {
     // Sunucu zaten 403 doner; amac kullaniciya reddedilecek bir yolu hic
     // gostermemek.
-    renderShell('USER');
+    renderShell(['EMPLOYEE']);
 
     expect(screen.getByRole('link', { name: 'Employees' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'New employee' })).not.toBeInTheDocument();
@@ -66,7 +69,7 @@ describe('Layout', () => {
 
   it('switches the theme and remembers the choice', async () => {
     const user = userEvent.setup();
-    renderShell('USER');
+    renderShell(['EMPLOYEE']);
 
     // matchMedia testte hep "eslesmiyor" doner, yani baslangic acik temadir:
     // acik temada koyu temaya gecis ikonu gosterilir.

@@ -23,10 +23,12 @@ public class AppUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
 
+        String[] roles = user.getRoles().stream().map(Enum::name).toArray(String[]::new);
+
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getEmail())
                 .password(user.getPasswordHash())
-                .roles(user.getRole().name())
+                .roles(roles)
                 .disabled(!user.isActive())
                 .build();
     }

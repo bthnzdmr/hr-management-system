@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -22,7 +24,7 @@ public class JwtService {
 
     private static final Logger log = LoggerFactory.getLogger(JwtService.class);
 
-    private static final String CLAIM_ROLE = "role";
+    private static final String CLAIM_ROLES = "roles";
     private static final int MIN_KEY_BYTES = 32;
 
     private final SecretKey key;
@@ -44,12 +46,21 @@ public class JwtService {
         this.validity = Duration.ofMinutes(validityMinutes);
     }
 
-    public String generateToken(String email, String role) {
+    /**
+     * Roller DIZI olarak tasinir.
+     *
+     * Tek bir "role" alani vardi; ayni kisinin hem Ik uzmani hem sistem
+     * yoneticisi olabilmesi bunu yetersiz kildi. Talep adi da degisti
+     * ("role" -> "roles"), dolayisiyla ESKI TOKENLAR GECERSIZDIR: surum
+     * gecisinde herkes yeniden giris yapar. Eski adi da okumaya calismak,
+     * kalici bir uyumluluk yuku birakirdi.
+     */
+    public String generateToken(String email, Collection<String> roles) {
         Instant now = Instant.now();
 
         return Jwts.builder()
                 .subject(email)
-                .claim(CLAIM_ROLE, role)
+                .claim(CLAIM_ROLES, List.copyOf(roles))
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(validity)))
                 .signWith(key)
@@ -79,7 +90,24 @@ public class JwtService {
         }
     }
 
-    public String roleOf(Claims claims) {
-        return claims.get(CLAIM_ROLE, String.class);
+    /**
+     * Token'daki rolleri okur.
+     *
+     * Token DISARIDAN gelen bir veridir: imzasi dogrulanmis olsa bile icerigin
+     * bekledigimiz bicimde oldugu garanti degildir. Bu yuzden tipi kontrol
+     * edilir ve taninmayan rol adlari SESSIZCE ATILIR -- enum'dan kaldirilmis
+     * bir rol, elinde eski token olan birine hala yetki vermemelidir.
+     */
+    public List<String> rolesOf(Claims claims) {
+        Object claim = claims.get(CLAIM_ROLES);
+
+        if (!(claim instanceof Collection<?> values)) {
+            return List.of();
+        }
+
+        return values.stream()
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .toList();
     }
 }

@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './auth/ProtectedRoute';
-import { AdminRoute } from './auth/AdminRoute';
+import { CapabilityRoute } from './auth/CapabilityRoute';
 import { LoginPage } from './pages/LoginPage';
 import { EmployeeListPage } from './pages/EmployeeListPage';
 import { EmployeeDetailPage } from './pages/EmployeeDetailPage';
@@ -23,14 +23,17 @@ export default function App() {
               ekrani olmadan USER'in tiklayacagi hicbir sey yoktu. */}
           <Route path="/employees/:id/details" element={<EmployeeDetailPage />} />
 
-          {/* Yazma ekranlari yalnizca ADMIN'e: USER formu doldurduktan sonra
-              kacinilmaz olarak 403 alirdi. */}
           {/* Kendi parolasini herkes degistirir. */}
           <Route path="/account/password" element={<ChangePasswordPage />} />
 
-          <Route element={<AdminRoute />}>
+          {/* Personel formu Ik uzmanina, hesap ekrani sistem yoneticisine
+              ait. Roller bolundugunde bunlar ayni kisi olmayabilir. */}
+          <Route element={<CapabilityRoute requires="editEmployees" />}>
             <Route path="/employees/new" element={<EmployeeFormPage />} />
             <Route path="/employees/:id" element={<EmployeeFormPage />} />
+          </Route>
+
+          <Route element={<CapabilityRoute requires="manageAccounts" />}>
             <Route path="/users" element={<UserListPage />} />
           </Route>
 

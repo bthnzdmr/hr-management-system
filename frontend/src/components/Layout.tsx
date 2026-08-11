@@ -13,6 +13,7 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  Stack,
   Toolbar,
   Tooltip,
   Typography,
@@ -29,6 +30,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import PersonAddAltOutlinedIcon from '@mui/icons-material/PersonAddAltOutlined';
 import { useAuth } from '../auth/AuthContext';
 import { useColorMode } from '../theme/ColorModeContext';
+import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '../types/api';
 
 const DRAWER_WIDTH = 248;
 
@@ -36,17 +38,31 @@ interface NavItem {
   label: string;
   to: string;
   icon: typeof GroupsOutlinedIcon;
-  adminOnly: boolean;
+  /** Hangi yetenek gerekiyor; yoksa herkese acik. */
+  requires?: 'editEmployees' | 'manageAccounts';
 }
 
+// Menu artik tek bir "adminOnly" bayragiyla suzulemez: personel formu Ik
+// uzmanina, hesap ekrani sistem yoneticisine ait ve bunlar farkli kisiler
+// olabilir.
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon, adminOnly: false },
-  { label: 'New employee', to: '/employees/new', icon: PersonAddAltOutlinedIcon, adminOnly: true },
-  { label: 'Accounts', to: '/users', icon: ManageAccountsOutlinedIcon, adminOnly: true },
+  { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon },
+  {
+    label: 'New employee',
+    to: '/employees/new',
+    icon: PersonAddAltOutlinedIcon,
+    requires: 'editEmployees',
+  },
+  {
+    label: 'Accounts',
+    to: '/users',
+    icon: ManageAccountsOutlinedIcon,
+    requires: 'manageAccounts',
+  },
 ];
 
 export function Layout() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, canEditEmployees, canManageAccounts, logout } = useAuth();
   const { mode, toggle } = useColorMode();
   const theme = useTheme();
   const location = useLocation();
@@ -56,7 +72,8 @@ export function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenu, setUserMenu] = useState<HTMLElement | null>(null);
 
-  const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
+  const allowed = { editEmployees: canEditEmployees, manageAccounts: canManageAccounts };
+  const visibleItems = NAV_ITEMS.filter((item) => !item.requires || allowed[item.requires]);
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -150,12 +167,27 @@ export function Layout() {
 
           {user && (
             <>
-              <Chip
-                label={isAdmin ? 'ADMIN' : 'USER'}
-                size="small"
-                color={isAdmin ? 'primary' : 'default'}
-                variant={isAdmin ? 'filled' : 'outlined'}
-              />
+              {/* Kullanici birden fazla rol tasiyabilir; tek rozet artik
+                  kimligi anlatmiyor. Dar ekranda gizlenir, yerine kullanici
+                  menusundeki tam liste kalir. */}
+              <Stack
+                direction="row"
+                spacing={0.5}
+                sx={{ display: { xs: 'none', sm: 'flex' } }}
+              >
+                {user.roles.map((role) => (
+                  <Tooltip key={role} title={ROLE_DESCRIPTIONS[role]}>
+                    <Chip
+                      label={ROLE_LABELS[role]}
+                      size="small"
+                      color={role === 'SYSTEM_ADMIN' || role === 'HR_SPECIALIST'
+                        ? 'primary'
+                        : 'default'}
+                      variant={role === 'EMPLOYEE' ? 'outlined' : 'filled'}
+                    />
+                  </Tooltip>
+                ))}
+              </Stack>
               <Chip
                 label={user.email}
                 onClick={(event) => setUserMenu(event.currentTarget)}

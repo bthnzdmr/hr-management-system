@@ -35,6 +35,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * transaction birincinin bitmesini bekler ve guncel sayiyi gorur.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT u FROM User u WHERE u.role = :role AND u.active = true")
+    @Query("SELECT u FROM User u WHERE :role MEMBER OF u.roles AND u.active = true")
     List<User> findActiveByRoleForUpdate(@Param("role") Role role);
 }

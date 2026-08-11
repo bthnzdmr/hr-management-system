@@ -37,7 +37,7 @@ class DepartmentControllerTest {
     private JwtService jwtService;
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("Returns the departments an authenticated user can choose from")
     void returnsDepartmentsForAuthenticatedUser() throws Exception {
         when(departmentService.getAllActive()).thenReturn(List.of(

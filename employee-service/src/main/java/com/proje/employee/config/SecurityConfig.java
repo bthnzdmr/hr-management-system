@@ -101,29 +101,34 @@ public class SecurityConfig {
                         // yoneticiler parolasini degistirebilirdi.
                         .requestMatchers(HttpMethod.PUT, "/api/users/me/password").authenticated()
 
-                        // Hesap yonetiminin tamami yoneticiye ait. Metot
-                        // belirtilmez: HEAD dahil her sey kapsanmali.
-                        .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        // Hesap ve erisim yonetimi sistem yoneticisine ait.
+                        // Metot belirtilmez: HEAD dahil her sey kapsanmali.
+                        .requestMatchers("/api/users/**").hasRole("SYSTEM_ADMIN")
 
                         // Maas kurali GENEL okuma kuralindan ONCE gelmek zorunda:
                         // Spring Security ilk eslesen kurali uygular. Sonra yazilsaydi
-                        // "/api/employees/**" once eslesir ve maas USER'a acik kalirdi.
+                        // "/api/employees/**" once eslesir ve maas herkese acik kalirdi.
                         //
                         // Metot BELIRTILMEZ. HttpMethod.GET yazildiginda HEAD kapsam
                         // disinda kaliyordu: Spring Security HEAD'i GET saymaz ama
                         // Spring MVC HEAD istegini @GetMapping metoduna yonlendirir.
-                        // Sonuc: USER rolu HEAD ile 200 aliyordu (olculdu).
-                        .requestMatchers("/api/employees/*/salary").hasRole("ADMIN")
+                        // Sonuc: yetkisiz rol HEAD ile 200 aliyordu (olculdu).
+                        //
+                        // SYSTEM_ADMIN de goremez: erisimi yoneten kisinin ucret
+                        // bilgisine ihtiyaci yoktur.
+                        .requestMatchers("/api/employees/*/salary").hasRole("HR_SPECIALIST")
 
-                        // Yazma uclari yalnizca yoneticiye. Durum degisikligi de
-                        // buraya girer: PUT /{id}/status bir yazma islemidir.
-                        .requestMatchers(HttpMethod.POST, "/api/employees/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/employees/**").hasRole("ADMIN")
+                        // Personel verisini yalnizca Ik uzmani degistirir. Durum
+                        // degisikligi de buraya girer: PUT /{id}/status bir yazmadir.
+                        .requestMatchers(HttpMethod.POST, "/api/employees/**").hasRole("HR_SPECIALIST")
+                        .requestMatchers(HttpMethod.PUT, "/api/employees/**").hasRole("HR_SPECIALIST")
 
-                        // Okuma uclari icin giris yapmis olmak yeterli.
-                        // Astlarin listesi de okuma sayilir: organizasyon yapisini
-                        // gormek maas gormekten farklidir.
-                        .requestMatchers(HttpMethod.GET, "/api/employees/**").authenticated()
+                        // Okumaya kimlerin GIREBILECEGI burada, HANGI SATIRLARI
+                        // gorecegi servis katmaninda belirlenir. Bir kural
+                        // "bu satir senin ekibinde mi" diye soramaz; uc bazli
+                        // eslesme satiri tanimaz.
+                        .requestMatchers(HttpMethod.GET, "/api/employees/**")
+                        .hasAnyRole("EMPLOYEE", "MANAGER", "HR_SPECIALIST", "SYSTEM_ADMIN", "SERVICE")
                         .requestMatchers(HttpMethod.GET, "/api/departments").authenticated()
 
                         // Kural yazilmayan her sey reddedilir.

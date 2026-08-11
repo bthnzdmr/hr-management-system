@@ -48,7 +48,7 @@ class UserControllerSecurityTest {
             """;
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("A plain user may change their own password")
     void plainUserMayChangeOwnPassword() throws Exception {
         mockMvc.perform(put("/api/users/me/password")
@@ -58,39 +58,48 @@ class UserControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("A plain user may not list the accounts")
     void plainUserMayNotListAccounts() throws Exception {
         mockMvc.perform(get("/api/users")).andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("A plain user may not create an account")
     void plainUserMayNotCreateAccounts() throws Exception {
         mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"new@example.com","password":"a-long-password-x",
-                                 "role":"ADMIN"}
+                                 "roles":["EMPLOYEE"]}
                                 """))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(roles = "USER")
-    @DisplayName("A plain user may not change anyone's role")
+    @WithMockUser(roles = "EMPLOYEE")
+    @DisplayName("A plain user may not change anyone's roles")
     void plainUserMayNotChangeRoles() throws Exception {
-        mockMvc.perform(put("/api/users/1/role")
+        mockMvc.perform(put("/api/users/1/roles")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"role":"ADMIN"}
+                                {"roles":["SYSTEM_ADMIN"]}
                                 """))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "HR_SPECIALIST")
+    @DisplayName("An HR specialist may not manage accounts")
+    void hrSpecialistMayNotManageAccounts() throws Exception {
+        // Gorevler ayrildi: Ik verisini yoneten kisi erisim de yonetemez.
+        // Ayni kisi ikisini birden yapacaksa IKI role birden sahip olur.
+        mockMvc.perform(get("/api/users")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("A plain user may not read the accounts with HEAD either")
     void plainUserMayNotProbeWithHead() throws Exception {
         // Daha once olculmus bir kusur: metot belirtilen bir kural HEAD'i
@@ -108,9 +117,9 @@ class UserControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
-    @DisplayName("An administrator may list the accounts")
-    void administratorMayListAccounts() throws Exception {
+    @WithMockUser(roles = "SYSTEM_ADMIN")
+    @DisplayName("A system administrator may list the accounts")
+    void systemAdministratorMayListAccounts() throws Exception {
         mockMvc.perform(get("/api/users")).andExpect(status().isOk());
     }
 }

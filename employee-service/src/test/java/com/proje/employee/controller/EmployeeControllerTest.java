@@ -10,6 +10,7 @@ import com.proje.employee.dto.EmployeeResponse;
 import com.proje.employee.dto.SalaryResponse;
 import com.proje.employee.exception.EmailAlreadyExistsException;
 import com.proje.employee.exception.EmployeeNotFoundException;
+import com.proje.employee.service.AccessScopeResolver;
 import com.proje.employee.service.EmployeeService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
@@ -58,6 +60,11 @@ class EmployeeControllerTest {
     @MockBean
     private JwtService jwtService;
 
+    // Controller kapsami bu bilesenden aliyor; @WebMvcTest yalnizca web
+    // katmanini ayaga kaldirdigi icin sahtesi verilmeli.
+    @MockBean
+    private AccessScopeResolver accessScopeResolver;
+
     private EmployeeCreateRequest validRequest() {
         return new EmployeeCreateRequest(
                 "Ada", "Lovelace", "ada@example.com", null,
@@ -66,7 +73,7 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(roles = "HR_SPECIALIST")
     @DisplayName("A valid create returns 201 with a Location header")
     void createReturns201WithLocation() throws Exception {
         EmployeeResponse response = new EmployeeResponse(
@@ -86,7 +93,7 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(roles = "HR_SPECIALIST")
     @DisplayName("An invalid request returns 400 with per-field errors")
     void invalidRequestReturns400WithFieldErrors() throws Exception {
         EmployeeCreateRequest invalid = new EmployeeCreateRequest(
@@ -105,7 +112,7 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(roles = "HR_SPECIALIST")
     @DisplayName("An already registered email returns 409")
     void duplicateEmailReturns409() throws Exception {
         when(employeeService.create(any()))
@@ -119,10 +126,10 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("A missing record returns 404")
     void missingRecordReturns404() throws Exception {
-        when(employeeService.getById(99L)).thenThrow(new EmployeeNotFoundException(99L));
+        when(employeeService.getById(eq(99L), any())).thenThrow(new EmployeeNotFoundException(99L));
 
         mockMvc.perform(get("/api/employees/99"))
                 .andExpect(status().isNotFound())
@@ -141,7 +148,7 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("USER role can read")
     void userRoleCanRead() throws Exception {
         mockMvc.perform(get("/api/employees"))
@@ -149,7 +156,7 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("USER role cannot create: POST returns 403")
     void userRoleCannotCreate() throws Exception {
         mockMvc.perform(post("/api/employees")
@@ -162,7 +169,7 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("USER role cannot change an employee status")
     void userRoleCannotChangeStatus() throws Exception {
         mockMvc.perform(put("/api/employees/1/status")
@@ -174,7 +181,7 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(roles = "HR_SPECIALIST")
     @DisplayName("Rejects a status change with no active flag")
     void rejectsStatusChangeWithoutFlag() throws Exception {
         mockMvc.perform(put("/api/employees/1/status")
@@ -186,19 +193,19 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("USER role may read who reports to an employee")
     void userRoleMayReadDirectReports() throws Exception {
         // Organizasyon yapisini gormek maasi gormekten farklidir: bu uc
         // bilerek ADMIN'e kisitli DEGIL.
-        when(employeeService.getDirectReports(1L)).thenReturn(List.of());
+        when(employeeService.getDirectReports(eq(1L), any())).thenReturn(List.of());
 
         mockMvc.perform(get("/api/employees/1/direct-reports"))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("USER role cannot read a salary even though it may read employees")
     void userRoleCannotReadSalary() throws Exception {
         // Bu test kural SIRASINI korur: "/api/employees/*/salary" kurali genel
@@ -211,7 +218,7 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("USER role cannot probe a salary with HEAD either")
     void userRoleCannotProbeSalaryWithHead() throws Exception {
         // Olculdu: kural HttpMethod.GET ile yazildiginda HEAD kapsam disinda
@@ -225,7 +232,7 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(roles = "HR_SPECIALIST")
     @DisplayName("ADMIN role reads the salary through its own endpoint")
     void adminRoleReadsSalary() throws Exception {
         when(employeeService.getSalary(1L))
@@ -238,7 +245,7 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(roles = "HR_SPECIALIST")
     @DisplayName("Rejects a salary update with a missing amount")
     void rejectsSalaryUpdateWithoutAmount() throws Exception {
         mockMvc.perform(put("/api/employees/1/salary")
@@ -250,7 +257,7 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "USER")
+    @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("USER role cannot update a salary")
     void userRoleCannotUpdateSalary() throws Exception {
         mockMvc.perform(put("/api/employees/1/salary")

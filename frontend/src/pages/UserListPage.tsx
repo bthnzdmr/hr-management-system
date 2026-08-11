@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Box, Button, Chip, IconButton, MenuItem, Paper, Skeleton, Stack, Table, TableBody,
-  TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography,
+  Alert, Box, Button, Checkbox, Chip, IconButton, ListItemText, MenuItem, Paper, Skeleton, Stack,
+  Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField,
+  Tooltip, Typography,
 } from '@mui/material';
 import BlockIcon from '@mui/icons-material/Block';
 import PersonAddAltOutlinedIcon from '@mui/icons-material/PersonAddAltOutlined';
@@ -12,6 +13,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useSnackbar } from '../components/SnackbarProvider';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { UserCreateDialog } from '../components/UserCreateDialog';
+import { ASSIGNABLE_ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS } from '../types/api';
 import type { Role, User } from '../types/api';
 
 const COLUMNS = ['Email', 'Role', 'Linked employee', 'Status', 'Actions'];
@@ -76,12 +78,19 @@ export function UserListPage() {
     [notify],
   );
 
-  const applyRole = useCallback(
-    async (target: User, role: Role) => {
+  const applyRoles = useCallback(
+    async (target: User, roles: Role[]) => {
+      // Bos kume gonderilmez: sunucu da reddediyor, ama kullaniciya hata
+      // gostermek yerine hic gondermemek daha anlamli.
+      if (roles.length === 0) {
+        notify('An account must keep at least one role', 'warning');
+        return;
+      }
+
       setBusyId(target.id);
       try {
-        replace(await userApi.changeRole(target.id, role));
-        notify(`${target.email} is now ${role}`);
+        replace(await userApi.changeRoles(target.id, roles));
+        notify(`Roles updated for ${target.email}`);
       } catch (cause) {
         notify(errorMessage(cause), 'error');
       } finally {
@@ -159,21 +168,37 @@ export function UserListPage() {
                         <TextField
                           select
                           size="small"
-                          value={account.role}
+                          value={account.roles.filter((role) => ASSIGNABLE_ROLES.includes(role))}
                           disabled={isSelf || busyId === account.id}
-                          onChange={(event) => applyRole(account, event.target.value as Role)}
-                          sx={{ minWidth: 110 }}
+                          onChange={(event) =>
+                            applyRoles(account, event.target.value as unknown as Role[])}
+                          sx={{ minWidth: 190 }}
                           // Tabloyu dar tutmak icin gorunur etiket yok; ekran
-                          // okuyucunun "hangi satirin rolu" diyebilmesi icin
+                          // okuyucunun "hangi satirin rolleri" diyebilmesi icin
                           // erisilebilir ad e-postayla birlikte verilir.
                           slotProps={{
                             select: {
-                              SelectDisplayProps: { 'aria-label': `Role for ${account.email}` },
+                              multiple: true,
+                              renderValue: (selected) => (selected as Role[])
+                                .map((role) => ROLE_LABELS[role])
+                                .join(', '),
+                              SelectDisplayProps: { 'aria-label': `Roles for ${account.email}` },
                             },
                           }}
                         >
-                          <MenuItem value="ADMIN">ADMIN</MenuItem>
-                          <MenuItem value="USER">USER</MenuItem>
+                          {ASSIGNABLE_ROLES.map((role) => (
+                            <MenuItem key={role} value={role}>
+                              <Checkbox
+                                size="small"
+                                checked={account.roles.includes(role)}
+                                sx={{ mr: 0.5 }}
+                              />
+                              <ListItemText
+                                primary={ROLE_LABELS[role]}
+                                secondary={ROLE_DESCRIPTIONS[role]}
+                              />
+                            </MenuItem>
+                          ))}
                         </TextField>
                       </TableCell>
 

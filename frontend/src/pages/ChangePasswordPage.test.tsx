@@ -16,7 +16,11 @@ vi.mock('../api/users', () => ({
 }));
 
 function fakeToken(): string {
-  const body = { sub: 'ada@example.com', role: 'USER', exp: Math.floor(Date.now() / 1000) + 900 };
+  const body = {
+    sub: 'ada@example.com',
+    roles: ['EMPLOYEE'],
+    exp: Math.floor(Date.now() / 1000) + 900,
+  };
   return `header.${btoa(JSON.stringify(body))}.signature`;
 }
 

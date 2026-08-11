@@ -60,13 +60,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String email = claims.getSubject();
-        String role = jwtService.roleOf(claims);
+        List<String> roles = jwtService.rolesOf(claims);
 
-        if (email == null || role == null) {
+        // Rolsuz bir token kimlik atamaz. Bos yetki listesiyle kimlik atamak,
+        // kullaniciyi "giris yapmis ama hicbir seye yetkisi yok" durumunda
+        // birakir ve 401 yerine 403 aldirirdi -- yaniltici.
+        if (email == null || roles.isEmpty()) {
             return;
         }
 
-        var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+        var authorities = roles.stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .toList();
+
         var authentication = new UsernamePasswordAuthenticationToken(email, null, authorities);
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 

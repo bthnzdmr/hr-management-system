@@ -74,7 +74,7 @@ class EmployeeMapperTest {
     @DisplayName("Reading the id of a lazy proxy does not trigger an extra query")
     void readingProxyIdIssuesNoExtraQuery() {
         List<Employee> employees = employeeRepository
-                .findAllWithDepartment(PageRequest.of(0, 10))
+                .search(null, null, null, false, PageRequest.of(0, 10))
                 .getContent();
 
         List<EmployeeResponse> responses = employees.stream()
@@ -94,7 +94,7 @@ class EmployeeMapperTest {
         // getManager() gercek bir HibernateProxy donuyor.
         // Sirala: lastName asc -> Hopper (yonetici), Lovelace (calisan).
         List<Employee> secondPage = employeeRepository
-                .findAllWithDepartment(PageRequest.of(1, 1, Sort.by("lastName")))
+                .search(null, null, null, false, PageRequest.of(1, 1, Sort.by("lastName")))
                 .getContent();
 
         assertThat(secondPage).hasSize(1);
