@@ -47,6 +47,10 @@ class EmployeeMapperTest {
     void setUp() {
         // Test, veritabaninin onceki durumuna bagimli olmamali.
         // @DataJpaTest transaction icinde calisip geri aldigi icin bu silme kalici degil.
+        // users.employee_id yabanci anahtari personel silmeyi engeller. Baglanti
+        // once koparilir; @DataJpaTest transaction icinde calisip geri
+        // alindigi icin gercek hesaplar etkilenmez.
+        entityManager.createQuery("UPDATE User u SET u.employee = null").executeUpdate();
         employeeRepository.deleteAllInBatch();
 
         Department department = departmentRepository.findAll().get(0);

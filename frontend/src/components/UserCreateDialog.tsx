@@ -15,25 +15,34 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: (user: User) => void;
+  /**
+   * Personel detayindan gelindiginde e-posta ve baglanti hazir gelir.
+   *
+   * Ayni bilgiyi iki kez girmek gereksiz surtunmeydi: hesap acmak icin
+   * personelin e-postasini yeniden yazip kendisini aramadan bulmak gerekiyordu.
+   */
+  forEmployee?: { id: number; label: string; email: string };
 }
 
 // Sunucudaki kuralin aynisi. Istemci dogrulamasi yalnizca kolayliktir; karari
 // sunucu verir ve bu deger orada da yazilidir.
 const MIN_PASSWORD_LENGTH = 12;
 
-export function UserCreateDialog({ open, onClose, onCreated }: Props) {
-  const [email, setEmail] = useState('');
+export function UserCreateDialog({ open, onClose, onCreated, forEmployee }: Props) {
+  const [email, setEmail] = useState(forEmployee?.email ?? '');
   const [password, setPassword] = useState('');
   const [roles, setRoles] = useState<Role[]>(['EMPLOYEE']);
-  const [employee, setEmployee] = useState<EmployeeOption | null>(null);
+  const [employee, setEmployee] = useState<EmployeeOption | null>(
+    forEmployee ? { id: forEmployee.id, label: forEmployee.label } : null,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
-    setEmail('');
+    setEmail(forEmployee?.email ?? '');
     setPassword('');
     setRoles(['EMPLOYEE']);
-    setEmployee(null);
+    setEmployee(forEmployee ? { id: forEmployee.id, label: forEmployee.label } : null);
     setError(null);
   };
 
@@ -66,7 +75,9 @@ export function UserCreateDialog({ open, onClose, onCreated }: Props) {
       fullWidth
     >
       <form onSubmit={handleSubmit}>
-        <DialogTitle>New account</DialogTitle>
+        <DialogTitle>
+          {forEmployee ? `Give ${forEmployee.label} a login` : 'New account'}
+        </DialogTitle>
 
         <DialogContent>
           <Stack spacing={2.5} sx={{ mt: 1 }}>

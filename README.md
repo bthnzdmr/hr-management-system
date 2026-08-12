@@ -511,6 +511,16 @@ ekibinde mi" diye **soramaz** — satırı hiç görmez. Kapsam dışındaki kay
 değil **`404`** döner: "bu kayıt var ama göremezsin" demek, id deneyerek personel
 sayısının öğrenilmesine izin verirdi.
 
+**Personel ve hesap ayrı şeylerdir.** Personel = İK kaydı, hesap = giriş kimliği.
+Personel eklemek hesap açmaz: her çalışanın sisteme girişi olmaz ve her hesap bir
+çalışana ait değildir (servis hesabı gibi). Personel detay sayfasındaki **"Give a
+login"** düğmesi hesap açma ekranını e-posta ve bağlantı önceden dolu açar.
+
+**Ayrılan personelin hesabı otomatik kapanır** ve oturumları iptal edilir
+(joiner-mover-leaver'ın "leaver" adımı). Yeniden işe alım hesabı **kendiliğinden
+açmaz** — erişimi geri vermek bilinçli bir karardır. Ayrılan kişi son aktif
+`SYSTEM_ADMIN` ise ayrılış reddedilir; rolü önce başkasına vermek gerekir.
+
 **Hesap yönetimi kuralları:** Kimse kendi hesabını kapatamaz veya kendi
 `SYSTEM_ADMIN` rolünü düşüremez, ve sistemde en az bir aktif `SYSTEM_ADMIN`
 kalmak zorundadır. Rol, durum veya parola değiştiğinde o hesabın **tüm yenileme
@@ -682,7 +692,7 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesi, outbox yazıcı ve relay
 │       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
 │       ├── main/resources/db/migration/   V1__ V2__ V3__ V4__
-│       └── test/               169 test
+│       └── test/               171 test
 ├── notification-service/       ✅  olayları dinleyip mail gönderen servis
 │   ├── pom.xml
 │   └── src/
@@ -706,10 +716,10 @@ HR Management System/
         ├── pages/              Giriş, liste, detay, form, 404 ekranları
         ├── components/         Kabuk, onay penceresi, geri bildirim, hata sınırı
         ├── types/              Backend sözleşmesinin TypeScript karşılığı
-        └── *.test.ts(x)        109 test (Vitest + Testing Library)
+        └── *.test.ts(x)        111 test (Vitest + Testing Library)
 
 e2e/                            ✅  çalışan sisteme dışarıdan bakan testler
-└── src/test/java/com/proje/e2e/    18 test
+└── src/test/java/com/proje/e2e/    19 test
 ```
 
 Her Java servisinin **kendi `pom.xml`'i** vardır; ortak bir üst pom kullanılmaz. Mikroservislerin bağımsız derlenip bağımsız dağıtılabilmesi bu mimarinin amacıdır, ortak bir üst pom onları sürüm olarak birbirine bağlardı.

@@ -5,6 +5,7 @@ import com.proje.employee.entity.Employee;
 import com.proje.employee.entity.TerminationReason;
 import com.proje.employee.repository.DepartmentRepository;
 import com.proje.employee.repository.EmployeeRepository;
+import com.proje.employee.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -165,14 +166,47 @@ public class DemoDataSeeder {
     @Bean
     ApplicationRunner seedDemoData(EmployeeRepository employeeRepository,
                                    DepartmentRepository departmentRepository,
-                                   @Value("${app.demo-data.enabled:false}") boolean enabled) {
+                                   UserRepository userRepository,
+                                   @Value("${app.demo-data.enabled:false}") boolean enabled,
+                                   @Value("${app.user.email:}") String readOnlyUserEmail) {
 
         return args -> {
             if (!enabled) {
                 return;
             }
             seed(employeeRepository, departmentRepository);
+            linkDemoAccounts(employeeRepository, userRepository, readOnlyUserEmail);
         };
+    }
+
+    /**
+     * Salt okuyan demo hesabini gercek bir personele baglar.
+     *
+     * Baglanmadigi surece EMPLOYEE rolu HICBIR SEY goremez: hangi kaydin
+     * "kendi" oldugu bilinemez. Satir bazli kapsam kurulmustu ama demo veride
+     * denenemiyordu -- olculdu: personele bagli hesap sayisi sifirdi.
+     */
+    @Transactional
+    void linkDemoAccounts(EmployeeRepository employeeRepository,
+                          UserRepository userRepository,
+                          String readOnlyUserEmail) {
+
+        if (readOnlyUserEmail.isBlank()) {
+            return;
+        }
+
+        userRepository.findByEmail(readOnlyUserEmail).ifPresent(account -> {
+            if (account.getEmployee() != null) {
+                return;
+            }
+            // Yoneticisi olan biri secilir ki "kendi kaydini gorur" davranisi
+            // ekipli bir baglamda denenebilsin.
+            employeeRepository.findByEmail("ada.lovelace@demo.example.com").ifPresent(employee -> {
+                account.setEmployee(employee);
+                userRepository.save(account);
+                log.info("Linked demo account {} to employee {}", readOnlyUserEmail, employee.getId());
+            });
+        });
     }
 
     @Transactional

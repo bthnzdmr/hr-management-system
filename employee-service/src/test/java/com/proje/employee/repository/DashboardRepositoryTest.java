@@ -47,6 +47,10 @@ class DashboardRepositoryTest {
     void setUp() {
         // Onceki durumdan bagimsiz baslamak icin. Departmanlar migration ile
         // gelir ve silinmez; yalnizca personel temizlenir.
+        // users.employee_id yabanci anahtari personel silmeyi engeller. Baglanti
+        // once koparilir; @DataJpaTest transaction icinde calisip geri
+        // alindigi icin gercek hesaplar etkilenmez.
+        entityManager.createQuery("UPDATE User u SET u.employee = null").executeUpdate();
         employeeRepository.deleteAllInBatch();
         sales = departmentRepository.findByName("Sales").orElseThrow();
     }

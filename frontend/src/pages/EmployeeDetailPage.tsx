@@ -6,10 +6,13 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined';
 import { employeeApi } from '../api/employees';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { InitialsAvatar } from '../components/InitialsAvatar';
+import { UserCreateDialog } from '../components/UserCreateDialog';
+import { useSnackbar } from '../components/SnackbarProvider';
 import type { Employee } from '../types/api';
 
 interface Loaded {
@@ -31,7 +34,9 @@ function Field({ label, value }: { label: string; value: string }) {
 export function EmployeeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { canEditEmployees } = useAuth();
+  const { canEditEmployees, canManageAccounts } = useAuth();
+  const { notify } = useSnackbar();
+  const [creatingLogin, setCreatingLogin] = useState(false);
 
   const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -123,15 +128,29 @@ export function EmployeeDetailPage() {
             </Box>
           </Stack>
 
-          {canEditEmployees && (
-            <Button
-              variant="outlined"
-              startIcon={<EditOutlinedIcon />}
-              onClick={() => navigate(`/employees/${employee.id}`)}
-            >
-              Edit
-            </Button>
-          )}
+          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+            {/* Hesap acmak sistem yoneticisinin isi, personeli duzenlemek Ik
+                uzmaninin: iki dugme iki farkli yetenege bagli. */}
+            {canManageAccounts && employee.active && (
+              <Button
+                variant="outlined"
+                startIcon={<KeyOutlinedIcon />}
+                onClick={() => setCreatingLogin(true)}
+              >
+                Give a login
+              </Button>
+            )}
+
+            {canEditEmployees && (
+              <Button
+                variant="outlined"
+                startIcon={<EditOutlinedIcon />}
+                onClick={() => navigate(`/employees/${employee.id}`)}
+              >
+                Edit
+              </Button>
+            )}
+          </Stack>
         </Stack>
       </Paper>
 
@@ -218,6 +237,19 @@ export function EmployeeDetailPage() {
           </Paper>
         </Grid>
       </Grid>
+      <UserCreateDialog
+        open={creatingLogin}
+        onClose={() => setCreatingLogin(false)}
+        onCreated={(account) => {
+          setCreatingLogin(false);
+          notify(`${account.email} can now sign in`);
+        }}
+        forEmployee={{
+          id: employee.id,
+          label: `${employee.firstName} ${employee.lastName}`,
+          email: employee.email,
+        }}
+      />
     </Stack>
   );
 }

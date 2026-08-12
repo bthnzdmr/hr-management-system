@@ -44,15 +44,18 @@ public class EmployeeService {
     private final DepartmentRepository departmentRepository;
     private final EmployeeMapper employeeMapper;
     private final OutboxWriter outboxWriter;
+    private final UserService userService;
 
     public EmployeeService(EmployeeRepository employeeRepository,
                            DepartmentRepository departmentRepository,
                            EmployeeMapper employeeMapper,
-                           OutboxWriter outboxWriter) {
+                           OutboxWriter outboxWriter,
+                           UserService userService) {
         this.employeeRepository = employeeRepository;
         this.departmentRepository = departmentRepository;
         this.employeeMapper = employeeMapper;
         this.outboxWriter = outboxWriter;
+        this.userService = userService;
     }
 
     /**
@@ -244,6 +247,12 @@ public class EmployeeService {
             // Tarihi SUNUCU koyar. Istemciye birakilsaydi gecmise donuk kayit
             // girilebilir ve devir orani istenildigi gibi sekillendirilebilirdi.
             employee.terminate(LocalDate.now(), reason);
+
+            // JML'in "leaver" adimi. AYNI transaction icinde: hesap kapatma
+            // basarisiz olursa personel ayrilisi da geri alinir. Olay uzerinden
+            // asenkron yapilsaydi kisa da olsa "ayrilmis ama hala girebiliyor"
+            // penceresi kalirdi -- guvenlik islemi nihai tutarliliga birakilmaz.
+            userService.disableAccountOf(employee.getId());
         }
 
         publish(active ? EmployeeEventType.REACTIVATED : EmployeeEventType.DEACTIVATED, employee);

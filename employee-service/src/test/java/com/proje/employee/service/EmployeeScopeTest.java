@@ -42,10 +42,14 @@ class EmployeeScopeTest {
     @Mock
     private OutboxWriter outboxWriter;
 
+    @Mock
+    private UserService userService;
+
     private final EmployeeMapper mapper = new EmployeeMapper();
 
     private EmployeeService service() {
-        return new EmployeeService(employeeRepository, departmentRepository, mapper, outboxWriter);
+        return new EmployeeService(employeeRepository, departmentRepository, mapper, outboxWriter,
+                userService);
     }
 
     private Employee employee(Long id, Employee manager) {

@@ -501,6 +501,45 @@ class SystemEndToEndTest {
     }
 
     @Test
+    @DisplayName("An employee who leaves can no longer sign in")
+    void departureClosesTheAccount() {
+        // JML'in "leaver" adimi. Olculdu: bu baglanti olmadan ayrilan
+        // personelin hesabiyla giris yapilabiliyordu -- sahipsiz hesap,
+        // iceriden tehdidin en bilinen kaynagidir.
+        String adminToken = signIn();
+        String unique = UUID.randomUUID().toString();
+
+        String employeeId = createEmployee(adminToken, "e2e.leaver." + unique + "@example.com");
+        String accountEmail = "e2e.leaveracc." + unique + "@example.com";
+
+        SystemClient.Response created = client.post(
+                SystemClient.API_URL + "/api/users", adminToken,
+                """
+                {"email":"%s","password":"a-long-enough-password","roles":["EMPLOYEE"],
+                 "employeeId":%s}
+                """.formatted(accountEmail, employeeId));
+        assertThat(created.status()).isEqualTo(201);
+
+        assertThat(signIn(accountEmail, "a-long-enough-password").status()).isEqualTo(200);
+
+        client.put(SystemClient.API_URL + "/api/employees/" + employeeId + "/status", adminToken,
+                """
+                {"active":false,"terminationReason":"RESIGNED"}
+                """);
+
+        assertThat(signIn(accountEmail, "a-long-enough-password").status()).isEqualTo(401);
+
+        // Yeniden ise alim hesabi KENDILIGINDEN acmaz: erisimi geri vermek
+        // bilincli bir karar olmali.
+        client.put(SystemClient.API_URL + "/api/employees/" + employeeId + "/status", adminToken,
+                """
+                {"active":true}
+                """);
+
+        assertThat(signIn(accountEmail, "a-long-enough-password").status()).isEqualTo(401);
+    }
+
+    @Test
     @DisplayName("Serves the departments used by the employee form")
     void servesDepartments() {
         SystemClient.Response response =

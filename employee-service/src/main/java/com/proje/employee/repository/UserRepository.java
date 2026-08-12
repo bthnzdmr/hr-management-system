@@ -19,6 +19,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByEmail(String email);
 
+    // users.employee_id benzersizdir, dolayisiyla en fazla bir hesap doner.
+    Optional<User> findByEmployeeId(Long employeeId);
+
     // Personel LEFT JOIN FETCH ile getirilir: cevapta personelin adi da var ve
     // tembel vekilden ad okumak her satir icin ayri sorgu acardi (N+1).
     // LEFT sart: personel kaydi olmayan sistem hesaplari listeden dusmemeli.

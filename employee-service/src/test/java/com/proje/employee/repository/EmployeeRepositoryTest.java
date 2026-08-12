@@ -37,8 +37,11 @@ class EmployeeRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        // Test, veritabaninin onceki durumuna bagimli olmamali.
-        // @DataJpaTest transaction icinde calisip geri aldigi icin bu silme kalici degil.
+        // Test, veritabaninin onceki durumuna bagimli olmamali. users.employee_id
+        // yabanci anahtari personel silmeyi engeller, bu yuzden baglanti once
+        // koparilir; @DataJpaTest transaction icinde calisip geri alindigi icin
+        // ne silme ne de koparma kalicidir.
+        entityManager.createQuery("UPDATE User u SET u.employee = null").executeUpdate();
         employeeRepository.deleteAllInBatch();
 
         List<Department> departments = departmentRepository.findAll();

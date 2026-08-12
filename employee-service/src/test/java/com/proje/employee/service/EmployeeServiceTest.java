@@ -62,6 +62,9 @@ class EmployeeServiceTest {
     @Mock
     private OutboxWriter outboxWriter;
 
+    @Mock
+    private UserService userService;
+
     @Spy
     private EmployeeMapper employeeMapper = new EmployeeMapper();
 
@@ -370,6 +373,33 @@ class EmployeeServiceTest {
         // Tarihi SUNUCU koyar; istemciye birakilsaydi gecmise donuk kayit
         // girilip devir orani sekillendirilebilirdi.
         assertThat(ada.getTerminatedAt()).isEqualTo(LocalDate.now());
+    }
+
+    @Test
+    @DisplayName("Closes the account of an employee who left")
+    void closesAccountOnTermination() {
+        // JML'in "leaver" adimi. Olculdu: bu baglanti olmadan ayrilan
+        // personelin hesabiyla giris yapilabiliyordu.
+        Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+
+        employeeService.changeStatus(1L, false, TerminationReason.RESIGNED);
+
+        verify(userService).disableAccountOf(1L);
+    }
+
+    @Test
+    @DisplayName("Does not reopen the account when the employee is hired back")
+    void doesNotReopenAccountOnReactivation() {
+        // Erisimi geri vermek BILINCLI bir karar olmali; kisi ayni role
+        // donmeyebilir ve sessizce eski yetkileriyle girmemeli.
+        Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
+        ada.terminate(LocalDate.of(2026, 1, 1), TerminationReason.RESIGNED);
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+
+        employeeService.changeStatus(1L, true, null);
+
+        verify(userService, never()).disableAccountOf(any());
     }
 
     @Test

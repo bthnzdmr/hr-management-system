@@ -128,6 +128,43 @@ public class UserService {
         return userMapper.toResponse(user);
     }
 
+    /**
+     * Personel isten ayrildiginda ona bagli hesabi kapatir (JML "leaver" adimi).
+     *
+     * Olculdu: bu adim olmadan ayrilan personelin hesabiyla giris yapilabiliyordu.
+     * Mekanizma zaten vardi -- hesap pasiflestirildiginde oturumlar iptal
+     * ediliyordu -- yalnizca personel ayrilisi ona baglanmamisti. Sahipsiz
+     * hesap (orphaned account), iceriden tehdidin en bilinen kaynagidir.
+     *
+     * Yeniden ise alimda hesap KENDILIGINDEN acilmaz: erisimi geri vermek
+     * bilincli bir karar olmali. Guvenlikte varsayilan "kapali"dir.
+     */
+    @Transactional
+    public void disableAccountOf(Long employeeId) {
+        userRepository.findByEmployeeId(employeeId).ifPresent(account -> {
+            if (!account.isActive()) {
+                return;
+            }
+
+            // Son sistem yoneticisinin hesabini kapatmak sistemi yonetilemez
+            // birakirdi. Islemi sessizce atlamak daha kotu olurdu: ayrilan
+            // kisi yonetici yetkisiyle sistemde kalirdi. Bu yuzden personel
+            // ayrilisi REDDEDILIR ve ne yapilmasi gerektigi soylenir.
+            //
+            // Mesaj bu baglamda yeniden yazilir: kullanici personel
+            // pasiflestiriyor ve "en az bir yonetici kalmali" tek basina
+            // hangi islemi neden reddettigimizi anlatmaz.
+            if (account.hasRole(Role.SYSTEM_ADMIN) && isLastActiveSystemAdmin(account)) {
+                throw new UserRuleViolationException(
+                        "This employee holds the last active system administrator account. "
+                                + "Give that role to somebody else before recording the departure.");
+            }
+
+            account.setActive(false);
+            refreshTokenService.revokeAllFor(account.getId(), "employee left the company");
+        });
+    }
+
     @Transactional
     public void changeOwnPassword(String email, PasswordChangeRequest request) {
         User user = userRepository.findByEmail(email)
@@ -161,13 +198,15 @@ public class UserService {
      * yoneticisi yenisini atayabilir. Kilitlenmeye yol acan tek rol budur.
      */
     private void assertNotLastActiveSystemAdmin(User target) {
-        boolean anotherRemains = userRepository
-                .findActiveByRoleForUpdate(Role.SYSTEM_ADMIN).stream()
-                .anyMatch(admin -> !admin.getId().equals(target.getId()));
-
-        if (!anotherRemains) {
+        if (isLastActiveSystemAdmin(target)) {
             throw new UserRuleViolationException(
                     "At least one active system administrator must remain");
         }
+    }
+
+    /** Sorgu satirlari kilitler; ayrintisi assertNotLastActiveSystemAdmin'de. */
+    private boolean isLastActiveSystemAdmin(User target) {
+        return userRepository.findActiveByRoleForUpdate(Role.SYSTEM_ADMIN).stream()
+                .noneMatch(admin -> !admin.getId().equals(target.getId()));
     }
 }
