@@ -18,4 +18,22 @@ public record PasswordChangeRequest(
         @Size(min = 12, max = 72, message = "Password must be between 12 and 72 characters")
         String newPassword
 ) {
+
+    /**
+     * Parola METINSEL TEMSILE HIC GIRMEZ.
+     *
+     * record'un uretilmis toString'i butun bilesenleri basar. Bu, sirri
+     * tasiyan bir nesne icin sessiz bir sizinti kaynagidir: log satiri,
+     * istisna mesaji, hata ayiklama ciktisi ve denetim kaydi -- hepsi
+     * toString cagirir.
+     *
+     * OLCULDU: denetim izi eklendiginde bu tam olarak yasandi; acilan
+     * hesabin parolasi audit_entry.detail kolonuna DUZ METIN yazildi.
+     * Kok neden aspect degildi, record'un kendisiydi -- bu yuzden duzeltme
+     * de burada: sirri hic uretmeyen bir temsil, onu her yerde korur.
+     */
+    @Override
+    public String toString() {
+        return "PasswordChangeRequest[" + "currentPassword=***" + ", " + "newPassword=***" + "]";
+    }
 }

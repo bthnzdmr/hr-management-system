@@ -117,6 +117,14 @@ app:
     # imkan yoktur, kisa omurlu olmasinin sebebi de budur.
     refresh-validity-days: ${JWT_REFRESH_VALIDITY_DAYS:7}
 
+  login:
+    # Bes deneme yaygin bir esik: kullaniciyi parolasini hatirlamaya calisirken
+    # kilitlemeyecek kadar yuksek, kaba kuvveti anlamsiz kilacak kadar dusuk.
+    max-attempts: ${LOGIN_MAX_ATTEMPTS:5}
+    # Pencere hem SAYIM hem BLOKE suresidir: son basarisiz denemeden bu kadar
+    # sure sonra sayac sifirlanir.
+    block-duration-seconds: ${LOGIN_BLOCK_DURATION_SECONDS:300}
+
   outbox:
     # Yayin gecikmesinin ust siniri: olay en gec bu sure sonra gonderilir.
     poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:2000}

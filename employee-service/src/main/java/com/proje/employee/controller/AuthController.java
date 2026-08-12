@@ -4,13 +4,16 @@ import com.proje.employee.config.JwtService;
 import com.proje.employee.dto.LoginRequest;
 import com.proje.employee.dto.LoginResponse;
 import com.proje.employee.dto.RefreshRequest;
+import com.proje.employee.service.LoginAttemptService;
 import com.proje.employee.service.RefreshTokenService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,27 +33,45 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final LoginAttemptService loginAttemptService;
     private final long validityMinutes;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtService jwtService,
                           RefreshTokenService refreshTokenService,
+                          LoginAttemptService loginAttemptService,
                           @Value("${app.jwt.validity-minutes:15}") long validityMinutes) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
+        this.loginAttemptService = loginAttemptService;
         this.validityMinutes = validityMinutes;
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
-        // Parola dogrulamasi burada yapilir: BCrypt maliyeti yalnizca bu ucta odenir.
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+    public LoginResponse login(@Valid @RequestBody LoginRequest request,
+                               HttpServletRequest httpRequest) {
 
-        String email = authentication.getName();
+        String clientIp = httpRequest.getRemoteAddr();
 
-        return respond(email, rolesOf(authentication), refreshTokenService.issue(email));
+        // Kimlik dogrulamasi bir KAYNAKTIR ve sinirsiz tuketilemez. Kontrol
+        // authenticate() cagrisindan ONCE yapilir: amac yalnizca tahmini
+        // engellemek degil, BCrypt'in CPU maliyetini de odememektir.
+        loginAttemptService.assertNotBlocked(request.email(), clientIp);
+
+        try {
+            // Parola dogrulamasi burada yapilir: BCrypt maliyeti yalnizca bu ucta odenir.
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+
+            String email = authentication.getName();
+            loginAttemptService.recordSuccess(email, clientIp);
+
+            return respond(email, rolesOf(authentication), refreshTokenService.issue(email));
+        } catch (AuthenticationException e) {
+            loginAttemptService.recordFailure(request.email(), clientIp);
+            throw e;
+        }
     }
 
     /**

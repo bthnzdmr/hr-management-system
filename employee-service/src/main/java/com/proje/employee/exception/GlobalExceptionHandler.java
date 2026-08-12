@@ -120,6 +120,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * Reddedilen alanin adi YALNIZCA loga yazilir; cevaba konsaydi
      * "salary siralanamaz" mesaji boyle bir alanin varligini dogrulardi.
      */
+    /**
+     * Hiz siniri asildi.
+     *
+     * 429 doner, 401 DEGIL: arayuzdeki interceptor 401'i "oturum bitti" sayip
+     * kullaniciyi sistemden atardi -- oysa burada henuz bir oturum bile yok.
+     * 429 ayrica standart olarak "sonra tekrar dene" anlamini tasir.
+     */
+    @ExceptionHandler(TooManyLoginAttemptsException.class)
+    public ProblemDetail handleTooManyLoginAttempts(TooManyLoginAttemptsException ex) {
+        // Sayac zaten LoginAttemptService icinde loglandi; burada tekrarlanmaz.
+        return problem(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts", ex.getMessage());
+    }
+
     @ExceptionHandler(InvalidSortPropertyException.class)
     public ProblemDetail handleInvalidSortProperty(InvalidSortPropertyException ex) {
         log.warn("Rejected sorting on a field that is not allowed: {}", ex.getProperty());

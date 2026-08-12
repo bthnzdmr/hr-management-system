@@ -1,5 +1,7 @@
 package com.proje.employee.service;
 
+import com.proje.employee.audit.AuditAction;
+import com.proje.employee.audit.Auditable;
 import com.proje.employee.dto.EmployeeCreateRequest;
 import com.proje.employee.dto.EmployeeResponse;
 import com.proje.employee.dto.EmployeeUpdateRequest;
@@ -120,6 +122,7 @@ public class EmployeeService {
     }
 
     @Transactional
+    @Auditable(action = AuditAction.EMPLOYEE_CREATED, targetType = "EMPLOYEE")
     public EmployeeResponse create(EmployeeCreateRequest request) {
         // Kullaniciya anlamli mesaj donmek icin. Dogruluk garantisi bu kontrol
         // degil, veritabanindaki uk_employee_email kisitidir.
@@ -197,6 +200,8 @@ public class EmployeeService {
     }
 
     @Transactional
+    @Auditable(action = AuditAction.SALARY_CHANGED, targetType = "EMPLOYEE",
+            includeArguments = false)
     public SalaryResponse updateSalary(Long id, SalaryUpdateRequest request) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException(id));
@@ -228,6 +233,7 @@ public class EmployeeService {
      * ayiklayamaz ve personel her tiklamada bir mail daha alirdi.
      */
     @Transactional
+    @Auditable(action = AuditAction.EMPLOYEE_STATUS_CHANGED, targetType = "EMPLOYEE")
     public EmployeeResponse changeStatus(Long id, boolean active, TerminationReason reason) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException(id));

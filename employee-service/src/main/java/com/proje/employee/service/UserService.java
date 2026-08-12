@@ -1,5 +1,7 @@
 package com.proje.employee.service;
 
+import com.proje.employee.audit.AuditAction;
+import com.proje.employee.audit.Auditable;
 import com.proje.employee.dto.PasswordChangeRequest;
 import com.proje.employee.dto.UserCreateRequest;
 import com.proje.employee.dto.UserResponse;
@@ -49,6 +51,7 @@ public class UserService {
     }
 
     @Transactional
+    @Auditable(action = AuditAction.ACCOUNT_CREATED, targetType = "USER")
     public UserResponse create(UserCreateRequest request) {
         // Kullaniciya anlamli mesaj donmek icin. Dogruluk garantisi bu kontrol
         // degil, veritabanindaki uk_users_email kisitidir.
@@ -71,6 +74,7 @@ public class UserService {
     }
 
     @Transactional
+    @Auditable(action = AuditAction.ROLES_CHANGED, targetType = "USER")
     public UserResponse changeRoles(Long id, Set<Role> roles, String actingUserEmail) {
         User user = find(id);
 
@@ -102,6 +106,7 @@ public class UserService {
     }
 
     @Transactional
+    @Auditable(action = AuditAction.ACCOUNT_STATUS_CHANGED, targetType = "USER")
     public UserResponse changeStatus(Long id, boolean active, String actingUserEmail) {
         User user = find(id);
 
