@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Log bicimi ORTAMA gore degisir.
+
+  Gelistirmede logu okuyan bir insandir: renkli, hizalanmis, tek satir.
+  Uretimde ise bir TOPLAYICIDIR (Loki, Elasticsearch, CloudWatch). Duz metin
+  gonderilirse toplayici yalnizca grep yapabilir; "son bir saatte hangi
+  korelasyon kimliginde kac hata var" sorusu cevaplanamaz. JSON'da her alan
+  sorgulanabilir: level, correlationId, logger, thread, exception.
+
+  Yeni bagimlilik YOK: Logback zaten Spring Boot ile geliyor.
+  logstash-logback-encoder daha zengin olurdu ama bir bagimlilik daha demek;
+  bu olcekte kazanci maliyetini karsilamiyor.
+-->
+<configuration>
+
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!--
+      KACIS SIRASI ONEMLI: once ters bolu, sonra tirnak. Ters sonra yapilsaydi
+      tirnak icin eklenen ters bolu de kacirilir ve cift kacis olusurdu.
+
+      Son iki adim satir sonlarini ve SEKMELERI kacirir. JSON ham kontrol
+      karakterine izin vermez; yigin izi hem cok satirlidir hem de her
+      "at ..." satiri sekme ile baslar. Kacirilmazsa uretilen satir GECERSIZ
+      JSON olur ve toplayici onu sessizce atar; yani en cok ihtiyac duyulan
+      hata satiri kaybolur.
+
+      OLCULDU: once yalnizca satir sonu kacirilmisti ve yigin izli satir
+      "Invalid control character at column 327" ile ayristirilamadi. Sucu
+      sekmeydi.
+    -->
+    <property name="ESCAPED_MSG"
+              value="%replace(%replace(%replace(%replace(%msg){'\\','\\\\'}){'&quot;','\\&quot;'}){'[\r\n]+','\\n'}){'\t','\\t'}"/>
+    <property name="ESCAPED_EX"
+              value="%replace(%replace(%replace(%replace(%ex){'\\','\\\\'}){'&quot;','\\&quot;'}){'[\r\n]+','\\n'}){'\t','\\t'}"/>
+
+    <!-- Gelistirme: insan icin. Korelasyon kimligi bos oldugunda alt cizgi,
+         hizalama bozulmasin diye. -->
+    <springProfile name="dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%X{correlationId:-________}] %cyan(%logger{36}) : %msg%n%wEx</pattern>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <!-- Uretim: makine icin. Tek satir JSON. -->
+    <springProfile name="!dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","service":"employee-service","correlationId":"%X{correlationId:-}","logger":"%logger{40}","thread":"%thread","message":"${ESCAPED_MSG}","exception":"${ESCAPED_EX}"}%n</pattern>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

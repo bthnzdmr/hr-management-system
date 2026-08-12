@@ -4,6 +4,7 @@ import com.proje.employee.dto.DashboardResponse;
 import com.proje.employee.service.DashboardService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 5 kisi" masum gorunur ama ayni mantikla ayrilma sayilari da sizardi ve
  * kucuk bir departmanda toplam, bireyi ele verir.
  */
+@Tag(name = "Dashboard", description = "Toplu raporlama. Tek istek, tek anlik goruntu.")
 @RestController
 @RequestMapping("/api/dashboard")
 public class DashboardController {

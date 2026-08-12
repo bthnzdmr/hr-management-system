@@ -1,0 +1,7 @@
+# Gelistirme profili.
+eureka:
+  server:
+    # Gelistirmede KAPALI: servis durdurulunca rehberden hemen dussun,
+    # boylece lokalde ne olup bittigi net gorunur. Uretimde ACIK kalmali --
+    # kapali oldugunda ag dalgalanmasi saglikli kopyalari da dusurur.
+    enable-self-preservation: false

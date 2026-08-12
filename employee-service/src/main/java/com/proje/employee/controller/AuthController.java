@@ -18,11 +18,15 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+@Tag(name = "Authentication", description = "Giris, jeton yenileme ve cikis.")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -49,6 +53,11 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @Operation(summary = "Giris")
+    @ApiResponse(responseCode = "200", description = "Erisim jetonu ve yenileme jetonu")
+    @ApiResponse(responseCode = "401", description = "Gecersiz kimlik bilgisi")
+    @ApiResponse(responseCode = "429",
+            description = "Cok fazla basarisiz deneme. Cevap hesabin VAR OLUP OLMADIGINI soylemez")
     public LoginResponse login(@Valid @RequestBody LoginRequest request,
                                HttpServletRequest httpRequest) {
 
@@ -82,6 +91,13 @@ public class AuthController {
      * buraya geliniyor.
      */
     @PostMapping("/refresh")
+    @Operation(summary = "Jetonu yenile",
+            description = """
+                    Her yenilemede yeni bir jeton verilir ve eskisi iptal edilir.
+                    Iptal edilmis bir jeton tekrar sunulursa bu, bir kopyasinin
+                    dolastiginin kanitidir ve kullanicinin TUM oturumlari kapatilir.
+                    """)
+    @ApiResponse(responseCode = "401", description = "Jeton taninmiyor, suresi dolmus veya iptal edilmis")
     public LoginResponse refresh(@Valid @RequestBody RefreshRequest request) {
         RefreshTokenService.Rotation rotation = refreshTokenService.rotate(request.refreshToken());
 

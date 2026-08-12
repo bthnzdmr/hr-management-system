@@ -20,11 +20,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
 import java.security.Principal;
 
+@Tag(name = "Accounts", description = "Giris hesaplari ve roller. Yalnizca SYSTEM_ADMIN.")
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -94,6 +98,12 @@ public class UserController {
      * bir gun unutulurdu -- yapisal olarak imkansiz kilmak daha guvenli.
      */
     @PutMapping("/me/password")
+    @Operation(summary = "Kendi parolasini degistir",
+            description = "Mevcut parola zorunludur: oturum acilmis bir tarayiciyi ele "
+                    + "geciren biri parolayi bilmeden yenisini belirleyememelidir.")
+    @ApiResponse(responseCode = "204", description = "Degistirildi; tum oturumlar iptal edildi")
+    @ApiResponse(responseCode = "400",
+            description = "Mevcut parola yanlis. 401 DEGIL: oturum gecerli, hatali olan istegin govdesi")
     public ResponseEntity<Void> changeOwnPassword(
             @Valid @RequestBody PasswordChangeRequest request,
             Principal actingUser) {

@@ -21,6 +21,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
@@ -28,6 +31,7 @@ import java.security.Principal;
 import java.util.Set;
 import java.util.List;
 
+@Tag(name = "Employees", description = "Personel dizini. Okuma her role acik ama KAPSAMLI: cagiran yalnizca gorebildigi satirlari alir.")
 @RestController
 @RequestMapping("/api/employees")
 public class EmployeeController {
@@ -55,6 +59,13 @@ public class EmployeeController {
     // Okuma uclari kapsam alir: kimin girebilecegine SecurityConfig, hangi
     // satirlari gorecegine servis karar verir.
     @GetMapping
+    @Operation(summary = "Personel listesi",
+            description = """
+                    Siralama yalnizca cevapta donen alanlara izinlidir. "?sort=salary"
+                    reddedilir: maas cevapta gorunmese de ona gore siralamak ucret
+                    hiyerarsisini oldugu gibi verirdi.
+                    """)
+    @ApiResponse(responseCode = "400", description = "Siralamasina izin verilmeyen alan istendi")
     public Page<EmployeeResponse> getAll(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean active,
@@ -68,11 +79,22 @@ public class EmployeeController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Tek personel",
+            description = """
+                    Kapsam disindaki kayit icin 403 DEGIL 404 doner. 403 "bu kayit var
+                    ama goremezsin" der ve id denenerek personel sayisi ogrenilebilirdi.
+                    """)
+    @ApiResponse(responseCode = "200", description = "Kayit bulundu ve kapsam icinde")
+    @ApiResponse(responseCode = "404",
+            description = "Kayit yok VEYA cagiranin kapsami disinda -- ikisi ayirt edilemez")
     public EmployeeResponse getById(@PathVariable Long id, Principal caller) {
         return employeeService.getById(id, accessScopeResolver.resolve(caller));
     }
 
     @PostMapping
+    @Operation(summary = "Personel ekle")
+    @ApiResponse(responseCode = "201", description = "Olusturuldu; Location basligi doner")
+    @ApiResponse(responseCode = "409", description = "Bu e-posta zaten kayitli")
     public ResponseEntity<EmployeeResponse> create(
             @Valid @RequestBody EmployeeCreateRequest request) {
 

@@ -1,0 +1,28 @@
+# Gelistirme profili.
+#
+# Ana application.yml URETIM-GUVENLI varsayilanlar tasir: log sessiz, API
+# semasi kapali. Gurultu ve kolaylik OPT-IN'dir ve burada acilir.
+#
+# Onceki halde tek bir yapilandirma her ortama hizmet ediyordu ve gelistirme
+# tercihleri (DEBUG SQL, acik Swagger) dogrudan uretime gidiyordu.
+#
+# Aktiflestirmek icin: SPRING_PROFILES_ACTIVE=dev
+spring:
+  jpa:
+    properties:
+      hibernate:
+        # Cok satirli SQL okumayi kolaylastirir; log hacmini de katlar.
+        format_sql: true
+
+# Etkilesimli dokumantasyon gelistirmede acik.
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+logging:
+  level:
+    # Calisan sorguyu gormek gelistirmede en degerli tek log.
+    org.hibernate.SQL: debug
+    com.proje.employee: debug

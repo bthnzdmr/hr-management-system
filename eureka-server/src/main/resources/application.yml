@@ -14,9 +14,13 @@ eureka:
     register-with-eureka: false
     fetch-registry: false
   server:
-    # Gelistirme ortaminda "self-preservation" modunu kapatiyoruz ki
-    # servisler durunca rehberden hizlica dussunler (lokalde daha net gorursun).
-    enable-self-preservation: false
+    # AC/KAPA disaridan verilir ve varsayilan ACIK.
+    #
+    # Kapali oldugunda ag dalgalanmasi SAGLIKLI kopyalari kayittan dusurur:
+    # kalp atisi gecikince Eureka onlari olmus sayar ve istekler ulasamaz hale
+    # gelir. Gelistirmede kapali olmasi isteniyordu (servis durunca hemen
+    # dussun) ama kosulsuzdu -- dev profili artik acikca kapatiyor.
+    enable-self-preservation: ${EUREKA_SELF_PRESERVATION:true}
 
 management:
   endpoints:

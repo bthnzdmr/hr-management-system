@@ -114,4 +114,5 @@ logging:
   pattern:
     level: "%5p [%X{correlationId:-________}]"
   level:
-    com.proje.notification: debug
+    # Varsayilan SESSIZ; dev profili debug'a ceker.
+    com.proje.notification: ${APP_LOG_LEVEL:info}

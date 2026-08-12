@@ -91,6 +91,12 @@ services:
     # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
     restart: unless-stopped
     profiles: ["full"]
+    environment:
+      # Compose'un "full" profili YEREL GELISTIRME yigindir; uretim degil.
+      # dev profili self-preservation'i kapatir: servis durdurulunca rehberden
+      # hemen dussun. Gercek bir dagitimda degisken bos birakilir ve
+      # self-preservation ACIK kalir.
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
     ports:
       - "8761:8761"
     healthcheck:
@@ -121,6 +127,11 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # Compose'un "full" profili YEREL GELISTIRME yigindir; uretim degil.
+      # Bu yuzden dev profili varsayilan olarak aciktir: DEBUG SQL ve Swagger
+      # burada isteniyor. Gercek bir dagitimda degisken bos birakilir ve
+      # uygulama ana yml'deki uretim-guvenli varsayilanlarla acilir.
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       # Konteyner icinde "localhost" kendi konteyneridir; adresler servis
       # adlarina doner. Java kodunda tek satir degismez -- adresler zaten
       # ortam degiskeninden okunuyordu.
@@ -186,6 +197,11 @@ services:
     ports:
       - "8081:8081"
     environment:
+      # Compose'un "full" profili YEREL GELISTIRME yigindir; uretim degil.
+      # Bu yuzden dev profili varsayilan olarak aciktir: DEBUG SQL ve Swagger
+      # burada isteniyor. Gercek bir dagitimda degisken bos birakilir ve
+      # uygulama ana yml'deki uretim-guvenli varsayilanlarla acilir.
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       NOTIFICATION_DB_URL: jdbc:postgresql://postgres:5432/notification_db
       DB_USERNAME: ${DB_USERNAME:?see .env.example}
       DB_PASSWORD: ${DB_PASSWORD:?see .env.example}

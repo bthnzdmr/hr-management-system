@@ -1,0 +1,4 @@
+# Gelistirme profili. Gerekce icin employee-service/application-dev.yml.
+logging:
+  level:
+    com.proje.notification: debug

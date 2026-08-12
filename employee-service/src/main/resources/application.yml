@@ -50,7 +50,9 @@ spring:
 
     properties:
       hibernate:
-        format_sql: true
+        # Uretimde KAPALI: her SQL zaten satirlarca yer kaplarken bir de
+        # cok satira yayilirsa log hacmi katlanir. dev profili acar.
+        format_sql: ${SQL_FORMAT:false}
 
   flyway:
     enabled: true
@@ -65,13 +67,16 @@ spring:
     # "sokete yazildi" ile "broker aldi" ayirt edilemez.
     publisher-confirm-type: correlated
 
-# API belgesi tum uc adreslerini, DTO semalarini ve dogrulama kurallarini
-# aciga cikarir. Gelistirmede acik, uretimde SWAGGER_ENABLED=false ile kapatilir.
+# API semasi VARSAYILAN OLARAK KAPALI.
+#
+# /v3/api-docs/** SecurityConfig'te permitAll: acik varsayilan, kimlik
+# dogrulamasi olmayan birine butun uclari, DTO alanlarini ve dogrulama
+# kurallarini okuturdu. Gelistirmede dev profili aciyor.
 springdoc:
   api-docs:
-    enabled: ${SWAGGER_ENABLED:true}
+    enabled: ${SWAGGER_ENABLED:false}
   swagger-ui:
-    enabled: ${SWAGGER_ENABLED:true}
+    enabled: ${SWAGGER_ENABLED:false}
 
 eureka:
   client:
@@ -158,5 +163,6 @@ logging:
   pattern:
     level: "%5p [%X{correlationId:-________}]"
   level:
-    org.hibernate.SQL: debug
-    com.proje.employee: debug
+    # Varsayilan SESSIZ. Gurultu opt-in'dir: dev profili bunlari debug'a ceker.
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:warn}
+    com.proje.employee: ${APP_LOG_LEVEL:info}
