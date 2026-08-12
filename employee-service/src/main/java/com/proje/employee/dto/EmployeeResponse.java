@@ -1,5 +1,7 @@
 package com.proje.employee.dto;
 
+import com.proje.employee.entity.TerminationReason;
+
 import java.time.LocalDate;
 
 public record EmployeeResponse(
@@ -18,6 +20,11 @@ public record EmployeeResponse(
         String managerFullName,
         String jobTitle,
         LocalDate hireDate,
-        boolean active
+        boolean active,
+
+        // Yalnizca pasif kayitlarda dolu. Personelin ne zaman ve neden
+        // ayrildigi, devir oraninin dayandigi bilgidir.
+        LocalDate terminatedAt,
+        TerminationReason terminationReason
 ) {
 }

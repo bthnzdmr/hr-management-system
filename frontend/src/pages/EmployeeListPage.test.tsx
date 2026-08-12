@@ -34,6 +34,8 @@ function makeEmployee(overrides: Partial<Employee> = {}): Employee {
     jobTitle: 'Compiler Engineer',
     hireDate: '2024-03-01',
     active: true,
+    terminatedAt: null,
+    terminationReason: null,
     ...overrides,
   };
 }
@@ -202,7 +204,9 @@ describe('EmployeeListPage', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Deactivate' }));
 
-    await waitFor(() => expect(employeeApi.changeStatus).toHaveBeenCalledWith(1, false));
+    // Sebep de gonderilir: sunucu sebepsiz pasiflestirmeyi reddediyor.
+    await waitFor(() =>
+      expect(employeeApi.changeStatus).toHaveBeenCalledWith(1, false, 'RESIGNED'));
   });
 
   it('sends nothing when the confirmation is cancelled', async () => {
@@ -231,7 +235,8 @@ describe('EmployeeListPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Reactivate' }));
 
-    await waitFor(() => expect(employeeApi.changeStatus).toHaveBeenCalledWith(1, true));
+    await waitFor(() =>
+      expect(employeeApi.changeStatus).toHaveBeenCalledWith(1, true, undefined));
     expect(await screen.findByText('Grace Hopper reactivated')).toBeInTheDocument();
   });
 

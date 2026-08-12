@@ -37,6 +37,8 @@ function makeEmployee(overrides: Partial<Employee> = {}): Employee {
     jobTitle: 'Engineer',
     hireDate: '2024-01-15',
     active: true,
+    terminatedAt: null,
+    terminationReason: null,
     ...overrides,
   };
 }

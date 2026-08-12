@@ -7,6 +7,7 @@ import com.proje.employee.dto.SalaryResponse;
 import com.proje.employee.dto.SalaryUpdateRequest;
 import com.proje.employee.entity.Department;
 import com.proje.employee.entity.Employee;
+import com.proje.employee.entity.TerminationReason;
 import com.proje.employee.event.EmployeeEvent;
 import com.proje.employee.event.EmployeeEventType;
 import com.proje.employee.event.OutboxWriter;
@@ -15,6 +16,7 @@ import com.proje.employee.exception.EmailAlreadyExistsException;
 import com.proje.employee.exception.EmployeeNotFoundException;
 import com.proje.employee.exception.InactiveManagerException;
 import com.proje.employee.exception.ManagerCycleException;
+import com.proje.employee.exception.MissingTerminationReasonException;
 import com.proje.employee.mapper.EmployeeMapper;
 import com.proje.employee.repository.DepartmentRepository;
 import com.proje.employee.repository.EmployeeRepository;
@@ -25,9 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 // Locale.ROOT sart: Turkce locale'de "I".toLowerCase() "ı" uretir ve
-// "ISMAIL" araması "ismail" kaydini bulamaz. Kucultme dile bagli olmamali.
+// "ISMAIL" aramasi "ismail" kaydini bulamaz. Kucultme dile bagli olmamali.
 import java.util.Locale;
 import java.util.UUID;
 
@@ -222,7 +225,7 @@ public class EmployeeService {
      * ayiklayamaz ve personel her tiklamada bir mail daha alirdi.
      */
     @Transactional
-    public EmployeeResponse changeStatus(Long id, boolean active) {
+    public EmployeeResponse changeStatus(Long id, boolean active, TerminationReason reason) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException(id));
 
@@ -230,7 +233,19 @@ public class EmployeeService {
             return employeeMapper.toResponse(employee);
         }
 
-        employee.setActive(active);
+        if (active) {
+            employee.reactivate();
+        } else {
+            // Sebep zorunlu: eksikse varsayilan atamak yerine istek reddedilir.
+            // Uydurulmus bir sebep, devir oranini sessizce yanlis gosterirdi.
+            if (reason == null) {
+                throw new MissingTerminationReasonException();
+            }
+            // Tarihi SUNUCU koyar. Istemciye birakilsaydi gecmise donuk kayit
+            // girilebilir ve devir orani istenildigi gibi sekillendirilebilirdi.
+            employee.terminate(LocalDate.now(), reason);
+        }
+
         publish(active ? EmployeeEventType.REACTIVATED : EmployeeEventType.DEACTIVATED, employee);
 
         return employeeMapper.toResponse(employee);

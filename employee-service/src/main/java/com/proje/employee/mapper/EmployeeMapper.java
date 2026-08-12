@@ -24,7 +24,9 @@ public class EmployeeMapper {
                 employee.getManager() == null ? null : fullName(employee.getManager()),
                 employee.getJobTitle(),
                 employee.getHireDate(),
-                employee.isActive());
+                employee.isActive(),
+                employee.getTerminatedAt(),
+                employee.getTerminationReason());
     }
 
     private String fullName(Employee employee) {

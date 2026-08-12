@@ -1,5 +1,6 @@
 package com.proje.employee.dto;
 
+import com.proje.employee.entity.TerminationReason;
 import jakarta.validation.constraints.NotNull;
 
 /**
@@ -12,6 +13,15 @@ import jakarta.validation.constraints.NotNull;
 public record EmployeeStatusRequest(
 
         @NotNull(message = "Active flag is required")
-        Boolean active
+        Boolean active,
+
+        /**
+         * Pasiflestirirken ZORUNLU, aktiflestirirken yok sayilir.
+         *
+         * Varsayilan bir deger atanmadi: "OTHER" ile doldurmak veriyi
+         * kirletirdi ve devir oraninin en anlamli kirilimi olan "istege bagli
+         * mi zorunlu mu" ayrimi kaybolurdu. Eksikse istek reddedilir.
+         */
+        TerminationReason terminationReason
 ) {
 }

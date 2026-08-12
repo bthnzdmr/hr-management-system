@@ -80,6 +80,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "Invalid manager assignment", ex.getMessage());
     }
 
+    // Ayri bir baslik: "Invalid manager assignment" altina konsaydi istemci
+    // yanlis alani duzeltmeye calisirdi.
+    @ExceptionHandler(MissingTerminationReasonException.class)
+    public ProblemDetail handleMissingTerminationReason(MissingTerminationReasonException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Termination reason required", ex.getMessage());
+    }
+
     // Ust siniftaki metot override edilir; ayri bir @ExceptionHandler yazmak
     // ayni istisna icin iki eslesme uretir ve uygulama acilista hata verir.
     @Override

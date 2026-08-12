@@ -79,7 +79,7 @@ class EmployeeControllerTest {
         EmployeeResponse response = new EmployeeResponse(
                 42L, "Ada", "Lovelace", "ada@example.com", null,
                 1L, "Software Development", null, null, "Software Engineer",
-                LocalDate.of(2024, 1, 15), true);
+                LocalDate.of(2024, 1, 15), true, null, null);
 
         when(employeeService.create(any())).thenReturn(response);
 
@@ -177,7 +177,7 @@ class EmployeeControllerTest {
                         .content("{\"active\":false}"))
                 .andExpect(status().isForbidden());
 
-        verify(employeeService, never()).changeStatus(any(), anyBoolean());
+        verify(employeeService, never()).changeStatus(any(), anyBoolean(), any());
     }
 
     @Test
@@ -189,7 +189,7 @@ class EmployeeControllerTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest());
 
-        verify(employeeService, never()).changeStatus(any(), anyBoolean());
+        verify(employeeService, never()).changeStatus(any(), anyBoolean(), any());
     }
 
     @Test

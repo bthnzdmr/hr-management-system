@@ -443,7 +443,7 @@ Taban adres: `http://localhost:8080`
 | `GET` | `/api/employees/{id}/direct-reports` | Doğrudan bağlı personel | giriş yapmış | `200` |
 | `POST` | `/api/employees` | Yeni kayıt | `HR_SPECIALIST` | `201` + `Location` |
 | `PUT` | `/api/employees/{id}` | Güncelleme | `HR_SPECIALIST` | `200` |
-| `PUT` | `/api/employees/{id}/status` | Pasifleştirme / yeniden aktifleştirme (tekrarı etkisiz) | `HR_SPECIALIST` | `200` |
+| `PUT` | `/api/employees/{id}/status` | Pasifleştirme / yeniden aktifleştirme (tekrarı etkisiz). Pasifleştirirken `terminationReason` **zorunlu** | `HR_SPECIALIST` | `200` |
 | `GET` | `/api/employees/{id}/salary` | Maaş bilgisi | `HR_SPECIALIST` | `200` |
 | `PUT` | `/api/employees/{id}/salary` | Maaş güncelleme | `HR_SPECIALIST` | `200` |
 | `GET` | `/api/departments` | Aktif departmanlar, isme göre sıralı | giriş yapmış | `200` |
@@ -598,6 +598,7 @@ Hatalar RFC 7807 (`ProblemDetail`) biçiminde döner.
 | Doğrulama hatası | `400` + alan bazlı `errors` listesi |
 | Geçersiz yönetici ataması (döngü) | `400` |
 | Pasif bir kişinin yönetici atanması | `400` |
+| Sebepsiz pasifleştirme | `400` |
 | Bozuk JSON gövdesi | `400` |
 | Geçersiz sayfalama/sıralama parametresi | `400` |
 | Kimlik doğrulanmadı / geçersiz token | `401` |
@@ -675,7 +676,7 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesi, outbox yazıcı ve relay
 │       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
 │       ├── main/resources/db/migration/   V1__ V2__ V3__ V4__
-│       └── test/               148 test
+│       └── test/               156 test
 ├── notification-service/       ✅  olayları dinleyip mail gönderen servis
 │   ├── pom.xml
 │   └── src/
@@ -702,7 +703,7 @@ HR Management System/
         └── *.test.ts(x)        91 test (Vitest + Testing Library)
 
 e2e/                            ✅  çalışan sisteme dışarıdan bakan testler
-└── src/test/java/com/proje/e2e/    17 test
+└── src/test/java/com/proje/e2e/    18 test
 ```
 
 Her Java servisinin **kendi `pom.xml`'i** vardır; ortak bir üst pom kullanılmaz. Mikroservislerin bağımsız derlenip bağımsız dağıtılabilmesi bu mimarinin amacıdır, ortak bir üst pom onları sürüm olarak birbirine bağlardı.

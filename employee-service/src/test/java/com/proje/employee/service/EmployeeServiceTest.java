@@ -6,6 +6,7 @@ import com.proje.employee.dto.EmployeeUpdateRequest;
 import com.proje.employee.dto.SalaryUpdateRequest;
 import com.proje.employee.entity.Department;
 import com.proje.employee.entity.Employee;
+import com.proje.employee.entity.TerminationReason;
 import com.proje.employee.event.EmployeeEvent;
 import com.proje.employee.event.EmployeeEventType;
 import com.proje.employee.event.OutboxWriter;
@@ -14,6 +15,7 @@ import com.proje.employee.exception.EmailAlreadyExistsException;
 import com.proje.employee.exception.EmployeeNotFoundException;
 import com.proje.employee.exception.InactiveManagerException;
 import com.proje.employee.exception.ManagerCycleException;
+import com.proje.employee.exception.MissingTerminationReasonException;
 import com.proje.employee.mapper.EmployeeMapper;
 import com.proje.employee.repository.DepartmentRepository;
 import com.proje.employee.repository.EmployeeRepository;
@@ -320,7 +322,7 @@ class EmployeeServiceTest {
         Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
 
-        employeeService.changeStatus(1L, false);
+        employeeService.changeStatus(1L, false, TerminationReason.RESIGNED);
 
         assertThat(ada.isActive()).isFalse();
         verify(employeeRepository, never()).delete(any());
@@ -330,13 +332,60 @@ class EmployeeServiceTest {
     @DisplayName("Brings a deactivated employee back and announces it as REACTIVATED")
     void reactivationRestoresTheEmployee() {
         Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
-        ada.setActive(false);
+        ada.terminate(LocalDate.of(2026, 1, 1), TerminationReason.RESIGNED);
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
 
-        employeeService.changeStatus(1L, true);
+        employeeService.changeStatus(1L, true, null);
 
         assertThat(ada.isActive()).isTrue();
         assertThat(capturePublishedEvent().eventType()).isEqualTo(EmployeeEventType.REACTIVATED);
+    }
+
+    @Test
+    @DisplayName("Refuses to deactivate without a termination reason and changes nothing")
+    void refusesTerminationWithoutReason() {
+        // Varsayilan bir sebep atamak daha kolay olurdu ama devir oraninin en
+        // anlamli kirilimini -- istege bagli ayrilma / isten cikarma -- sessizce
+        // bozardi. Eksik veri, yanlis veriden iyidir.
+        Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+
+        assertThatThrownBy(() -> employeeService.changeStatus(1L, false, null))
+                .isInstanceOf(MissingTerminationReasonException.class);
+
+        assertThat(ada.isActive()).isTrue();
+        assertThat(ada.getTerminatedAt()).isNull();
+        verify(outboxWriter, never()).write(any());
+    }
+
+    @Test
+    @DisplayName("Records when and why the employee left")
+    void recordsTerminationDetails() {
+        Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+
+        employeeService.changeStatus(1L, false, TerminationReason.DISMISSED);
+
+        assertThat(ada.getTerminationReason()).isEqualTo(TerminationReason.DISMISSED);
+        // Tarihi SUNUCU koyar; istemciye birakilsaydi gecmise donuk kayit
+        // girilip devir orani sekillendirilebilirdi.
+        assertThat(ada.getTerminatedAt()).isEqualTo(LocalDate.now());
+    }
+
+    @Test
+    @DisplayName("Clears the termination details when the employee comes back")
+    void reactivationClearsTerminationDetails() {
+        // "Aktif ama ayrilmis" diye bir durum yoktur; veritabanindaki CHECK
+        // kisiti da bunu reddeder.
+        Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
+        ada.terminate(LocalDate.of(2026, 1, 1), TerminationReason.RESIGNED);
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
+
+        employeeService.changeStatus(1L, true, null);
+
+        assertThat(ada.isActive()).isTrue();
+        assertThat(ada.getTerminatedAt()).isNull();
+        assertThat(ada.getTerminationReason()).isNull();
     }
 
     @Test
@@ -346,7 +395,7 @@ class EmployeeServiceTest {
         Department department = new Department("Sales");
         Employee ada = employeeWithId(1L, "ada@example.com", department);
         Employee retired = employeeWithId(9L, "retired@example.com", department);
-        retired.setActive(false);
+        retired.terminate(LocalDate.of(2026, 1, 1), TerminationReason.RESIGNED);
 
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
         when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
@@ -364,7 +413,7 @@ class EmployeeServiceTest {
         // olusturma kendi arama kodunu yazdigi icin ayni kontrolu atliyordu.
         Department department = new Department("Sales");
         Employee retired = employeeWithId(9L, "retired@example.com", department);
-        retired.setActive(false);
+        retired.terminate(LocalDate.of(2026, 1, 1), TerminationReason.RESIGNED);
 
         when(employeeRepository.existsByEmail("ada@example.com")).thenReturn(false);
         when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
@@ -427,7 +476,7 @@ class EmployeeServiceTest {
         Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
 
-        employeeService.changeStatus(1L, false);
+        employeeService.changeStatus(1L, false, TerminationReason.RESIGNED);
 
         EmployeeEvent event = capturePublishedEvent();
         assertThat(event.eventType()).isEqualTo(EmployeeEventType.DEACTIVATED);
@@ -440,10 +489,10 @@ class EmployeeServiceTest {
         // Aksi halde her tekrar YENI bir eventId uretir; tuketicinin eventId'ye
         // dayanan idempotency'si bunu ayiklayamaz ve personel mail yagmuruna tutulur.
         Employee ada = employeeWithId(1L, "ada@example.com", new Department("Sales"));
-        ada.setActive(false);
+        ada.terminate(LocalDate.of(2026, 1, 1), TerminationReason.RESIGNED);
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
 
-        employeeService.changeStatus(1L, false);
+        employeeService.changeStatus(1L, false, TerminationReason.RESIGNED);
 
         verify(outboxWriter, never()).write(any());
     }

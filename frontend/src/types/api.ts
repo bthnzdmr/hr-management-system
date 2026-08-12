@@ -74,6 +74,29 @@ export interface PasswordChangeRequest {
   newPassword: string;
 }
 
+export type TerminationReason =
+  | 'RESIGNED'
+  | 'DISMISSED'
+  | 'RETIRED'
+  | 'END_OF_CONTRACT'
+  | 'OTHER';
+
+export const TERMINATION_REASONS: TerminationReason[] = [
+  'RESIGNED',
+  'DISMISSED',
+  'RETIRED',
+  'END_OF_CONTRACT',
+  'OTHER',
+];
+
+export const TERMINATION_REASON_LABELS: Record<TerminationReason, string> = {
+  RESIGNED: 'Resigned',
+  DISMISSED: 'Dismissed',
+  RETIRED: 'Retired',
+  END_OF_CONTRACT: 'End of contract',
+  OTHER: 'Other',
+};
+
 export interface Employee {
   id: number;
   firstName: string;
@@ -89,6 +112,9 @@ export interface Employee {
   jobTitle: string;
   hireDate: string;
   active: boolean;
+  // Yalnizca pasif kayitlarda dolu.
+  terminatedAt: string | null;
+  terminationReason: TerminationReason | null;
 }
 
 export interface EmployeeCreateRequest {

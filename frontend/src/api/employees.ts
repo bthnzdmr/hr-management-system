@@ -1,6 +1,7 @@
 import { api } from './client';
 import type {
   Employee, EmployeeCreateRequest, EmployeeUpdateRequest, Page, SalaryResponse, SalaryUpdateRequest,
+  TerminationReason,
 } from '../types/api';
 
 const BASE = '/api/employees';
@@ -47,8 +48,11 @@ export const employeeApi = {
 
   // Silmez, durumu degistirir: gecmis veri korunur, manager_id referanslari
   // kirilmaz ve islem GERI ALINABILIR. Sunucu guncel kaydi doner.
-  changeStatus: (id: number, active: boolean) =>
-    api.put<Employee>(`${BASE}/${id}/status`, { active }).then((r) => r.data),
+  // Sebep pasiflestirirken ZORUNLU: sunucu eksikse istegi reddeder ve
+  // varsayilan bir deger atamaz -- uydurulmus sebep devir oranini bozardi.
+  changeStatus: (id: number, active: boolean, terminationReason?: TerminationReason) =>
+    api.put<Employee>(`${BASE}/${id}/status`, { active, terminationReason: terminationReason ?? null })
+      .then((r) => r.data),
 
   // Maas ayri bir alt kaynaktir ve yalnizca ADMIN erisebilir; genel personel
   // cevabinda hic donmez.

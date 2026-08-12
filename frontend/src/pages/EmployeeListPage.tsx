@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Alert, Box, Button, Chip, IconButton, InputAdornment, Paper, Skeleton, Stack, Table, TableBody,
-  TableCell, TableContainer, TableHead, TablePagination, TableRow, TableSortLabel, TextField,
-  ToggleButton, ToggleButtonGroup, Tooltip, Typography,
+  Alert, Box, Button, Chip, IconButton, InputAdornment, MenuItem, Paper, Skeleton, Stack, Table,
+  TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TableSortLabel,
+  TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import BlockIcon from '@mui/icons-material/Block';
@@ -23,7 +23,8 @@ import { InitialsAvatar } from '../components/InitialsAvatar';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useSnackbar } from '../components/SnackbarProvider';
 import { employeeApi } from '../api/employees';
-import type { Employee } from '../types/api';
+import { TERMINATION_REASONS, TERMINATION_REASON_LABELS } from '../types/api';
+import type { Employee, TerminationReason } from '../types/api';
 
 // Her tusa basista istek atmamak icin: kullanici yazmayi birakinca sorulur.
 const SEARCH_DEBOUNCE_MS = 350;
@@ -54,6 +55,9 @@ export function EmployeeListPage() {
   const [searchInput, setSearchInput] = useState(search);
   const [pendingDeactivation, setPendingDeactivation] = useState<Employee | null>(null);
   const [reportCount, setReportCount] = useState<number | null>(null);
+  // Sunucu sebepsiz pasiflestirmeyi reddediyor; varsayilan secili gelir ki
+  // kullanici her seferinde acik bir tercih yapsin ama akis tikanmasin.
+  const [reason, setReason] = useState<TerminationReason>('RESIGNED');
 
   useEffect(() => {
     if (searchInput === search) return undefined;
@@ -83,8 +87,9 @@ export function EmployeeListPage() {
   }, []);
 
   const applyStatus = useCallback(
-    async (employee: Employee, active: boolean) => {
-      const result = await dispatch(changeEmployeeStatus({ id: employee.id, active }));
+    async (employee: Employee, active: boolean, terminationReason?: TerminationReason) => {
+      const result = await dispatch(
+        changeEmployeeStatus({ id: employee.id, active, terminationReason }));
       const name = `${employee.firstName} ${employee.lastName}`;
 
       if (changeEmployeeStatus.fulfilled.match(result)) {
@@ -367,13 +372,30 @@ export function EmployeeListPage() {
                 employee and will keep pointing at an inactive manager.
               </Alert>
             )}
+
+            {/* Sebep zorunlu: sunucu eksik istegi reddeder. Devir oraninin en
+                anlamli kirilimi bu alandir. */}
+            <TextField
+              select
+              label="Reason for leaving"
+              value={reason}
+              onChange={(event) => setReason(event.target.value as TerminationReason)}
+              fullWidth
+              helperText="Recorded with today's date and used for turnover reporting"
+            >
+              {TERMINATION_REASONS.map((item) => (
+                <MenuItem key={item} value={item}>
+                  {TERMINATION_REASON_LABELS[item]}
+                </MenuItem>
+              ))}
+            </TextField>
           </Stack>
         }
         onCancel={() => setPendingDeactivation(null)}
         onConfirm={() => {
           const target = pendingDeactivation;
           setPendingDeactivation(null);
-          if (target) applyStatus(target, false);
+          if (target) applyStatus(target, false, reason);
         }}
       />
     </Stack>

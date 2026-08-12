@@ -186,11 +186,14 @@ class SystemEndToEndTest {
         SystemClient.Response deactivated = client.put(
                 SystemClient.API_URL + "/api/employees/" + id + "/status", token,
                 """
-                {"active":false}
+                {"active":false,"terminationReason":"RESIGNED"}
                 """);
 
         assertThat(deactivated.status()).isEqualTo(200);
         assertThat(deactivated.body().get("active").asBoolean()).isFalse();
+        // Ayrilma bilgisi kaydedilmis olmali: devir orani buna dayanir.
+        assertThat(deactivated.body().get("terminationReason").asText()).isEqualTo("RESIGNED");
+        assertThat(deactivated.body().get("terminatedAt").isNull()).isFalse();
 
         SystemClient.Response reactivated = client.put(
                 SystemClient.API_URL + "/api/employees/" + id + "/status", token,
@@ -200,10 +203,32 @@ class SystemEndToEndTest {
 
         assertThat(reactivated.status()).isEqualTo(200);
         assertThat(reactivated.body().get("active").asBoolean()).isTrue();
+        // "Aktif ama ayrilmis" diye bir durum yok; kisit da bunu reddederdi.
+        assertThat(reactivated.body().get("terminatedAt").isNull()).isTrue();
 
         // Zincir yeniden aktiflestirme icin de isliyor mu: outbox, relay,
         // kuyruk ve tuketici.
         awaitMail(email, "Welcome back");
+    }
+
+    @Test
+    @DisplayName("Refuses to deactivate an employee without a termination reason")
+    void refusesTerminationWithoutReason() {
+        String token = signIn();
+        String id = createEmployee(token, "e2e.noreason." + UUID.randomUUID() + "@example.com");
+
+        SystemClient.Response response = client.put(
+                SystemClient.API_URL + "/api/employees/" + id + "/status", token,
+                """
+                {"active":false}
+                """);
+
+        // Varsayilan bir sebep atamak devir oranini sessizce bozardi.
+        assertThat(response.status()).isEqualTo(400);
+
+        // Kayit hala aktif olmali: reddedilen istek yarim degisiklik birakmaz.
+        assertThat(client.get(SystemClient.API_URL + "/api/employees/" + id, token)
+                .body().get("active").asBoolean()).isTrue();
     }
 
     @Test
@@ -214,7 +239,7 @@ class SystemEndToEndTest {
 
         client.put(SystemClient.API_URL + "/api/employees/" + managerId + "/status", token,
                 """
-                {"active":false}
+                {"active":false,"terminationReason":"RETIRED"}
                 """);
 
         SystemClient.Response response = client.post(

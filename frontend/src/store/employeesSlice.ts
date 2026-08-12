@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { employeeApi } from '../api/employees';
 import { errorMessage } from '../api/client';
-import type { Employee } from '../types/api';
+import type { Employee, TerminationReason } from '../types/api';
 
 /** Sunucunun siralayabilecegi alanlar. Entity ozellik adlariyla birebir aynidir. */
 export type SortField = 'lastName' | 'firstName' | 'email' | 'jobTitle' | 'hireDate';
@@ -82,9 +82,13 @@ export const fetchEmployees = createAsyncThunk(
 
 export const changeEmployeeStatus = createAsyncThunk(
   'employees/changeStatus',
-  async ({ id, active }: { id: number; active: boolean }, { rejectWithValue }) => {
+  async (
+    { id, active, terminationReason }:
+      { id: number; active: boolean; terminationReason?: TerminationReason },
+    { rejectWithValue },
+  ) => {
     try {
-      return await employeeApi.changeStatus(id, active);
+      return await employeeApi.changeStatus(id, active, terminationReason);
     } catch (error) {
       return rejectWithValue(errorMessage(error));
     }

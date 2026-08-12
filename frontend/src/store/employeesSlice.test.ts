@@ -20,6 +20,8 @@ const employee = (id: number, active = true): Employee => ({
   jobTitle: 'Engineer',
   hireDate: '2024-01-15',
   active,
+  terminatedAt: null,
+  terminationReason: null,
 });
 
 const initial = reducer(undefined, { type: '@@INIT' });

@@ -2,6 +2,8 @@ package com.proje.employee.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -56,6 +58,15 @@ public class Employee {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    // Ayrilma tarihi ve sebebi. Yalnizca pasif kayitta dolu olabilir; kural
+    // veritabaninda CHECK kisitiyla da yaziyor, cunku kodda unutulabilir.
+    @Column(name = "terminated_at")
+    private LocalDate terminatedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "termination_reason", length = 30)
+    private TerminationReason terminationReason;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -168,8 +179,37 @@ public class Employee {
         return active;
     }
 
-    public void setActive(boolean active) {
-        this.active = active;
+    public LocalDate getTerminatedAt() {
+        return terminatedAt;
+    }
+
+    public TerminationReason getTerminationReason() {
+        return terminationReason;
+    }
+
+    /**
+     * Ayrilma bilgisini yazar ve kaydi pasiflestirir.
+     *
+     * Ikisi TEK metotta: ayri setter'lar olsaydi biri cagrilip digeri
+     * unutulabilir ve veritabanindaki CHECK kisiti acilista degil, calisma
+     * aninda patlardi. Gecersiz bir ara duruma girmek mumkun olmamali.
+     */
+    public void terminate(LocalDate date, TerminationReason reason) {
+        this.active = false;
+        this.terminatedAt = date;
+        this.terminationReason = reason;
+    }
+
+    /**
+     * Kaydi yeniden aktiflestirir ve ayrilma bilgisini SILER.
+     *
+     * Aktif bir kaydin cikis tarihi olamaz -- kisit bunu zaten reddederdi.
+     * Gecmis bilgi kayboluyor ama "aktif ama ayrilmis" diye bir durum yoktur.
+     */
+    public void reactivate() {
+        this.active = true;
+        this.terminatedAt = null;
+        this.terminationReason = null;
     }
 
     public Instant getCreatedAt() {

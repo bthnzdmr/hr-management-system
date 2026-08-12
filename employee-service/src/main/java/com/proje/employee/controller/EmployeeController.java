@@ -87,7 +87,7 @@ public class EmployeeController {
     public EmployeeResponse changeStatus(@PathVariable Long id,
                                          @Valid @RequestBody EmployeeStatusRequest request) {
 
-        return employeeService.changeStatus(id, request.active());
+        return employeeService.changeStatus(id, request.active(), request.terminationReason());
     }
 
     // Ekip gorunumu ve pasiflestirme uyarisi icin. Kural: astlarini
