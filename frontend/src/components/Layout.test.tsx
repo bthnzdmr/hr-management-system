@@ -52,6 +52,22 @@ describe('Layout', () => {
     expect(screen.getByText('System administrator')).toBeInTheDocument();
   });
 
+  it('opens the account actions from the identity block', async () => {
+    const user = userEvent.setup();
+    renderShell(['HR_SPECIALIST']);
+
+    // Adi acikca verilir: aksi halde dugmenin erisilebilir adi icindeki her
+    // metnin birlesimi olurdu ("A ada@example.com HR specialist").
+    const trigger = screen.getByRole('button', { name: 'Account menu for ada@example.com' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(trigger);
+
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('menuitem', { name: 'Sign out' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Change password' })).toBeInTheDocument();
+  });
+
   it('offers the account screen to a system administrator', () => {
     renderShell(['HR_SPECIALIST', 'SYSTEM_ADMIN']);
 

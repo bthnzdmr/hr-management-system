@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   AppBar,
-  Avatar,
   Box,
+  ButtonBase,
   Divider,
   Drawer,
   IconButton,
@@ -177,18 +177,57 @@ export function Layout() {
           gorunmesi gereken ama nadiren dokunulan bir bilgidir; kenar
           cubugunun dibi tam olarak bunun yeridir. */}
       {user && (
-        <>
-          <Divider />
-          <Box sx={{ p: 1.5 }}>
-            <ListItemButton
+        <Box sx={{ p: 1.5, borderTop: 1, borderColor: 'divider' }}>
+          <Tooltip
+            // Tek ipucu, blogun TAMAMINDA. Onceden her rolun ustunde ayri bir
+            // ipucu vardi ve tiklanabilir bir satirin icinde "yardim" imleci
+            // gosteriyordu -- satir hem tiklanir hem aciklanir gorunuyordu.
+            title={(
+              <Box>
+                <Box sx={{ fontWeight: 600, mb: 0.5 }}>{user.email}</Box>
+                {user.roles.map((role) => (
+                  <Box key={role} sx={{ mt: 0.25 }}>
+                    {ROLE_LABELS[role]} — {ROLE_DESCRIPTIONS[role]}
+                  </Box>
+                ))}
+              </Box>
+            )}
+            placement="right"
+          >
+            <ButtonBase
               onClick={(event) => setUserMenu(event.currentTarget)}
-              aria-label="Account menu"
-              sx={{ gap: 1.25, py: 1 }}
+              // Acik bir ad verilmeseydi dugmenin erisilebilir adi icindeki
+              // butun metinlerin birlesimi olurdu: "A ada@example.com HR
+              // specialist System administrator".
+              aria-label={`Account menu for ${user.email}`}
+              aria-haspopup="menu"
+              aria-expanded={Boolean(userMenu)}
+              sx={{
+                width: '100%',
+                gap: 1.25,
+                p: 1,
+                borderRadius: 1.5,
+                justifyContent: 'flex-start',
+                textAlign: 'left',
+                // Cerceve blogu bir DENETIM haline getirir. Cerceve olmadan
+                // kenar cubugunun dibinde duran bir metin yigini gibiydi ve
+                // tiklanabildigi anlasilmiyordu.
+                border: 1,
+                borderColor: 'divider',
+                transition: 'background-color 140ms ease, border-color 140ms ease',
+                '&:hover': { bgcolor: 'action.hover', borderColor: 'text.secondary' },
+              }}
             >
-              <Avatar
+              <Box
                 sx={{
                   width: 30,
                   height: 30,
+                  flexShrink: 0,
+                  // Kare: marka isaretiyle ayni dil. Daire olsaydi ayni
+                  // ekranda iki farkli bicim dili olurdu.
+                  borderRadius: 1.5,
+                  display: 'grid',
+                  placeItems: 'center',
                   fontSize: 13,
                   fontWeight: 600,
                   bgcolor: 'action.selected',
@@ -196,33 +235,40 @@ export function Layout() {
                 }}
               >
                 {user.email.charAt(0).toUpperCase()}
-              </Avatar>
-
-              <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                <Typography variant="body2" noWrap sx={{ fontWeight: 560 }}>
-                  {user.email}
-                </Typography>
-                {/* Her rol AYRI bir dugum: tek satirda birlestirilseydi
-                    "HR specialist" diye bir metin DOM'da hic bulunmazdi. */}
-                <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', mt: 0.25 }}>
-                  {user.roles.map((role) => (
-                    <Tooltip key={role} title={ROLE_DESCRIPTIONS[role]}>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ fontSize: 11, cursor: 'help' }}
-                      >
-                        {ROLE_LABELS[role]}
-                      </Typography>
-                    </Tooltip>
-                  ))}
-                </Stack>
               </Box>
 
-              <UnfoldMoreIcon sx={{ fontSize: 17, color: 'text.secondary' }} />
-            </ListItemButton>
-          </Box>
-        </>
+              <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                <Typography noWrap sx={{ fontSize: 13, fontWeight: 560, lineHeight: 1.4 }}>
+                  {user.email}
+                </Typography>
+
+                {/* Roller TEK satirda ve ayracli. Her rol yine ayri bir dugum:
+                    tek metinde birlestirilseydi "HR specialist" diye bir metin
+                    DOM'da hic bulunmaz, ekran okuyucu da iki rolu tek isim
+                    olarak okurdu. Ayraclar aria-hidden. */}
+                <Typography
+                  component="div"
+                  noWrap
+                  color="text.secondary"
+                  sx={{ fontSize: 11, lineHeight: 1.5 }}
+                >
+                  {user.roles.map((role, index) => (
+                    <Box key={role} component="span">
+                      {index > 0 && (
+                        <Box component="span" aria-hidden sx={{ mx: 0.5, opacity: 0.5 }}>
+                          ·
+                        </Box>
+                      )}
+                      <Box component="span">{ROLE_LABELS[role]}</Box>
+                    </Box>
+                  ))}
+                </Typography>
+              </Box>
+
+              <UnfoldMoreIcon sx={{ fontSize: 16, flexShrink: 0, color: 'text.secondary' }} />
+            </ButtonBase>
+          </Tooltip>
+        </Box>
       )}
     </Box>
   );
@@ -266,9 +312,9 @@ export function Layout() {
         anchorEl={userMenu}
         open={Boolean(userMenu)}
         onClose={() => setUserMenu(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        slotProps={{ paper: { sx: { minWidth: 200 } } }}
+        slotProps={{ paper: { sx: { width: DRAWER_WIDTH - 24, mb: 0.5 } } }}
       >
         <MenuItem component={NavLink} to="/account/password" onClick={() => setUserMenu(null)}>
           <ListItemIcon>
