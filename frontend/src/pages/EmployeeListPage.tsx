@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Alert, Box, Button, Chip, IconButton, InputAdornment, MenuItem, Paper, Skeleton, Stack, Table,
   TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TableSortLabel,
-  TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography,
+  TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography, useMediaQuery, useTheme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import BlockIcon from '@mui/icons-material/Block';
@@ -21,6 +21,7 @@ import type { ActiveFilter, SortField } from '../store/employeesSlice';
 import { useAuth } from '../auth/AuthContext';
 import { InitialsAvatar } from '../components/InitialsAvatar';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { EmployeeCard } from '../components/EmployeeCard';
 import { useSnackbar } from '../components/SnackbarProvider';
 import { employeeApi } from '../api/employees';
 import { TERMINATION_REASONS, TERMINATION_REASON_LABELS } from '../types/api';
@@ -43,6 +44,10 @@ export function EmployeeListPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { canEditEmployees } = useAuth();
+  const theme = useTheme();
+  // Kart mi tablo mu: olcum JS ile yapilir cunku ikisini birden render edip
+  // birini gizlemek erisilebilirlik agacini kirletirdi.
+  const isNarrow = useMediaQuery(theme.breakpoints.down('md'));
   const { notify } = useSnackbar();
 
   const {
@@ -106,7 +111,13 @@ export function EmployeeListPage() {
 
   return (
     <Stack spacing={2.5}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: { xs: 'stretch', sm: 'flex-start' },
+        justifyContent: 'space-between',
+        gap: 2,
+      }}>
         <Box>
           <Typography variant="h5" component="h1">
             Employees
@@ -141,7 +152,9 @@ export function EmployeeListPage() {
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
           placeholder="Search by name or email"
-          sx={{ flexGrow: 1, minWidth: 240 }}
+          // Dar ekranda tam genislik: 240 px'lik bir kutu telefonda
+          // filtre dugmelerini asagi itip iki satir birden kaplardi.
+          sx={{ flexGrow: 1, minWidth: { xs: '100%', sm: 240 } }}
           slotProps={{
             input: {
               startAdornment: (
@@ -176,6 +189,48 @@ export function EmployeeListPage() {
         </ToggleButtonGroup>
       </Paper>
 
+      {/* Dar ekranda kart, genis ekranda tablo. Ayni veri iki bicimde:
+          yedi sutun telefonda yatay kaydirma gerektiriyordu ve yatay
+          kaydirilan bir liste pratikte kullanilamaz.
+          
+          Ikisi birden render edilip biri CSS ile gizlenseydi DOM iki kat
+          olur ve her erisilebilir ad iki kez bulunurdu -- ekran okuyucu
+          ayni dugmeyi iki kere okurdu. */}
+      {isNarrow && (
+      <Stack spacing={1.25}>
+        {isLoading &&
+          Array.from({ length: Math.min(size, 4) }).map((_, index) => (
+            <Skeleton key={`card-skeleton-${index}`} variant="rounded" height={104} />
+          ))}
+
+        {!isLoading && items.map((employee) => (
+          <EmployeeCard
+            key={employee.id}
+            employee={employee}
+            canEdit={canEditEmployees}
+            busy={statusChangingId === employee.id}
+            onView={() => navigate(`/employees/${employee.id}/details`)}
+            onEdit={() => navigate(`/employees/${employee.id}`)}
+            onToggleStatus={() =>
+              employee.active ? askToDeactivate(employee) : applyStatus(employee, true)}
+          />
+        ))}
+
+        {!isLoading && items.length === 0 && (
+          <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <Typography color="text.secondary">
+              {status === 'failed'
+                ? 'Could not load employees'
+                : isFiltered
+                  ? 'No employee matches these filters'
+                  : 'No employees yet'}
+            </Typography>
+          </Paper>
+        )}
+      </Stack>
+      )}
+
+      {!isNarrow && (
       <Paper>
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table>
@@ -343,6 +398,12 @@ export function EmployeeListPage() {
           </Table>
         </TableContainer>
 
+      </Paper>
+      )}
+
+      {/* Sayfalama iki gorunumde de gerekli; tablonun icinde kalsaydi dar
+          ekranda kaybolurdu. */}
+      <Paper>
         <TablePagination
           component="div"
           count={totalElements}

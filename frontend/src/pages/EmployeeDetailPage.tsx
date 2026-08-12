@@ -197,7 +197,8 @@ export function EmployeeDetailPage() {
                     key={report.id}
                     component={RouterLink}
                     to={`/employees/${report.id}/details`}
-                    sx={{ borderRadius: 2 }}
+                    // Dokunma hedefi: liste ogesi parmakla secilebilir olmali.
+                    sx={{ borderRadius: 2, minHeight: 56 }}
                   >
                     <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', width: '100%' }}>
                       <InitialsAvatar

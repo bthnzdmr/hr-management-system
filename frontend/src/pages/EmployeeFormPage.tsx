@@ -276,7 +276,14 @@ export function EmployeeFormPage() {
             </Section>
           </Paper>
 
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+          {/* Dar ekranda alt alta ve ters sirada: birincil eylem parmaga en
+              yakin yerde, yani altta kalir. */}
+          <Box sx={{
+            display: 'flex',
+            gap: 1,
+            justifyContent: 'flex-end',
+            flexDirection: { xs: 'column-reverse', sm: 'row' },
+          }}>
             <Button onClick={() => navigate('/employees')} disabled={submitting}>
               Cancel
             </Button>

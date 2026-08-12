@@ -376,11 +376,16 @@ Backend'in bu kaynağa CORS izni vermesi gerekir (`CORS_ALLOWED_ORIGINS`).
 Arayüz **rol değil yetenek** sorar: "düzenle düğmesini göstereyim mi?" Rol modeli
 değiştiğinde her ekranı tek tek değiştirmek gerekmesin diye.
 
-Arayüzde bulunanlar: yan menülü uygulama kabuğu, açık/koyu tema (seçim
-tarayıcıda saklanır, seçim yoksa işletim sisteminin tercihi izlenir), ada ve
+Arayüzde bulunanlar: gösterge paneli, yan menülü uygulama kabuğu, açık/koyu tema
+(seçim tarayıcıda saklanır, seçim yoksa işletim sisteminin tercihi izlenir), ada ve
 e-postaya göre arama, aktif/pasif filtresi, sütun sıralama, yönetici sütunu,
-astların listelendiği detay sayfası, ve yöneticiyi ID yerine adıyla seçtiren
-arama kutusu.
+astların listelendiği detay sayfası, yöneticiyi ID yerine adıyla seçtiren arama
+kutusu ve hesap yönetimi.
+
+**Mobil:** Dar ekranda personel listesi tablo yerine **kart** gösterir — yedi sütun
+telefonda yatay kaydırma gerektiriyordu. İki görünüm CSS ile gizlenmez, yalnızca
+biri render edilir; aksi halde her erişilebilir ad DOM'da iki kez bulunurdu.
+Dokunma hedefleri 44 px.
 
 Testler:
 
@@ -701,7 +706,7 @@ HR Management System/
         ├── pages/              Giriş, liste, detay, form, 404 ekranları
         ├── components/         Kabuk, onay penceresi, geri bildirim, hata sınırı
         ├── types/              Backend sözleşmesinin TypeScript karşılığı
-        └── *.test.ts(x)        102 test (Vitest + Testing Library)
+        └── *.test.ts(x)        109 test (Vitest + Testing Library)
 
 e2e/                            ✅  çalışan sisteme dışarıdan bakan testler
 └── src/test/java/com/proje/e2e/    18 test

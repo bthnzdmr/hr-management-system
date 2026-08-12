@@ -102,7 +102,13 @@ export function UserListPage() {
 
   return (
     <Stack spacing={2.5}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: { xs: 'stretch', sm: 'flex-start' },
+        justifyContent: 'space-between',
+        gap: 2,
+      }}>
         <Box>
           <Typography variant="h5" component="h1">
             Accounts

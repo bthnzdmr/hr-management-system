@@ -84,7 +84,12 @@ export function ChangePasswordPage() {
               Changing your password signs you out everywhere, including this device.
             </Alert>
 
-            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+            <Box sx={{
+              display: 'flex',
+              gap: 1,
+              justifyContent: 'flex-end',
+              flexDirection: { xs: 'column-reverse', sm: 'row' },
+            }}>
               <Button onClick={() => navigate(-1)} disabled={submitting}>
                 Cancel
               </Button>
