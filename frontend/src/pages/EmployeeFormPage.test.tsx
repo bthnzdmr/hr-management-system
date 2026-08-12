@@ -157,6 +157,40 @@ describe('EmployeeFormPage', () => {
     await waitFor(() => expect(employeeApi.updateSalary).toHaveBeenCalledWith(5, { salary: 99000 }));
   });
 
+  it('refuses to save instead of silently ignoring a cleared salary', async () => {
+    // Olculen kusur: alan bosaltilinca salary null oluyor ve "!== null"
+    // korumasi silme niyetini SESSIZCE yutuyordu -- istek hic gitmiyor,
+    // kullaniciya "Employee updated" deniyordu. Gerceklesmeyen bir islemin
+    // basarili bildirilmesi, en hassas alanda bir dogruluk hatasidir.
+    const user = userEvent.setup();
+    renderForm('/employees/5');
+    const salary = await screen.findByLabelText('Salary');
+
+    await user.clear(salary);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText(/Salary cannot be removed here/)).toBeInTheDocument();
+
+    // Hicbir sey yazilmamali: ne genel guncelleme, ne maas ucu.
+    expect(employeeApi.updateSalary).not.toHaveBeenCalled();
+    expect(employeeApi.update).not.toHaveBeenCalled();
+  });
+
+  it('still allows saving a record that never had a salary', async () => {
+    // Maasi HIC OLMAYAN kayitta bos alan gecerlidir; kural yalnizca
+    // "vardi, silindi" durumuna uygulanir.
+    vi.mocked(employeeApi.getSalary).mockResolvedValue({ employeeId: 5, salary: null });
+
+    const user = userEvent.setup();
+    renderForm('/employees/5');
+    await screen.findByLabelText('Salary');
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(employeeApi.update).toHaveBeenCalled());
+    expect(employeeApi.updateSalary).not.toHaveBeenCalled();
+  });
+
   it('opens the form even when the salary cannot be read', async () => {
     // Maas ikincil bir bilgidir; alinamamasi formu tamamen engellememeli.
     vi.mocked(employeeApi.getSalary).mockRejectedValue(new Error('forbidden'));

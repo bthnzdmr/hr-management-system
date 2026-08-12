@@ -73,6 +73,44 @@ class EmployeeControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "SYSTEM_ADMIN")
+    @DisplayName("Refuses to sort by a field the response does not carry")
+    void refusesSortingBySalary() throws Exception {
+        // Olculdu: maas cevapta donmese de "?sort=salary,desc" ucret
+        // siralamasini oldugu gibi veriyordu -- deger vermeden buyukluk
+        // iliskisi vermek de bir sizintidir. Istek SERVISE HIC ULASMAMALI.
+        mockMvc.perform(get("/api/employees").param("sort", "salary,desc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Invalid sort field"));
+
+        verify(employeeService, never()).getAll(any(), any(), any(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "SYSTEM_ADMIN")
+    @DisplayName("Does not name the field it rejected")
+    void doesNotEchoTheRejectedField() throws Exception {
+        // "salary siralanamaz" demek boyle bir alanin VAR OLDUGUNU dogrulardi.
+        mockMvc.perform(get("/api/employees").param("sort", "salary,desc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("salary"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "HR_SPECIALIST")
+    @DisplayName("Still allows sorting by the fields the list actually shows")
+    void allowsSortingByVisibleFields() throws Exception {
+        when(employeeService.getAll(any(), any(), any(), any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+
+        for (String field : new String[] {"lastName", "firstName", "email", "jobTitle", "hireDate", "id"}) {
+            mockMvc.perform(get("/api/employees").param("sort", field + ",asc"))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    @Test
     @WithMockUser(roles = "HR_SPECIALIST")
     @DisplayName("A valid create returns 201 with a Location header")
     void createReturns201WithLocation() throws Exception {

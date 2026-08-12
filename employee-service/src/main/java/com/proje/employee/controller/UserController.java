@@ -7,6 +7,8 @@ import com.proje.employee.dto.UserRoleRequest;
 import com.proje.employee.dto.UserStatusRequest;
 import com.proje.employee.service.UserService;
 import jakarta.validation.Valid;
+
+import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -27,6 +29,14 @@ import java.security.Principal;
 @RequestMapping("/api/users")
 public class UserController {
 
+    /**
+     * Siralanabilir alanlar.
+     *
+     * passwordHash burada YOK: hesaplari BCrypt ozetine gore dizmek, ozet
+     * hic gorunmese bile hesaplar arasinda gozlenebilir bir siralama uretir.
+     */
+    private static final Set<String> SORTABLE = Set.of("id", "email", "active", "createdAt");
+
     private final UserService userService;
 
     public UserController(UserService userService) {
@@ -37,6 +47,8 @@ public class UserController {
     public Page<UserResponse> getAll(
             @PageableDefault(size = 20, sort = "email", direction = Sort.Direction.ASC)
             Pageable pageable) {
+
+        SortWhitelist.check(pageable, SORTABLE);
 
         return userService.getAll(pageable);
     }

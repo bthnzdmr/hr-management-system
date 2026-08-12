@@ -25,11 +25,23 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
 import java.security.Principal;
+import java.util.Set;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/employees")
 public class EmployeeController {
+
+    /**
+     * Siralanabilir alanlar.
+     *
+     * Kasitli olarak EmployeeResponse'ta donen alanlarla sinirli: salary
+     * cevapta yok, dolayisiyla ona gore siralamak da yasak. Aksi halde maas
+     * gorunmeden SIRASI okunabilirdi -- deger vermeden buyukluk iliskisi
+     * vermek de bir sizintidir.
+     */
+    private static final Set<String> SORTABLE = Set.of(
+            "id", "firstName", "lastName", "email", "jobTitle", "hireDate");
 
     private final EmployeeService employeeService;
     private final AccessScopeResolver accessScopeResolver;
@@ -49,6 +61,8 @@ public class EmployeeController {
             @PageableDefault(size = 20, sort = "lastName", direction = Sort.Direction.ASC)
             Pageable pageable,
             Principal caller) {
+
+        SortWhitelist.check(pageable, SORTABLE);
 
         return employeeService.getAll(search, active, accessScopeResolver.resolve(caller), pageable);
     }

@@ -279,7 +279,13 @@ public class EmployeeService {
             throw new EmployeeNotFoundException(id);
         }
 
+        // Kontrol DONEN SATIRLARA da uygulanir. Yalnizca yoneticiye bakmak
+        // yetmiyordu: canSee bir ast icin true dondugunden, o astin ekibini
+        // istemek iki seviye asagidaki kisileri getiriyordu -- ayni caginin
+        // getById ile 404 aldigi kayitlari. Bir koleksiyon donuyorsan
+        // kontrolu koleksiyonun HER ELEMANINA uygularsin.
         return employeeRepository.findByManagerIdOrderByLastNameAsc(id).stream()
+                .filter(report -> canSee(report, scope))
                 .map(employeeMapper::toResponse)
                 .toList();
     }

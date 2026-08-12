@@ -104,6 +104,48 @@ describe('token refresh', () => {
     expect(tokenStorage.getRefresh()).toBe('rotated-refresh');
   });
 
+  it('serialises the refresh across tabs, not just within one', async () => {
+    // refreshInFlight modul duzeyinde: yalnizca KENDI sekmesini korur.
+    // Iki sekme ayni depoyu paylasir; ikisi de yenilemeye kalkarsa biri
+    // iptal edilmis jetonu sunar ve sunucu tum oturumlari kapatir.
+    // Web Locks kilidi sekmeler arasinda paylasilir.
+    const held: string[] = [];
+    const locks = {
+      request: vi.fn(async (name: string, run: () => Promise<string>) => {
+        held.push(name);
+        return run();
+      }),
+    };
+    vi.stubGlobal('navigator', { ...navigator, locks });
+
+    tokenStorage.set('expired');
+    tokenStorage.setRefresh('valid-refresh');
+    serverThatAcceptsOnly('fresh');
+
+    await api.get('/api/employees');
+
+    expect(locks.request).toHaveBeenCalledTimes(1);
+    expect(held).toEqual(['hr.token.refresh']);
+    expect(tokenStorage.get()).toBe('fresh');
+
+    vi.unstubAllGlobals();
+  });
+
+  it('still refreshes where the browser has no Web Locks support', async () => {
+    // Kilit yoksa sekme ici koruma kalir; yenileme calismaya devam etmeli.
+    vi.stubGlobal('navigator', { ...navigator, locks: undefined });
+
+    tokenStorage.set('expired');
+    tokenStorage.setRefresh('valid-refresh');
+    serverThatAcceptsOnly('fresh');
+
+    await api.get('/api/employees');
+
+    expect(tokenStorage.get()).toBe('fresh');
+
+    vi.unstubAllGlobals();
+  });
+
   it('refreshes only once when several requests fail at the same time', async () => {
     // Bu bir hiz meselesi degil DOGRULUK meselesi: ikinci yenileme, ilkinin
     // cop ettigi jetonu sunar ve sunucu bunu tekrar kullanim sayip kullanicinin

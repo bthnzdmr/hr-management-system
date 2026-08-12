@@ -12,14 +12,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -55,6 +59,27 @@ class UserControllerSecurityTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(PASSWORD_BODY))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(roles = "SYSTEM_ADMIN")
+    @DisplayName("Refuses to sort the accounts by their password hash")
+    void refusesSortingByPasswordHash() throws Exception {
+        // Ozet hic gorunmese bile ona gore siralamak hesaplar arasinda
+        // gozlenebilir bir duzen uretir; ayni yan kanal.
+        mockMvc.perform(get("/api/users").param("sort", "passwordHash,asc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Invalid sort field"));
+    }
+
+    @Test
+    @WithMockUser(roles = "SYSTEM_ADMIN")
+    @DisplayName("Still allows sorting the accounts by email")
+    void allowsSortingByEmail() throws Exception {
+        when(userService.getAll(any())).thenReturn(Page.empty());
+
+        mockMvc.perform(get("/api/users").param("sort", "email,asc"))
+                .andExpect(status().isOk());
     }
 
     @Test

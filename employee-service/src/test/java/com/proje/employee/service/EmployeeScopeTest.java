@@ -168,4 +168,38 @@ class EmployeeScopeTest {
         assertThat(service().getDirectReports(7L, new AccessScope(AccessScope.Kind.TEAM, 7L)))
                 .hasSize(1);
     }
+
+    @Test
+    @DisplayName("Does not let a manager reach one level past their own team")
+    void refusesTransitiveTeamListing() {
+        // Olculen kusur: yetki kontrolu EKIBI ISTENEN yoneticiye uygulaniyor,
+        // DONEN SATIRLARA degil. canSee bir ast icin true dondugunden, o astin
+        // ekibini istemek iki seviye asagidaki kisileri getiriyordu -- ayni
+        // caginin getById ile 404 aldigi kayitlari.
+        Employee boss = employee(7L, null);
+        Employee report = employee(8L, boss);
+        Employee grandchild = employee(9L, report);
+
+        when(employeeRepository.findById(8L)).thenReturn(Optional.of(report));
+        when(employeeRepository.findByManagerIdOrderByLastNameAsc(8L))
+                .thenReturn(List.of(grandchild));
+
+        // Yoneticiyi gorebiliyor (kendi asti), ama ekibi kapsaminin disinda.
+        assertThat(service().getDirectReports(8L, new AccessScope(AccessScope.Kind.TEAM, 7L)))
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("Does not hand a self-scoped account the team it happens to manage")
+    void refusesTeamListingForSelfScope() {
+        // SELF kapsami yalnizca kendi kaydidir. Organizasyon semasinda asti
+        // olan bir EMPLOYEE, MANAGER rolu almadan ekibini goremez.
+        Employee self = employee(7L, null);
+        when(employeeRepository.findById(7L)).thenReturn(Optional.of(self));
+        when(employeeRepository.findByManagerIdOrderByLastNameAsc(7L))
+                .thenReturn(List.of(employee(8L, self)));
+
+        assertThat(service().getDirectReports(7L, new AccessScope(AccessScope.Kind.SELF, 7L)))
+                .isEmpty();
+    }
 }

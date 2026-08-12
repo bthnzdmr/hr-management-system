@@ -88,9 +88,30 @@ async function refreshAccessToken(): Promise<string> {
   return data.token;
 }
 
+/**
+ * Yenilemeyi SEKMELER ARASINDA da sirala.
+ *
+ * refreshInFlight modul duzeyinde bir degisken, yani yalnizca kendi sekmesini
+ * korur. Iki sekme ayni localStorage'i paylasiyor: ikisinin de jetonu ayni
+ * anda dolarsa ikisi de yenileme baslatir, biri dondurur, digerinin istegi
+ * ARTIK IPTAL EDILMIS jetonla varir. Sunucu bunu -- kendi tasarimi geregi
+ * dogru sekilde -- calinmis jeton tekrari sayip butun oturumlari kapatir.
+ *
+ * Web Locks API kilidi sekmeler arasinda paylasilir. Kilidi alan taraf
+ * refreshAccessToken icinde jetonu YENIDEN OKUR, boylece yarisi kaybeden
+ * sekme eskisini tekrarlamak yerine dondurulmus jetonu alir.
+ */
+function withCrossTabLock(run: () => Promise<string>): Promise<string> {
+  // Eski tarayicida ve test ortaminda yok; o zaman sekme ici koruma kalir.
+  if (!navigator.locks) {
+    return run();
+  }
+  return navigator.locks.request('hr.token.refresh', run);
+}
+
 function refreshOnce(): Promise<string> {
   if (!refreshInFlight) {
-    refreshInFlight = refreshAccessToken().finally(() => {
+    refreshInFlight = withCrossTabLock(refreshAccessToken).finally(() => {
       refreshInFlight = null;
     });
   }

@@ -124,6 +124,17 @@ export function EmployeeFormPage() {
 
     const payload = { ...form, managerId: manager?.id ?? null };
 
+    // Maasi TEMIZLEMEK ile maasin HIC OLMAMASI ayni sey degil, ama alan
+    // bosaltilinca ikisi de null oluyordu ve asagidaki "!== null" korumasi
+    // silme niyetini sessizce yutuyordu: istek hic gitmiyor, kullaniciya
+    // "Employee updated" deniyordu. Sunucu maas silmeyi bilerek desteklemiyor,
+    // o yuzden dogru davranis sessizce yutmak degil, acikca reddetmek.
+    if (isEdit && initialSalary !== null && payload.salary === null) {
+      setError('Salary cannot be removed here. Leave the current value or enter a new one.');
+      setSubmitting(false);
+      return;
+    }
+
     try {
       if (isEdit) {
         // salary bilerek ayriliyor: genel guncelleme onu tasimaz.

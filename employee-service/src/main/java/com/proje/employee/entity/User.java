@@ -15,6 +15,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.Instant;
 import java.util.EnumSet;
@@ -49,6 +50,14 @@ public class User {
      * enum'a yeni bir deger eklenip sira degisirse mevcut satirlarin anlami kayar.
      */
     @ElementCollection(fetch = FetchType.EAGER)
+    // EAGER "ne zaman" sorusunu cevaplar, "kac sorguyla" sorusunu DEGIL:
+    // toplu cekim olmadan Hibernate sayfadaki her kullanici icin ayri bir
+    // SELECT atiyordu (olculdu: 10 satirlik sayfada 12 sorgu).
+    //
+    // Cozum JOIN FETCH degil: koleksiyon fetch'i SQL seviyesinde sayfalamayi
+    // bozar ve Hibernate tum satirlari bellege alip orada sayfalar.
+    // @BatchSize sayfalamayi bozmadan N sorguyu tek IN sorgusuna indirir.
+    @BatchSize(size = 50)
     @CollectionTable(name = "user_role", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "role", nullable = false, length = 20)
     @Enumerated(EnumType.STRING)

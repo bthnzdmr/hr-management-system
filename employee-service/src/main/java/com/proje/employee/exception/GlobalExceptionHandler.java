@@ -114,6 +114,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * "?sort=olmayanAlan" catch-all'a dusup 500 donerdi -- olculdu. Istemcinin
      * yazdigi bir alan adi sunucu hatasi degildir.
      */
+    /**
+     * Siralamasina izin verilmeyen alan.
+     *
+     * Reddedilen alanin adi YALNIZCA loga yazilir; cevaba konsaydi
+     * "salary siralanamaz" mesaji boyle bir alanin varligini dogrulardi.
+     */
+    @ExceptionHandler(InvalidSortPropertyException.class)
+    public ProblemDetail handleInvalidSortProperty(InvalidSortPropertyException ex) {
+        log.warn("Rejected sorting on a field that is not allowed: {}", ex.getProperty());
+        return problem(HttpStatus.BAD_REQUEST, "Invalid sort field", ex.getMessage());
+    }
+
     @ExceptionHandler({PropertyReferenceException.class, InvalidDataAccessApiUsageException.class})
     public ProblemDetail handleInvalidQueryParameter(Exception ex) {
         log.warn("Rejected an invalid query parameter: {}", ex.getMessage());
