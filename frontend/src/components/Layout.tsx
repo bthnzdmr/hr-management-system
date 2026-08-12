@@ -52,16 +52,16 @@ interface NavItem {
  */
 const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
   {
+    heading: 'Administration',
+    items: [
+      { label: 'Accounts', to: '/users', icon: ManageAccountsOutlinedIcon, requires: 'manageAccounts' },
+    ],
+  },
+  {
     heading: 'Workspace',
     items: [
       { label: 'Overview', to: '/dashboard', icon: InsightsOutlinedIcon, requires: 'viewDashboard' },
       { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon },
-    ],
-  },
-  {
-    heading: 'Administration',
-    items: [
-      { label: 'Accounts', to: '/users', icon: ManageAccountsOutlinedIcon, requires: 'manageAccounts' },
     ],
   },
 ];
