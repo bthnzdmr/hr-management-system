@@ -17,6 +17,7 @@ public record DashboardResponse(
         Headcount headcount,
         List<DepartmentHeadcount> byDepartment,
         List<MonthlyTurnover> turnoverByMonth,
+        List<MonthlyHires> hiresByMonth,
         List<TerminationReasonCount> terminationReasons,
         SpanOfControl spanOfControl,
         DataQuality dataQuality
@@ -37,6 +38,9 @@ public record DashboardResponse(
     }
 
     public record MonthlyTurnover(String month, long leavers) {
+    }
+
+    public record MonthlyHires(String month, long hires) {
     }
 
     public record TerminationReasonCount(String reason, long count) {

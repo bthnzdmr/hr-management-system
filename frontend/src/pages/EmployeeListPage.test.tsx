@@ -80,6 +80,7 @@ function pageOf(employees: Employee[]) {
 describe('EmployeeListPage', () => {
   beforeEach(() => {
     tokenStorage.clear();
+    localStorage.removeItem('hr.tableDensity');
     // Cagri sayaci sifirlanmazsa "hic cagrilmadi" iddiasi bir onceki testin
     // cagrisina takilir; testler birbirinden bagimsiz olmalidir.
     vi.clearAllMocks();
@@ -272,5 +273,29 @@ describe('EmployeeListPage', () => {
     await user.type(screen.getByPlaceholderText('Search by name or email'), 'nobody');
 
     expect(await screen.findByText('No employee matches these filters')).toBeInTheDocument();
+  });
+
+  it('remembers the row density between visits', async () => {
+    // Gunde yuz satir tarayan biri tercihini her acilista yeniden yapmak
+    // istemez; tercih localStorage'da durur.
+    const user = userEvent.setup();
+    renderPage(['HR_SPECIALIST']);
+    await screen.findByText('Grace Hopper');
+
+    await user.click(screen.getByRole('button', { name: 'Switch to compact rows' }));
+
+    expect(localStorage.getItem('hr.tableDensity')).toBe('compact');
+    expect(screen.getByRole('button', { name: 'Switch to comfortable rows' })).toBeInTheDocument();
+  });
+
+  it('falls back to the default when the stored density is not a value we know', async () => {
+    // Elle duzenlenmis veya eski surumden kalmis bir deger sessizce
+    // varsayilana dusmeli; okunamayan tercih, tercihsizlik demektir.
+    localStorage.setItem('hr.tableDensity', 'enormous');
+
+    renderPage(['HR_SPECIALIST']);
+    await screen.findByText('Grace Hopper');
+
+    expect(screen.getByRole('button', { name: 'Switch to compact rows' })).toBeInTheDocument();
   });
 });

@@ -25,6 +25,7 @@ vi.mock('./api/dashboard', () => ({
       },
       byDepartment: [],
       turnoverByMonth: [],
+      hiresByMonth: [],
       terminationReasons: [],
       spanOfControl: { managerCount: 0, averageDirectReports: 0, largestTeam: 0 },
       dataQuality: { activeWithoutManager: 0, emptyDepartments: 0 },

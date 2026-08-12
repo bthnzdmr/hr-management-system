@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert, Box, Button, Chip, IconButton, InputAdornment, MenuItem, Paper, Skeleton, Stack, Table,
@@ -9,6 +9,9 @@ import AddIcon from '@mui/icons-material/Add';
 import BlockIcon from '@mui/icons-material/Block';
 import ClearIcon from '@mui/icons-material/Clear';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import DensityMediumIcon from '@mui/icons-material/DensityMedium';
+import DensitySmallIcon from '@mui/icons-material/DensitySmall';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -19,8 +22,11 @@ import {
 } from '../store/employeesSlice';
 import type { ActiveFilter, SortField } from '../store/employeesSlice';
 import { useAuth } from '../auth/AuthContext';
+import { useSearchShortcut } from '../hooks/useSearchShortcut';
+import { useDensity } from '../hooks/useDensity';
 import { InitialsAvatar } from '../components/InitialsAvatar';
 import { PageHeader } from '../components/PageHeader';
+import { EmptyState } from '../components/EmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmployeeCard } from '../components/EmployeeCard';
 import { useSnackbar } from '../components/SnackbarProvider';
@@ -59,6 +65,8 @@ export function EmployeeListPage() {
   // Yazi kutusu kendi durumunu tutar: her harf Redux'a yazilsaydi tum liste
   // her tusta yeniden render olurdu.
   const [searchInput, setSearchInput] = useState(search);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const { density, setDensity } = useDensity();
   const [pendingDeactivation, setPendingDeactivation] = useState<Employee | null>(null);
   const [reportCount, setReportCount] = useState<number | null>(null);
   // Sunucu sebepsiz pasiflestirmeyi reddediyor; varsayilan secili gelir ki
@@ -110,6 +118,66 @@ export function EmployeeListPage() {
   const isLoading = status === 'loading';
   const isFiltered = search.trim() !== '' || activeFilter !== 'all';
 
+  // "/" aramaya odaklanir, Escape kutuyu temizler.
+  useSearchShortcut(searchRef, useCallback(() => setSearchInput(''), []));
+
+  const clearFilters = () => {
+    setSearchInput('');
+    dispatch(searchChanged(''));
+    dispatch(activeFilterChanged('all'));
+  };
+
+  // Uc ayri durum, uc ayri cevap. "Hic kayit yok" ile "filtreye uyan yok"
+  // ayni sey degildir ve ikincisinde tek dogru cevap filtreyi temizlemektir.
+  const emptyState = status === 'failed' ? (
+    <EmptyState
+      icon={<SearchIcon />}
+      title="Could not load employees"
+      description="The list could not be fetched. Check the connection and try again."
+      action={(
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<RestartAltIcon />}
+          onClick={() => dispatch(fetchEmployees({
+            page, size, search, activeFilter, sortField, sortDirection,
+          }))}
+        >
+          Try again
+        </Button>
+      )}
+    />
+  ) : isFiltered ? (
+    <EmptyState
+      icon={<SearchIcon />}
+      title="No employee matches these filters"
+      description="Nothing here fits the current search and status filter."
+      action={(
+        <Button size="small" variant="outlined" startIcon={<ClearIcon />} onClick={clearFilters}>
+          Clear filters
+        </Button>
+      )}
+    />
+  ) : (
+    <EmptyState
+      icon={<GroupsOutlinedIcon />}
+      title="No employees yet"
+      description={canEditEmployees
+        ? 'Add the first person and the directory starts here.'
+        : 'Nobody has been added to the directory yet.'}
+      action={canEditEmployees && (
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => navigate('/employees/new')}
+        >
+          New employee
+        </Button>
+      )}
+    />
+  );
+
   return (
     <Stack spacing={2.5}>
       <PageHeader
@@ -145,6 +213,7 @@ export function EmployeeListPage() {
           // Dar ekranda tam genislik: 240 px'lik bir kutu telefonda
           // filtre dugmelerini asagi itip iki satir birden kaplardi.
           sx={{ flexGrow: 1, minWidth: { xs: '100%', sm: 240 } }}
+          inputRef={searchRef}
           slotProps={{
             input: {
               startAdornment: (
@@ -158,7 +227,31 @@ export function EmployeeListPage() {
                     <ClearIcon fontSize="small" />
                   </IconButton>
                 </InputAdornment>
-              ) : null,
+              ) : (
+                <InputAdornment position="end">
+                  {/* Bilinmeyen kisayol, olmayan kisayoldur: tusun kendisi
+                      kutunun icinde gosterilir. aria-hidden cunku bu bir
+                      ipucu, ekran okuyucunun okuyacagi bir icerik degil. */}
+                  <Box
+                    aria-hidden
+                    sx={{
+                      display: { xs: 'none', sm: 'grid' },
+                      placeItems: 'center',
+                      minWidth: 18,
+                      height: 18,
+                      px: 0.5,
+                      borderRadius: 0.75,
+                      border: 1,
+                      borderColor: 'divider',
+                      color: 'text.secondary',
+                      fontSize: 11,
+                      lineHeight: 1,
+                    }}
+                  >
+                    /
+                  </Box>
+                </InputAdornment>
+              ),
             },
           }}
         />
@@ -177,6 +270,21 @@ export function EmployeeListPage() {
           <ToggleButton value="active">Active</ToggleButton>
           <ToggleButton value="inactive">Inactive</ToggleButton>
         </ToggleButtonGroup>
+
+        {/* Kart gorunumunde satir diye bir sey yok; anahtar da gorunmez. */}
+        {!isNarrow && (
+          <Tooltip title={density === 'compact' ? 'Comfortable rows' : 'Compact rows'}>
+            <IconButton
+              size="small"
+              aria-label={density === 'compact' ? 'Switch to comfortable rows' : 'Switch to compact rows'}
+              onClick={() => setDensity(density === 'compact' ? 'comfortable' : 'compact')}
+            >
+              {density === 'compact'
+                ? <DensityMediumIcon fontSize="small" />
+                : <DensitySmallIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+        )}
       </Paper>
 
       {/* Dar ekranda kart, genis ekranda tablo. Ayni veri iki bicimde:
@@ -206,24 +314,14 @@ export function EmployeeListPage() {
           />
         ))}
 
-        {!isLoading && items.length === 0 && (
-          <Paper sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="text.secondary">
-              {status === 'failed'
-                ? 'Could not load employees'
-                : isFiltered
-                  ? 'No employee matches these filters'
-                  : 'No employees yet'}
-            </Typography>
-          </Paper>
-        )}
+        {!isLoading && items.length === 0 && <Paper>{emptyState}</Paper>}
       </Stack>
       )}
 
       {!isNarrow && (
       <Paper>
         <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table>
+          <Table size={density === 'compact' ? 'small' : 'medium'}>
             <TableHead>
               <TableRow>
                 {COLUMNS.map((column) => (
@@ -359,28 +457,9 @@ export function EmployeeListPage() {
                   uyariyi kapattiginda status 'failed' kaliyor ve tablo tamamen
                   bos gorunuyordu -- ne satir, ne hata, ne de bir aciklama. */}
               {!isLoading && items.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={COLUMNS.length} align="center" sx={{ py: 6 }}>
-                    <Typography color="text.secondary">
-                      {status === 'failed'
-                        ? 'Could not load employees'
-                        : isFiltered
-                          ? 'No employee matches these filters'
-                          : 'No employees yet'}
-                    </Typography>
-                    {isFiltered && status !== 'failed' && (
-                      <Button
-                        size="small"
-                        sx={{ mt: 1 }}
-                        onClick={() => {
-                          setSearchInput('');
-                          dispatch(searchChanged(''));
-                          dispatch(activeFilterChanged('all'));
-                        }}
-                      >
-                        Clear filters
-                      </Button>
-                    )}
+                <TableRow sx={{ '&:hover': { backgroundColor: 'transparent' } }}>
+                  <TableCell colSpan={COLUMNS.length} sx={{ p: 0 }}>
+                    {emptyState}
                   </TableCell>
                 </TableRow>
               )}

@@ -11,6 +11,7 @@ export interface DashboardOverview {
   };
   byDepartment: { department: string; active: number }[];
   turnoverByMonth: { month: string; leavers: number }[];
+  hiresByMonth: { month: string; hires: number }[];
   terminationReasons: { reason: string; count: number }[];
   spanOfControl: {
     managerCount: number;

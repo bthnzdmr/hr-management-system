@@ -109,17 +109,42 @@ class DashboardRepositoryTest {
         employeeRepository.save(leaver);
         entityManager.flush();
 
-        List<DashboardRepository.MonthlyTurnover> months = dashboardRepository.turnoverByMonth();
+        List<DashboardRepository.MonthlyCount> months = dashboardRepository.turnoverByMonth();
 
         assertThat(months).hasSize(12);
-        assertThat(months.stream().mapToLong(DashboardRepository.MonthlyTurnover::getLeaverCount).sum())
+        assertThat(months.stream().mapToLong(DashboardRepository.MonthlyCount::getTotal).sum())
                 .isEqualTo(1);
 
         String expected = YearMonth.from(LocalDate.now().minusMonths(1)).toString();
         assertThat(months.stream()
                 .filter(month -> month.getMonth().equals(expected))
-                .findFirst().orElseThrow().getLeaverCount())
+                .findFirst().orElseThrow().getTotal())
                 .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Returns hires on the same twelve month axis as departures")
+    void fillsMonthsWithoutHires() {
+        // Ise alim serisi ayrilma serisiyle AYNI eksende olmali; farkli
+        // pencereler kullanilsaydi iki seri ust uste okunamazdi.
+        employeeRepository.save(employee("hired@example.com", LocalDate.now().minusMonths(2)));
+        entityManager.flush();
+
+        List<DashboardRepository.MonthlyCount> hires = dashboardRepository.hiresByMonth();
+        List<DashboardRepository.MonthlyCount> leavers = dashboardRepository.turnoverByMonth();
+
+        assertThat(hires).hasSize(12);
+        assertThat(hires.stream().map(DashboardRepository.MonthlyCount::getMonth).toList())
+                .isEqualTo(leavers.stream().map(DashboardRepository.MonthlyCount::getMonth).toList());
+
+        String expected = YearMonth.from(LocalDate.now().minusMonths(2)).toString();
+        assertThat(hires.stream()
+                .filter(month -> month.getMonth().equals(expected))
+                .findFirst().orElseThrow().getTotal())
+                .isEqualTo(1);
+
+        // Ise alim olmayan aylar da dizide durmali, atlanmamali.
+        assertThat(hires.stream().anyMatch(month -> month.getTotal() == 0)).isTrue();
     }
 
     @Test

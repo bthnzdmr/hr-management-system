@@ -36,10 +36,18 @@ public interface DashboardRepository extends Repository<Employee, Long> {
         long getActiveCount();
     }
 
-    interface MonthlyTurnover {
+    /**
+     * Aylik seri: bir ay ve o aya dusen sayi.
+     *
+     * Ayrilma ve ise alim sorgulari AYNI sekli donduruyor; ikinci gercek
+     * kullanim ortaya ciktigi icin ortak bir projeksiyon artik hak edilmis.
+     * Anlam DTO tarafinda tasinir (leavers / hires) -- projeksiyon yalnizca
+     * bicimi tarif eder.
+     */
+    interface MonthlyCount {
         String getMonth();
 
-        long getLeaverCount();
+        long getTotal();
     }
 
     interface ReasonCount {
@@ -93,7 +101,7 @@ public interface DashboardRepository extends Repository<Employee, Long> {
      */
     @Query(value = """
             SELECT to_char(m.month, 'YYYY-MM') AS month,
-                   count(e.id)                 AS leaverCount
+                   count(e.id)                 AS total
             FROM generate_series(date_trunc('month', current_date) - interval '11 months',
                                  date_trunc('month', current_date),
                                  interval '1 month') AS m(month)
@@ -102,7 +110,27 @@ public interface DashboardRepository extends Repository<Employee, Long> {
             GROUP BY m.month
             ORDER BY m.month
             """, nativeQuery = true)
-    List<MonthlyTurnover> turnoverByMonth();
+    List<MonthlyCount> turnoverByMonth();
+
+    /**
+     * Son 12 ayin ise alim sayilari, ayrilmalarla AYNI eksende.
+     *
+     * Ayri bir pencere kullanilsaydi (ornegin son 6 ay) iki seri ust uste
+     * okunamazdi; "bu ay 7 kisi ayrildi" tek basina anlamsizdir, ayni ay kac
+     * kisinin katildigi yaninda durmadikca.
+     */
+    @Query(value = """
+            SELECT to_char(m.month, 'YYYY-MM') AS month,
+                   count(e.id)                 AS total
+            FROM generate_series(date_trunc('month', current_date) - interval '11 months',
+                                 date_trunc('month', current_date),
+                                 interval '1 month') AS m(month)
+            LEFT JOIN employee e
+                   ON date_trunc('month', e.hire_date) = m.month
+            GROUP BY m.month
+            ORDER BY m.month
+            """, nativeQuery = true)
+    List<MonthlyCount> hiresByMonth();
 
     @Query(value = """
             SELECT termination_reason AS reason,

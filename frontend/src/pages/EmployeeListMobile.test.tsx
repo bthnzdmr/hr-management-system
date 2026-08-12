@@ -95,6 +95,30 @@ describe('EmployeeListPage on a narrow screen', () => {
     vi.unstubAllGlobals();
   });
 
+  it('offers a way out of an empty filtered list on a phone too', async () => {
+    // Olculen kusur: "Filtreleri temizle" dugmesi YALNIZCA tablo gorunumunde
+    // vardi. Telefonda bos listeye dusen kullanicinin cikis yolu yoktu ve
+    // ayni metin iki yerde ayri ayri yazildigi icin fark edilmemisti.
+    vi.mocked(employeeApi.list).mockResolvedValue({
+      content: [], totalElements: 0, totalPages: 0, number: 0, size: 10,
+    });
+
+    const user = userEvent.setup();
+    renderNarrow();
+
+    await user.type(screen.getByPlaceholderText('Search by name or email'), 'nobody');
+
+    const clear = await screen.findByRole('button', { name: 'Clear filters' }, { timeout: 3000 });
+    expect(screen.getByText('No employee matches these filters')).toBeInTheDocument();
+
+    await user.click(clear);
+
+    // Filtre temizlenince "hic kayit yok" hali gosterilir; bu FARKLI bir
+    // durumdur ve filtre temizleme dugmesi artik anlamsizdir.
+    expect(await screen.findByText('No employees yet')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
+  });
+
   it('shows cards instead of a table', async () => {
     renderNarrow();
     await screen.findByText('Grace Hopper');

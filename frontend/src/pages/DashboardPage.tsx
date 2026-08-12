@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import {
   Alert, Box, Button, Chip, Divider, Grid, Paper, Skeleton, Stack, Tooltip, Typography, alpha,
+  useTheme,
 } from '@mui/material';
 import AutorenewOutlinedIcon from '@mui/icons-material/AutorenewOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
@@ -13,19 +14,24 @@ import type { DashboardOverview } from '../api/dashboard';
 import { errorMessage } from '../api/client';
 import { BarRow } from '../components/BarRow';
 import { PageHeader } from '../components/PageHeader';
+import { Sparkline } from '../components/Sparkline';
 import { HOVER_LIFT } from '../theme/theme';
 import { TERMINATION_REASON_LABELS } from '../types/api';
 import type { TerminationReason } from '../types/api';
 
 type Tone = 'primary' | 'success' | 'error' | 'warning';
 
-function StatCard({ label, value, hint, icon, tone }: {
+function StatCard({ label, value, hint, icon, tone, trend, trendLabel }: {
   label: string;
   value: string | number;
   hint: string;
   icon: ReactNode;
   tone: Tone;
+  /** Son 12 ayin degerleri; yalnizca aylik serisi olan kutucuklarda dolu. */
+  trend?: number[];
+  trendLabel?: string;
 }) {
+  const theme = useTheme();
   return (
     <Paper
       sx={{
@@ -63,12 +69,30 @@ function StatCard({ label, value, hint, icon, tone }: {
         </Typography>
       </Stack>
 
-      <Typography
-        variant="h3"
-        sx={{ fontSize: { xs: 32, md: 38 }, lineHeight: 1.05, fontVariantNumeric: 'tabular-nums', mt: 0.5 }}
+      {/* Sayi ve egri AYNI satirda: egri sayinin altina konsaydi iki ayri
+          bilgi gibi okunurdu, oysa biri digerinin baglami. */}
+      <Stack
+        direction="row"
+        sx={{ alignItems: 'flex-end', justifyContent: 'space-between', gap: 1, mt: 0.5 }}
       >
-        {value}
-      </Typography>
+        <Typography
+          variant="h3"
+          sx={{ fontSize: { xs: 32, md: 38 }, lineHeight: 1.05, fontVariantNumeric: 'tabular-nums' }}
+        >
+          {value}
+        </Typography>
+
+        {trend && trendLabel && (
+          <Box sx={{ display: { xs: 'none', sm: 'block' }, pb: 0.5 }}>
+            <Sparkline
+              values={trend}
+              color={theme.palette[tone].main}
+              label={trendLabel}
+            />
+          </Box>
+        )}
+      </Stack>
+
       <Typography variant="caption" color="text.secondary">
         {hint}
       </Typography>
@@ -148,7 +172,13 @@ export function DashboardPage() {
     );
   }
 
-  const { headcount, byDepartment, turnoverByMonth, terminationReasons, spanOfControl, dataQuality } = data;
+  const {
+    headcount, byDepartment, turnoverByMonth, hiresByMonth, terminationReasons,
+    spanOfControl, dataQuality,
+  } = data;
+
+  const hireTrend = hiresByMonth.map((row) => row.hires);
+  const leaverTrend = turnoverByMonth.map((row) => row.leavers);
 
   const maxDepartment = Math.max(...byDepartment.map((row) => row.active), 1);
   const maxMonthly = Math.max(...turnoverByMonth.map((row) => row.leavers), 1);
@@ -193,6 +223,8 @@ export function DashboardPage() {
             hint={`last 90 days · ${headcount.hiredLast30Days} in the last 30`}
             icon={<TrendingUpOutlinedIcon fontSize="small" />}
             tone="success"
+            trend={hireTrend}
+            trendLabel={`Monthly hires over the last 12 months, ending at ${hireTrend[hireTrend.length - 1]}`}
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
@@ -202,6 +234,8 @@ export function DashboardPage() {
             hint="last 12 months"
             icon={<LogoutOutlinedIcon fontSize="small" />}
             tone="error"
+            trend={leaverTrend}
+            trendLabel={`Monthly departures over the last 12 months, ending at ${leaverTrend[leaverTrend.length - 1]}`}
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>

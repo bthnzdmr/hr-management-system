@@ -45,7 +45,12 @@ public class DashboardService {
 
                 dashboardRepository.turnoverByMonth().stream()
                         .map(row -> new DashboardResponse.MonthlyTurnover(
-                                row.getMonth(), row.getLeaverCount()))
+                                row.getMonth(), row.getTotal()))
+                        .toList(),
+
+                dashboardRepository.hiresByMonth().stream()
+                        .map(row -> new DashboardResponse.MonthlyHires(
+                                row.getMonth(), row.getTotal()))
                         .toList(),
 
                 dashboardRepository.terminationReasons().stream()

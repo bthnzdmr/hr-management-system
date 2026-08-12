@@ -5,6 +5,7 @@ import {
   Tooltip, Typography, useMediaQuery, useTheme,
 } from '@mui/material';
 import BlockIcon from '@mui/icons-material/Block';
+import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined';
 import PersonAddAltOutlinedIcon from '@mui/icons-material/PersonAddAltOutlined';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { userApi } from '../api/users';
@@ -15,6 +16,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { UserCreateDialog } from '../components/UserCreateDialog';
 import { AccountCard } from '../components/AccountCard';
 import { PageHeader } from '../components/PageHeader';
+import { EmptyState } from '../components/EmptyState';
 import { ASSIGNABLE_ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS } from '../types/api';
 import type { Role, User } from '../types/api';
 
@@ -104,6 +106,38 @@ export function UserListPage() {
     [notify],
   );
 
+  // Iki gorunum (kart ve tablo) ayni bos durumu paylasir; ayri yazilsalardi
+  // biri digerinin gerisinde kalirdi -- personel listesinde tam olarak bu
+  // olmustu.
+  const emptyState = error ? (
+    <EmptyState
+      icon={<ManageAccountsOutlinedIcon />}
+      title="Could not load accounts"
+      description="The account list could not be fetched. Check the connection and try again."
+      action={(
+        <Button size="small" variant="outlined" startIcon={<RestartAltIcon />} onClick={load}>
+          Try again
+        </Button>
+      )}
+    />
+  ) : (
+    <EmptyState
+      icon={<ManageAccountsOutlinedIcon />}
+      title="No accounts yet"
+      description="Accounts are created for the people who need to sign in; not every employee has one."
+      action={(
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<PersonAddAltOutlinedIcon />}
+          onClick={() => setCreating(true)}
+        >
+          New account
+        </Button>
+      )}
+    />
+  );
+
   return (
     <Stack spacing={2.5}>
       <PageHeader
@@ -145,13 +179,7 @@ export function UserListPage() {
           />
         ))}
 
-        {!loading && users.length === 0 && (
-          <Paper sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="text.secondary">
-              {error ? 'Could not load accounts' : 'No accounts yet'}
-            </Typography>
-          </Paper>
-        )}
+        {!loading && users.length === 0 && <Paper>{emptyState}</Paper>}
       </Stack>
       )}
 
@@ -279,11 +307,9 @@ export function UserListPage() {
                 })}
 
               {!loading && users.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={COLUMNS.length} align="center" sx={{ py: 6 }}>
-                    <Typography color="text.secondary">
-                      {error ? 'Could not load accounts' : 'No accounts yet'}
-                    </Typography>
+                <TableRow sx={{ '&:hover': { backgroundColor: 'transparent' } }}>
+                  <TableCell colSpan={COLUMNS.length} sx={{ p: 0 }}>
+                    {emptyState}
                   </TableCell>
                 </TableRow>
               )}

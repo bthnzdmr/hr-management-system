@@ -28,6 +28,10 @@ function overview(overrides: Partial<DashboardOverview> = {}): DashboardOverview
       month: `2026-${String(index + 1).padStart(2, '0')}`,
       leavers: index === 5 ? 2 : 0,
     })),
+    hiresByMonth: Array.from({ length: 12 }).map((_, index) => ({
+      month: `2026-${String(index + 1).padStart(2, '0')}`,
+      hires: index,
+    })),
     terminationReasons: [
       { reason: 'RESIGNED', count: 3 },
       { reason: 'RETIRED', count: 1 },
