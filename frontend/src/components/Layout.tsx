@@ -28,7 +28,6 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
-import PersonAddAltOutlinedIcon from '@mui/icons-material/PersonAddAltOutlined';
 import { useAuth } from '../auth/AuthContext';
 import { useColorMode } from '../theme/ColorModeContext';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '../types/api';
@@ -43,18 +42,14 @@ interface NavItem {
   requires?: 'editEmployees' | 'manageAccounts' | 'viewDashboard';
 }
 
-// Menu artik tek bir "adminOnly" bayragiyla suzulemez: personel formu Ik
-// uzmanina, hesap ekrani sistem yoneticisine ait ve bunlar farkli kisiler
-// olabilir.
+// Menu artik tek bir "adminOnly" bayragiyla suzulemez: panel ve hesap ekrani
+// farkli yetenekler ister ve bunlar farkli kisiler olabilir.
+//
+// "Yeni personel" BURADA YOK: menu ogesi gidilecek bir YER olmali, bir eylem
+// degil. Ekleme dugmesi zaten listenin ustunde duruyor ve oraya ait.
 const NAV_ITEMS: NavItem[] = [
   { label: 'Overview', to: '/dashboard', icon: InsightsOutlinedIcon, requires: 'viewDashboard' },
   { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon },
-  {
-    label: 'New employee',
-    to: '/employees/new',
-    icon: PersonAddAltOutlinedIcon,
-    requires: 'editEmployees',
-  },
   {
     label: 'Accounts',
     to: '/users',

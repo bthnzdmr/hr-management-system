@@ -52,18 +52,28 @@ describe('Layout', () => {
     expect(screen.getByText('System administrator')).toBeInTheDocument();
   });
 
-  it('offers the create shortcut to an administrator', () => {
+  it('offers the account screen to a system administrator', () => {
     renderShell(['HR_SPECIALIST', 'SYSTEM_ADMIN']);
 
-    expect(screen.getByRole('link', { name: 'New employee' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Accounts' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Overview' })).toBeInTheDocument();
   });
 
-  it('hides the create shortcut from a plain user', () => {
+  it('hides those destinations from a plain user', () => {
     // Sunucu zaten 403 doner; amac kullaniciya reddedilecek bir yolu hic
     // gostermemek.
     renderShell(['EMPLOYEE']);
 
     expect(screen.getByRole('link', { name: 'Employees' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Accounts' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument();
+  });
+
+  it('keeps actions out of the navigation', () => {
+    // Menu ogesi gidilecek bir YER olmali, bir eylem degil. "Yeni personel"
+    // dugmesi listenin ustunde duruyor ve oraya ait.
+    renderShell(['HR_SPECIALIST', 'SYSTEM_ADMIN']);
+
     expect(screen.queryByRole('link', { name: 'New employee' })).not.toBeInTheDocument();
   });
 

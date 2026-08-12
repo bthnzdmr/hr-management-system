@@ -200,6 +200,30 @@ describe('UserListPage', () => {
     expect(await screen.findByText('An unexpected error occurred')).toBeInTheDocument();
   });
 
+  it('switches to cards on a narrow screen without duplicating anything', async () => {
+    // Tablo DOM'a HIC girmemeli: CSS ile gizlenseydi her erisilebilir ad iki
+    // kez bulunurdu.
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }));
+
+    renderPage();
+    await screen.findByText('ada@example.com');
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('combobox', { name: 'Roles for ada@example.com' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Deactivate' })).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
   it('shows the failure message when the accounts cannot be loaded', async () => {
     vi.mocked(userApi.list).mockRejectedValue(new Error('boom'));
 

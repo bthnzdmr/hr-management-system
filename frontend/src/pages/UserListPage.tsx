@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Alert, Box, Button, Checkbox, Chip, IconButton, ListItemText, MenuItem, Paper, Skeleton, Stack,
   Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField,
-  Tooltip, Typography,
+  Tooltip, Typography, useMediaQuery, useTheme,
 } from '@mui/material';
 import BlockIcon from '@mui/icons-material/Block';
 import PersonAddAltOutlinedIcon from '@mui/icons-material/PersonAddAltOutlined';
@@ -13,6 +13,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useSnackbar } from '../components/SnackbarProvider';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { UserCreateDialog } from '../components/UserCreateDialog';
+import { AccountCard } from '../components/AccountCard';
 import { ASSIGNABLE_ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS } from '../types/api';
 import type { Role, User } from '../types/api';
 
@@ -27,6 +28,8 @@ const COLUMNS = ['Email', 'Role', 'Linked employee', 'Status', 'Actions'];
  */
 export function UserListPage() {
   const { user: currentUser } = useAuth();
+  const theme = useTheme();
+  const isNarrow = useMediaQuery(theme.breakpoints.down('md'));
   const { notify } = useSnackbar();
 
   const [users, setUsers] = useState<User[]>([]);
@@ -129,6 +132,39 @@ export function UserListPage() {
 
       {error && <Alert severity="error">{error}</Alert>}
 
+      {/* Dar ekranda kart, genis ekranda tablo. Personel listesindekiyle ayni
+          gerekce ve ayni yontem: ikisi birden render edilmez, cunku o zaman
+          her erisilebilir ad DOM'da iki kez bulunurdu. */}
+      {isNarrow && (
+      <Stack spacing={1.25}>
+        {loading &&
+          Array.from({ length: Math.min(size, 4) }).map((_, index) => (
+            <Skeleton key={`card-skeleton-${index}`} variant="rounded" height={132} />
+          ))}
+
+        {!loading && users.map((account) => (
+          <AccountCard
+            key={account.id}
+            account={account}
+            isSelf={account.email === currentUser?.email}
+            busy={busyId === account.id}
+            onRolesChange={(roles) => applyRoles(account, roles)}
+            onToggleStatus={() =>
+              account.active ? setPendingDeactivation(account) : applyStatus(account, true)}
+          />
+        ))}
+
+        {!loading && users.length === 0 && (
+          <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <Typography color="text.secondary">
+              {error ? 'Could not load accounts' : 'No accounts yet'}
+            </Typography>
+          </Paper>
+        )}
+      </Stack>
+      )}
+
+      {!isNarrow && (
       <Paper>
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table>
@@ -264,6 +300,11 @@ export function UserListPage() {
           </Table>
         </TableContainer>
 
+      </Paper>
+      )}
+
+      {/* Sayfalama iki gorunumde de gerekli. */}
+      <Paper>
         <TablePagination
           component="div"
           count={totalElements}
