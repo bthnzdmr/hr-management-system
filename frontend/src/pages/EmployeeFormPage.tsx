@@ -11,6 +11,7 @@ import { departmentApi } from '../api/departments';
 import { errorMessage } from '../api/client';
 import { EmployeePicker } from '../components/EmployeePicker';
 import type { EmployeeOption } from '../components/EmployeePicker';
+import { PageHeader } from '../components/PageHeader';
 import { useSnackbar } from '../components/SnackbarProvider';
 import type { Department, EmployeeCreateRequest } from '../types/api';
 
@@ -163,16 +164,13 @@ export function EmployeeFormPage() {
         </Button>
       </Box>
 
-      <Box>
-        <Typography variant="h5" component="h1">
-          {isEdit ? 'Edit employee' : 'New employee'}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {isEdit
-            ? 'Changes are announced to the notification service.'
-            : 'The new record triggers a welcome notification.'}
-        </Typography>
-      </Box>
+      <PageHeader
+        eyebrow="Directory"
+        title={isEdit ? 'Edit employee' : 'New employee'}
+        description={isEdit
+          ? 'Changes are announced to the notification service.'
+          : 'The new record triggers a welcome notification.'}
+      />
 
       {error && <Alert severity="error">{error}</Alert>}
 

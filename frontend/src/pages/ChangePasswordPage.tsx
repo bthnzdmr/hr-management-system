@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import type { SyntheticEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Paper, Stack, TextField } from '@mui/material';
 import { userApi } from '../api/users';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { PageHeader } from '../components/PageHeader';
 import { useSnackbar } from '../components/SnackbarProvider';
 
 const MIN_PASSWORD_LENGTH = 12;
@@ -46,14 +47,11 @@ export function ChangePasswordPage() {
 
   return (
     <Stack spacing={2.5} sx={{ maxWidth: 520, mx: 'auto' }}>
-      <Box>
-        <Typography variant="h5" component="h1">
-          Change password
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Signed in as {user?.email}
-        </Typography>
-      </Box>
+      <PageHeader
+        eyebrow="Your account"
+        title="Change password"
+        description={`Signed in as ${user?.email ?? ''}`}
+      />
 
       <Paper sx={{ p: 3 }}>
         <form onSubmit={handleSubmit}>

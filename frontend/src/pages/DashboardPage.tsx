@@ -12,6 +12,7 @@ import { dashboardApi } from '../api/dashboard';
 import type { DashboardOverview } from '../api/dashboard';
 import { errorMessage } from '../api/client';
 import { BarRow } from '../components/BarRow';
+import { PageHeader } from '../components/PageHeader';
 import { HOVER_LIFT } from '../theme/theme';
 import { TERMINATION_REASON_LABELS } from '../types/api';
 import type { TerminationReason } from '../types/api';
@@ -36,54 +37,39 @@ function StatCard({ label, value, hint, icon, tone }: {
         position: 'relative',
         overflow: 'hidden',
         ...HOVER_LIFT,
-        '&:hover': {
-          ...HOVER_LIFT['&:hover'],
-          borderColor: (t) => alpha(t.palette[tone].main, 0.5),
-        },
+        '&:hover': { borderColor: (t) => alpha(t.palette[tone].main, 0.45) },
       }}
     >
-      {/* Kosede sonuk bir isik: duz bir dikdortgeni yuzeye cevirir. */}
+      {/* Kosedeki radyal isik KALDIRILDI; yerine kartin tepesinde iki
+          piksellik bir cizgi. Ayni bilgiyi (bu sayi hangi kategoriye ait)
+          tasir ama renk sayfaya yayilmaz -- panelin ciddi durmasi, vurgunun
+          KAPLADIGI ALANLA dogrudan ilgili. */}
       <Box
         aria-hidden
         sx={{
           position: 'absolute',
-          top: -40,
-          right: -40,
-          width: 140,
-          height: 140,
-          borderRadius: '50%',
-          pointerEvents: 'none',
-          background: (t) =>
-            `radial-gradient(circle, ${alpha(t.palette[tone].main, 0.18)}, transparent 70%)`,
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 2,
+          bgcolor: `${tone}.main`,
         }}
       />
 
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-        <Box
-          sx={{
-            width: 30,
-            height: 30,
-            borderRadius: 2,
-            display: 'grid',
-            placeItems: 'center',
-            color: `${tone}.main`,
-            bgcolor: (t) => alpha(t.palette[tone].main, 0.14),
-          }}
-        >
-          {icon}
-        </Box>
-        <Typography variant="overline" color="text.secondary" sx={{ fontSize: 11 }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', color: 'text.secondary' }}>
+        {icon}
+        <Typography variant="overline" sx={{ fontSize: 10.5 }}>
           {label}
         </Typography>
       </Stack>
 
       <Typography
         variant="h3"
-        sx={{ fontSize: 40, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums', mt: 0.5 }}
+        sx={{ fontSize: { xs: 32, md: 38 }, lineHeight: 1.05, fontVariantNumeric: 'tabular-nums', mt: 0.5 }}
       >
         {value}
       </Typography>
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="caption" color="text.secondary">
         {hint}
       </Typography>
     </Paper>
@@ -171,56 +157,24 @@ export function DashboardPage() {
 
   return (
     <Stack spacing={2.5}>
-      {/* Baslik bandi sayfanin en ustunde bir "yer" duygusu kurar ve paletin
-          koyu tonlarini TEK yerde yogunlastirir. Gradyan sayfanin geri
-          kalanina yayilmaz; her yere konan gradyan gurultudur. */}
-      <Paper
-        sx={{
-          p: { xs: 2.5, md: 3.5 },
-          position: 'relative',
-          overflow: 'hidden',
-          border: 'none',
-          background: 'linear-gradient(135deg, #1E2631 0%, #3B4859 100%)',
-        }}
-      >
-        <Box
-          aria-hidden
-          sx={{
-            position: 'absolute',
-            top: -80,
-            right: -60,
-            width: 300,
-            height: 300,
-            borderRadius: '50%',
-            background: `radial-gradient(circle, ${alpha('#C8937E', 0.3)}, transparent 65%)`,
-          }}
-        />
-        <Box
-          aria-hidden
-          sx={{
-            position: 'absolute',
-            bottom: -140,
-            left: '35%',
-            width: 280,
-            height: 280,
-            borderRadius: '50%',
-            background: `radial-gradient(circle, ${alpha('#709995', 0.22)}, transparent 65%)`,
-          }}
-        />
-
-        <Box sx={{ position: 'relative' }}>
-          <Typography variant="overline" sx={{ color: alpha('#F8FAFC', 0.7), fontSize: 11 }}>
-            Overview
-          </Typography>
-          <Typography variant="h4" component="h1" sx={{ color: '#F8FAFC', mt: 0.5 }}>
-            {headcount.active} people on the team
-          </Typography>
-          <Typography variant="body2" sx={{ color: alpha('#F8FAFC', 0.7), mt: 0.5 }}>
-            {headcount.hiredLast90Days} joined and {headcount.leftLast12Months} left
-            over the past year
-          </Typography>
-        </Box>
-      </Paper>
+      {/* Gradyanli bant ve uzerindeki iki radyal isik KALDIRILDI.
+          Sayfanin en ustunde duran renkli bir blok, altindaki her seyi
+          dekorun devami gibi gosteriyordu. Baslik artik diger sayfalarla
+          ayni bilesenden geliyor: hiyerarsiyi renk degil TIPOGRAFI kuruyor. */}
+      <PageHeader
+        eyebrow="Overview"
+        title={`${headcount.active} people on the team`}
+        description={`${headcount.hiredLast90Days} joined and ${headcount.leftLast12Months} left over the past year`}
+        actions={(
+          <Button
+            variant="outlined"
+            startIcon={<GroupsOutlinedIcon />}
+            onClick={() => navigate('/employees')}
+          >
+            Employee list
+          </Button>
+        )}
+      />
 
       <Grid container spacing={2.5}>
         <Grid size={{ xs: 6, md: 3 }}>
@@ -316,12 +270,13 @@ export function DashboardPage() {
                       // Sifir olan ay da bir cizgi olarak gorunur: "veri yok"
                       // ile "kimse ayrilmadi" ayni sey degildir.
                       height: `${Math.max((row.leavers / maxMonthly) * 100, 3)}%`,
-                      // Gradyan: duz bir dikdortgen yerine yukari dogru acilan
-                      // bir kutle; sutunun tepesi vurgulanir.
-                      background: (t) => (row.leavers > 0
-                        ? `linear-gradient(180deg, ${t.palette.primary.main}, ${alpha(t.palette.primary.main, 0.4)})`
+                      // Gradyan yerine DUZ renk. Yogunluk bilgi tasir: en
+                      // yuksek ay tam doygunlukta, digerleri sonuk -- boylece
+                      // zirve dekorla degil veriyle one cikar.
+                      backgroundColor: (t) => (row.leavers > 0
+                        ? alpha(t.palette.primary.main, row.leavers === maxMonthly ? 1 : 0.45)
                         : t.palette.action.disabledBackground),
-                      borderRadius: 1.5,
+                      borderRadius: 0.5,
                       transition: 'height 240ms ease',
                       '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
                     }}
@@ -420,12 +375,6 @@ export function DashboardPage() {
           </Stack>
         </Grid>
       </Grid>
-
-      <Box>
-        <Button startIcon={<GroupsOutlinedIcon />} onClick={() => navigate('/employees')}>
-          Open the employee list
-        </Button>
-      </Box>
     </Stack>
   );
 }

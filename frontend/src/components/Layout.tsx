@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   AppBar,
+  Avatar,
   Box,
-  Chip,
   Divider,
   Drawer,
   IconButton,
@@ -28,6 +28,7 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
+import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import { useAuth } from '../auth/AuthContext';
 import { useColorMode } from '../theme/ColorModeContext';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '../types/api';
@@ -42,19 +43,26 @@ interface NavItem {
   requires?: 'editEmployees' | 'manageAccounts' | 'viewDashboard';
 }
 
-// Menu artik tek bir "adminOnly" bayragiyla suzulemez: panel ve hesap ekrani
-// farkli yetenekler ister ve bunlar farkli kisiler olabilir.
-//
-// "Yeni personel" BURADA YOK: menu ogesi gidilecek bir YER olmali, bir eylem
-// degil. Ekleme dugmesi zaten listenin ustunde duruyor ve oraya ait.
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Overview', to: '/dashboard', icon: InsightsOutlinedIcon, requires: 'viewDashboard' },
-  { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon },
+/**
+ * Menu bolumleri.
+ *
+ * Duz bir liste uc ogeyle idare eder ama dorduncu eklendiginde neyin nereye
+ * ait oldugu kaybolur. Bolum basliklari yapiyi ONCEDEN kurar: "Workspace"
+ * gunluk is, "Administration" sistemin kendisi. Ayrim rollerle de ortusuyor.
+ */
+const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
   {
-    label: 'Accounts',
-    to: '/users',
-    icon: ManageAccountsOutlinedIcon,
-    requires: 'manageAccounts',
+    heading: 'Workspace',
+    items: [
+      { label: 'Overview', to: '/dashboard', icon: InsightsOutlinedIcon, requires: 'viewDashboard' },
+      { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon },
+    ],
+  },
+  {
+    heading: 'Administration',
+    items: [
+      { label: 'Accounts', to: '/users', icon: ManageAccountsOutlinedIcon, requires: 'manageAccounts' },
+    ],
   },
 ];
 
@@ -74,69 +82,148 @@ export function Layout() {
     manageAccounts: canManageAccounts,
     viewDashboard: canViewDashboard,
   };
-  const visibleItems = NAV_ITEMS.filter((item) => !item.requires || allowed[item.requires]);
+
+  // Bos bolum basligi gosterilmez: yalnizca personel gorebilen birine
+  // "Administration" yazip altini bos birakmak kirik gorunurdu.
+  const visibleSections = NAV_SECTIONS
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.requires || allowed[item.requires]),
+    }))
+    .filter((section) => section.items.length > 0);
+
+  const brand = (
+    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+      <Box
+        sx={{
+          width: 30,
+          height: 30,
+          borderRadius: 1.5,
+          display: 'grid',
+          placeItems: 'center',
+          fontSize: 13,
+          fontWeight: 600,
+          letterSpacing: '-0.02em',
+          // Gradyan KALDIRILDI. Iki renk arasinda gecen bir marka isareti
+          // dikkat cekmeye calisir; duz bir blok kendinden emin durur.
+          color: 'primary.contrastText',
+          bgcolor: 'primary.main',
+        }}
+      >
+        HR
+      </Box>
+      <Typography variant="subtitle1" noWrap sx={{ letterSpacing: '-0.02em' }}>
+        People
+      </Typography>
+    </Stack>
+  );
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar sx={{ gap: 1.5 }}>
-        <Box
-          sx={{
-            width: 34,
-            height: 34,
-            borderRadius: 2,
-            display: 'grid',
-            placeItems: 'center',
-            fontWeight: 700,
-            fontSize: 14,
-            color: '#1E2631',
-            // Giris ekranindaki isaretin aynisi: ayni marka iki yerde ayni
-            // gorunmeli, yoksa uygulama iki farkli yerden derlenmis gibi durur.
-            background: 'linear-gradient(135deg, #C8937E, #C48B8B)',
-          }}
-        >
-          HR
-        </Box>
-        <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700 }}>
-          People
-        </Typography>
-      </Toolbar>
+      <Toolbar>{brand}</Toolbar>
 
       <Divider />
 
-      <List sx={{ px: 1.5, py: 2, flexGrow: 1 }}>
-        {visibleItems.map((item) => {
-          const Icon = item.icon;
-          // "/employees" her alt yola da uyar; bu yuzden tam esitlik aranir,
-          // aksi halde "New employee" acikken ikisi birden secili gorunurdu.
-          const selected = location.pathname === item.to;
-
-          return (
-            <ListItemButton
-              key={item.to}
-              component={NavLink}
-              to={item.to}
-              selected={selected}
-              onClick={() => setMobileOpen(false)}
-              sx={{ borderRadius: 2, mb: 0.5 }}
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', py: 1.5 }}>
+        {visibleSections.map((section) => (
+          <Box key={section.heading} sx={{ mb: 1.5 }}>
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ display: 'block', px: 2.5, fontSize: 10, mb: 0.5 }}
             >
-              <ListItemIcon sx={{ minWidth: 38, color: selected ? 'primary.main' : 'inherit' }}>
-                <Icon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                slotProps={{ primary: { sx: { fontSize: 14, fontWeight: selected ? 650 : 500 } } }}
-              />
-            </ListItemButton>
-          );
-        })}
-      </List>
+              {section.heading}
+            </Typography>
 
-      <Divider />
-      <Box sx={{ p: 2 }}>
-        <Typography variant="caption" color="text.secondary">
-          HR Management System
-        </Typography>
+            <List disablePadding sx={{ px: 1.5 }}>
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                // "/employees" her alt yola da uyar; bu yuzden tam esitlik
+                // aranir, aksi halde "New employee" acikken ikisi birden
+                // secili gorunurdu.
+                const selected = location.pathname === item.to;
+
+                return (
+                  <ListItemButton
+                    key={item.to}
+                    component={NavLink}
+                    to={item.to}
+                    selected={selected}
+                    onClick={() => setMobileOpen(false)}
+                    sx={{ mb: 0.25, py: 0.9 }}
+                  >
+                    <ListItemIcon
+                      sx={{ minWidth: 34, color: selected ? 'primary.main' : 'text.secondary' }}
+                    >
+                      <Icon sx={{ fontSize: 19 }} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.label}
+                      slotProps={{
+                        primary: { sx: { fontSize: 14, fontWeight: selected ? 600 : 480 } },
+                      }}
+                    />
+                  </ListItemButton>
+                );
+              })}
+            </List>
+          </Box>
+        ))}
       </Box>
+
+      {/* Kimlik menunun ALTINDA duruyor.
+          Onceden ust cubuktaydi: rol rozetleri ve e-posta cipi yan yana
+          dizilip her sayfada gorsel gurultu yapiyordu. Kimlik her zaman
+          gorunmesi gereken ama nadiren dokunulan bir bilgidir; kenar
+          cubugunun dibi tam olarak bunun yeridir. */}
+      {user && (
+        <>
+          <Divider />
+          <Box sx={{ p: 1.5 }}>
+            <ListItemButton
+              onClick={(event) => setUserMenu(event.currentTarget)}
+              aria-label="Account menu"
+              sx={{ gap: 1.25, py: 1 }}
+            >
+              <Avatar
+                sx={{
+                  width: 30,
+                  height: 30,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  bgcolor: 'action.selected',
+                  color: 'text.primary',
+                }}
+              >
+                {user.email.charAt(0).toUpperCase()}
+              </Avatar>
+
+              <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                <Typography variant="body2" noWrap sx={{ fontWeight: 560 }}>
+                  {user.email}
+                </Typography>
+                {/* Her rol AYRI bir dugum: tek satirda birlestirilseydi
+                    "HR specialist" diye bir metin DOM'da hic bulunmazdi. */}
+                <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', mt: 0.25 }}>
+                  {user.roles.map((role) => (
+                    <Tooltip key={role} title={ROLE_DESCRIPTIONS[role]}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontSize: 11, cursor: 'help' }}
+                      >
+                        {ROLE_LABELS[role]}
+                      </Typography>
+                    </Tooltip>
+                  ))}
+                </Stack>
+              </Box>
+
+              <UnfoldMoreIcon sx={{ fontSize: 17, color: 'text.secondary' }} />
+            </ListItemButton>
+          </Box>
+        </>
+      )}
     </Box>
   );
 
@@ -156,10 +243,15 @@ export function Layout() {
             <MenuIcon />
           </IconButton>
 
+          {/* Marka yalnizca DAR ekranda ust cubukta: genis ekranda zaten
+              kenar cubugunun tepesinde duruyor ve iki kez gosterilmesi
+              gereksiz olurdu. */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' } }}>{brand}</Box>
+
           <Box sx={{ flexGrow: 1 }} />
 
           <Tooltip title={mode === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>
-            <IconButton onClick={toggle} aria-label="Toggle theme">
+            <IconButton onClick={toggle} aria-label="Toggle theme" size="small">
               {mode === 'light' ? (
                 <DarkModeOutlinedIcon fontSize="small" />
               ) : (
@@ -167,69 +259,35 @@ export function Layout() {
               )}
             </IconButton>
           </Tooltip>
-
-          {user && (
-            <>
-              {/* Kullanici birden fazla rol tasiyabilir; tek rozet artik
-                  kimligi anlatmiyor. Dar ekranda gizlenir, yerine kullanici
-                  menusundeki tam liste kalir. */}
-              <Stack
-                direction="row"
-                spacing={0.5}
-                sx={{ display: { xs: 'none', sm: 'flex' } }}
-              >
-                {user.roles.map((role) => (
-                  <Tooltip key={role} title={ROLE_DESCRIPTIONS[role]}>
-                    <Chip
-                      label={ROLE_LABELS[role]}
-                      size="small"
-                      color={role === 'SYSTEM_ADMIN' || role === 'HR_SPECIALIST'
-                        ? 'primary'
-                        : 'default'}
-                      variant={role === 'EMPLOYEE' ? 'outlined' : 'filled'}
-                    />
-                  </Tooltip>
-                ))}
-              </Stack>
-              <Chip
-                label={user.email}
-                onClick={(event) => setUserMenu(event.currentTarget)}
-                variant="outlined"
-                sx={{ maxWidth: 220 }}
-              />
-              <Menu
-                anchorEl={userMenu}
-                open={Boolean(userMenu)}
-                onClose={() => setUserMenu(null)}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-              >
-                <MenuItem
-                  component={NavLink}
-                  to="/account/password"
-                  onClick={() => setUserMenu(null)}
-                >
-                  <ListItemIcon>
-                    <LockOutlinedIcon fontSize="small" />
-                  </ListItemIcon>
-                  Change password
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    setUserMenu(null);
-                    logout();
-                  }}
-                >
-                  <ListItemIcon>
-                    <LogoutOutlinedIcon fontSize="small" />
-                  </ListItemIcon>
-                  Sign out
-                </MenuItem>
-              </Menu>
-            </>
-          )}
         </Toolbar>
       </AppBar>
+
+      <Menu
+        anchorEl={userMenu}
+        open={Boolean(userMenu)}
+        onClose={() => setUserMenu(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { minWidth: 200 } } }}
+      >
+        <MenuItem component={NavLink} to="/account/password" onClick={() => setUserMenu(null)}>
+          <ListItemIcon>
+            <LockOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          Change password
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setUserMenu(null);
+            logout();
+          }}
+        >
+          <ListItemIcon>
+            <LogoutOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          Sign out
+        </MenuItem>
+      </Menu>
 
       <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
         <Drawer
@@ -238,13 +296,7 @@ export function Layout() {
           onClose={() => setMobileOpen(false)}
           // Dar ekranda cekmeceyi DOM'da tutmak acilisi hizlandirir.
           ModalProps={{ keepMounted: true }}
-          sx={{
-            '& .MuiDrawer-paper': {
-              width: DRAWER_WIDTH,
-              boxSizing: 'border-box',
-              borderRight: `1px solid ${theme.palette.divider}`,
-            },
-          }}
+          sx={{ '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' } }}
         >
           {drawerContent}
         </Drawer>
@@ -254,7 +306,7 @@ export function Layout() {
         {/* Ust cubuk "fixed" oldugu icin icerigin altina kaymamasi adina
             yuksekligi kadar bosluk birakilir. */}
         <Toolbar />
-        <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1280, mx: 'auto' }}>
+        <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1280, mx: 'auto' }}>
           <Outlet />
         </Box>
       </Box>

@@ -20,6 +20,7 @@ import {
 import type { ActiveFilter, SortField } from '../store/employeesSlice';
 import { useAuth } from '../auth/AuthContext';
 import { InitialsAvatar } from '../components/InitialsAvatar';
+import { PageHeader } from '../components/PageHeader';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmployeeCard } from '../components/EmployeeCard';
 import { useSnackbar } from '../components/SnackbarProvider';
@@ -111,26 +112,15 @@ export function EmployeeListPage() {
 
   return (
     <Stack spacing={2.5}>
-      <Box sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', sm: 'row' },
-        alignItems: { xs: 'stretch', sm: 'flex-start' },
-        justifyContent: 'space-between',
-        gap: 2,
-      }}>
-        <Box>
-          <Typography variant="h5" component="h1">
-            Employees
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {totalElements} {totalElements === 1 ? 'record' : 'records'}
-            {isFiltered ? ' matching the current filters' : ''}
-          </Typography>
-        </Box>
-
-        {/* Yazma yetkisi yoksa dugme hic gosterilmez. Bu bir guvenlik onlemi
-            degil, kullaniciya kacinilmaz bir 403 yasatmama tercihidir. */}
-        {canEditEmployees && (
+      <PageHeader
+        eyebrow="Directory"
+        title="Employees"
+        description={`${totalElements} ${totalElements === 1 ? 'record' : 'records'}${
+          isFiltered ? ' matching the current filters' : ''
+        }`}
+        // Yazma yetkisi yoksa dugme hic gosterilmez. Bu bir guvenlik onlemi
+        // degil, kullaniciya kacinilmaz bir 403 yasatmama tercihidir.
+        actions={canEditEmployees && (
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -139,7 +129,7 @@ export function EmployeeListPage() {
             New employee
           </Button>
         )}
-      </Box>
+      />
 
       {error && (
         <Alert severity="error" onClose={() => dispatch(errorCleared())}>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Box, Button, Checkbox, Chip, IconButton, ListItemText, MenuItem, Paper, Skeleton, Stack,
+  Alert, Button, Checkbox, Chip, IconButton, ListItemText, MenuItem, Paper, Skeleton, Stack,
   Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField,
   Tooltip, Typography, useMediaQuery, useTheme,
 } from '@mui/material';
@@ -14,6 +14,7 @@ import { useSnackbar } from '../components/SnackbarProvider';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { UserCreateDialog } from '../components/UserCreateDialog';
 import { AccountCard } from '../components/AccountCard';
+import { PageHeader } from '../components/PageHeader';
 import { ASSIGNABLE_ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS } from '../types/api';
 import type { Role, User } from '../types/api';
 
@@ -105,30 +106,20 @@ export function UserListPage() {
 
   return (
     <Stack spacing={2.5}>
-      <Box sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', sm: 'row' },
-        alignItems: { xs: 'stretch', sm: 'flex-start' },
-        justifyContent: 'space-between',
-        gap: 2,
-      }}>
-        <Box>
-          <Typography variant="h5" component="h1">
-            Accounts
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {totalElements} {totalElements === 1 ? 'account' : 'accounts'} that can sign in
-          </Typography>
-        </Box>
-
-        <Button
-          variant="contained"
-          startIcon={<PersonAddAltOutlinedIcon />}
-          onClick={() => setCreating(true)}
-        >
-          New account
-        </Button>
-      </Box>
+      <PageHeader
+        eyebrow="Administration"
+        title="Accounts"
+        description={`${totalElements} ${totalElements === 1 ? 'account' : 'accounts'} that can sign in`}
+        actions={(
+          <Button
+            variant="contained"
+            startIcon={<PersonAddAltOutlinedIcon />}
+            onClick={() => setCreating(true)}
+          >
+            New account
+          </Button>
+        )}
+      />
 
       {error && <Alert severity="error">{error}</Alert>}
 

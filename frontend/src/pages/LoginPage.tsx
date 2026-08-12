@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import type { SyntheticEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import {
-  Alert, Box, Button, Card, CardContent, Stack, TextField, Typography, alpha,
-} from '@mui/material';
+import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { useAuth } from '../auth/AuthContext';
 import { errorMessage } from '../api/client';
 
@@ -39,79 +37,88 @@ export function LoginPage() {
   };
 
   return (
-    <Box
-      sx={{
-        display: 'grid',
-        placeItems: 'center',
-        minHeight: '100vh',
-        px: 2,
-        position: 'relative',
-        overflow: 'hidden',
-        // Giris ekrani uygulamanin ilk izlenimi. Tek duz kart yerine paletin
-        // koyu zemini ve iki sicak isik: kimlik daha ilk saniyede kuruluyor.
-        background: 'linear-gradient(160deg, #1E2631 0%, #293340 55%, #3B4859 100%)',
-      }}
-    >
+    // Iki bolgeli duzen. Onceki hali gradyan bir zemin uzerinde iki radyal
+    // isik lekesiydi; parlayan daireler kurumsal bir arac yerine tuketici
+    // uygulamasi hissi veriyordu. Kimlik artik ISIKLA degil, sayfayi ikiye
+    // bolen keskin bir kenarla kuruluyor: solda koyu blok, sagda is.
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       <Box
-        aria-hidden
         sx={{
-          position: 'absolute',
-          top: '-15%',
-          left: '-10%',
-          width: 520,
-          height: 520,
-          borderRadius: '50%',
-          background: `radial-gradient(circle, ${alpha('#C8937E', 0.22)}, transparent 62%)`,
-        }}
-      />
-      <Box
-        aria-hidden
-        sx={{
-          position: 'absolute',
-          bottom: '-20%',
-          right: '-8%',
-          width: 460,
-          height: 460,
-          borderRadius: '50%',
-          background: `radial-gradient(circle, ${alpha('#709995', 0.2)}, transparent 62%)`,
-        }}
-      />
-
-      <Card
-        sx={{
-          width: '100%',
-          maxWidth: 420,
-          position: 'relative',
-          p: 1,
-          // Koyu zemin uzerinde kart hafif saydam: arkasindaki isik siziyor
-          // ve kart yuzeye yapistirilmis degil, uzerinde duruyor gibi olur.
-          backgroundColor: (t) => alpha(t.palette.background.paper, 0.94),
-          backdropFilter: 'blur(8px)',
+          // Dar ekranda tamamen kaybolur: telefonda ekranin yarisini dekora
+          // ayirmak, formu ekranin disina itmek demektir.
+          display: { xs: 'none', md: 'flex' },
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          width: '42%',
+          maxWidth: 520,
+          p: 6,
+          bgcolor: '#141A22',
+          borderRight: '1px solid',
+          borderColor: '#293340',
         }}
       >
-        <CardContent>
+        <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
           <Box
             sx={{
-              width: 44,
-              height: 44,
-              borderRadius: 2.5,
+              width: 30,
+              height: 30,
+              borderRadius: 1.5,
               display: 'grid',
               placeItems: 'center',
-              fontWeight: 700,
-              fontSize: 17,
-              mb: 2,
-              color: '#1E2631',
-              background: 'linear-gradient(135deg, #C8937E, #C48B8B)',
+              fontSize: 13,
+              fontWeight: 600,
+              color: '#141A22',
+              bgcolor: '#C68465',
+            }}
+          >
+            HR
+          </Box>
+          <Typography variant="subtitle1" sx={{ color: '#F8FAFC' }}>
+            People
+          </Typography>
+        </Stack>
+
+        <Box>
+          <Typography variant="h3" sx={{ color: '#F8FAFC', fontSize: 34, lineHeight: 1.2 }}>
+            One record per person, kept current.
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#9CA3AF', mt: 2, maxWidth: 360 }}>
+            Directory, reporting lines and departures — with every change
+            announced to the people who need to know.
+          </Typography>
+        </Box>
+
+        <Typography variant="caption" sx={{ color: '#5D6875' }}>
+          HR Management System
+        </Typography>
+      </Box>
+
+      <Box sx={{ flexGrow: 1, display: 'grid', placeItems: 'center', px: 3, py: 6 }}>
+        <Box sx={{ width: '100%', maxWidth: 380 }}>
+          {/* Marka dar ekranda BURADA gorunur; genis ekranda soldaki blokta
+              duruyor ve iki kez gosterilmesi gereksiz olurdu. */}
+          <Box
+            sx={{
+              display: { xs: 'grid', md: 'none' },
+              width: 38,
+              height: 38,
+              borderRadius: 1.5,
+              placeItems: 'center',
+              fontSize: 15,
+              fontWeight: 600,
+              mb: 3,
+              color: 'primary.contrastText',
+              bgcolor: 'primary.main',
             }}
           >
             HR
           </Box>
 
-          <Typography variant="h5" component="h1">
-            Welcome back
+          <Typography variant="h4" component="h1" sx={{ fontSize: 27 }}>
+            Sign in
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Sign in to the people directory
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+            Use the account your administrator set up for you.
           </Typography>
 
           <form onSubmit={handleSubmit}>
@@ -147,8 +154,8 @@ export function LoginPage() {
               </Button>
             </Stack>
           </form>
-        </CardContent>
-      </Card>
+        </Box>
+      </Box>
     </Box>
   );
 }
