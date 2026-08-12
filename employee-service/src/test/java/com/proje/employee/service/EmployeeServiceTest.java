@@ -44,6 +44,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -215,6 +216,10 @@ class EmployeeServiceTest {
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
         when(employeeRepository.findById(2L)).thenReturn(Optional.of(grace));
         when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+        // Grace'ten yukari zincir: Grace -> Ada. Ada zincirde oldugu icin
+        // Ada'yi Grace'e baglamak dongu uretir.
+        when(employeeRepository.findAncestorIds(eq(2L), anyInt()))
+                .thenReturn(List.of(2L, 1L));
 
         assertThatThrownBy(() ->
                 employeeService.update(1L, updateRequest("ada@example.com", 1L, 2L)))
@@ -231,6 +236,8 @@ class EmployeeServiceTest {
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
         when(employeeRepository.findById(2L)).thenReturn(Optional.of(grace));
         when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+        // Grace'in ustunde kimse yok: zincir yalnizca Grace.
+        when(employeeRepository.findAncestorIds(eq(2L), anyInt())).thenReturn(List.of(2L));
 
         employeeService.update(1L, updateRequest("ada@example.com", 1L, 2L));
 
@@ -536,16 +543,15 @@ class EmployeeServiceTest {
         Employee ada = employeeWithId(1L, "ada@example.com", department);
 
         Employee head = employeeWithId(1000L, "m1000@example.com", department);
-        Employee current = head;
-        for (int i = 0; i < 150; i++) {
-            Employee next = employeeWithId(2000L + i, "m" + i + "@example.com", department);
-            current.setManager(next);
-            current = next;
-        }
 
+        // Sorgu derinlik sigortasinda durur ve TAM ust sinir kadar satir doner:
+        // bu, zincirin daha da uzadigi (veya dongu icerdigi) anlamina gelir.
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
         when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
         when(employeeRepository.findById(1000L)).thenReturn(Optional.of(head));
+        when(employeeRepository.findAncestorIds(eq(1000L), anyInt()))
+                .thenReturn(java.util.stream.LongStream.rangeClosed(1000L, 1099L)
+                        .boxed().toList());
 
         assertThatThrownBy(() ->
                 employeeService.update(1L, updateRequest("ada@example.com", 1L, 1000L)))

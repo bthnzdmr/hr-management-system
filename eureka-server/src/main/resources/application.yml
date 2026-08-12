@@ -29,6 +29,13 @@ management:
         # Yalnizca gerekenler acilir; "*" ortam degiskenlerini ve bellek
         # dokumunu disariya acardi.
         include: health,info
+  # /actuator/info'nun ICINI dolduran kaynaklar. build-info hedefi olmadan
+  # uc aciktir ama bos doner -- "hangi surum calisiyor" sorusu cevapsiz kalir.
+  info:
+    build:
+      enabled: true
+    java:
+      enabled: true
   endpoint:
     health:
       show-details: when-authorized

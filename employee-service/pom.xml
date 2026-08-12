@@ -162,6 +162,17 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <!-- build-info: derleme sirasinda surum, artifact ve zaman
+                         damgasini META-INF'e yazar; /actuator/info bunu doner.
+                         Onceden uc ACIKTI ama BOSTU: calisan bir konteynere
+                         "sen hangi surumsun" diye sorulamiyordu. -->
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

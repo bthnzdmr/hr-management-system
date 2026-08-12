@@ -335,28 +335,28 @@ public class EmployeeService {
         return manager;
     }
 
-    // Yeni yoneticiden yukari dogru yurur. Yolda calisanin kendisine rastlanirsa
-    // dongu olusuyor demektir. Veritabani CHECK kisiti bunu goremez cunku
-    // birden fazla satirin gezilmesi gerekir.
+    // Yeni yoneticiden yukari dogru bakar. Yolda calisanin kendisine
+    // rastlanirsa dongu olusuyor demektir. Veritabani CHECK kisiti bunu
+    // goremez cunku birden fazla satirin gezilmesi gerekir.
+    //
+    // Zincir TEK SORGUDA cekilir. Onceki hali Java'da yuruyordu ve her
+    // seviyede tembel vekili cozdugu icin seviye basina bir SELECT atiyordu:
+    // bir YAZMA transaction'inin icinde, en kotu durumda 100 gidis donus.
     private void assertNoCycle(Employee employee, Employee newManager) {
-        Employee current = newManager;
+        List<Long> ancestors =
+                employeeRepository.findAncestorIds(newManager.getId(), MAX_HIERARCHY_DEPTH);
 
-        for (int depth = 0; current != null; depth++) {
-            if (current.getId().equals(employee.getId())) {
-                throw new ManagerCycleException(employee.getId(), newManager.getId());
-            }
+        if (ancestors.contains(employee.getId())) {
+            throw new ManagerCycleException(employee.getId(), newManager.getId());
+        }
 
-            // Ust sinira ULASMAK basarili bir kontrol degildir. Onceden dongu
-            // burada sessizce sona eriyor ve atama KABUL EDILIYORDU; yani
-            // engellemek icin var olan kontrol, tam da anormal veride
-            // devre disi kaliyordu. Gurultulu basarisiz ol.
-            if (depth >= MAX_HIERARCHY_DEPTH) {
-                throw new IllegalStateException(
-                        "Manager chain exceeded " + MAX_HIERARCHY_DEPTH
-                                + " levels starting from employee " + newManager.getId());
-            }
-
-            current = current.getManager();
+        // Ust sinira ULASMAK basarili bir kontrol degildir. Sorgu derinlik
+        // sigortasinda durur; dongu oradaysa zincir kisalmis gorunur ve
+        // kontrol sessizce gecerdi. Gurultulu basarisiz ol.
+        if (ancestors.size() >= MAX_HIERARCHY_DEPTH) {
+            throw new IllegalStateException(
+                    "Manager chain exceeded " + MAX_HIERARCHY_DEPTH
+                            + " levels starting from employee " + newManager.getId());
         }
     }
 }

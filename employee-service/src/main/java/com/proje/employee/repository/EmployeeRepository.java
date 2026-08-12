@@ -71,4 +71,40 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
                           @Param("visibleId") Long visibleId,
                           @Param("includeReports") boolean includeReports,
                           Pageable pageable);
+
+    /**
+     * Bir personelden yukari dogru butun ATA zinciri, TEK sorguda.
+     *
+     * Onceki hali zinciri Java'da yuruyordu ve her seviyede tembel vekili
+     * cozdugu icin seviye basina bir SELECT atiyordu. Derinlik bugun kucuk
+     * ama kod 100 seviyeye kadar bekliyor -- yani en kotu durumda bir YAZMA
+     * transaction'inin icinde 100 gidis donus.
+     *
+     * WITH RECURSIVE iki parcadir: cikis satiri (baslangic) ve kendisine
+     * JOIN yapan ozyinelemeli adim. UNION ALL kullanilir, UNION degil:
+     * UNION her adimda tekillestirme yapar ve bunun bedeli boşunadir --
+     * asagidaki derinlik sigortasi zaten sonlanmayi garanti eder.
+     *
+     * DERINLIK SIGORTASI SART: veride bir dongu varsa (A -> B -> A)
+     * ozyineleme SONSUZA KADAR calisir ve sorgu sunucuyu tuketir.
+     * Veritabani CHECK kisiti yalnizca A -> A durumunu yakalar; dolayli
+     * dongu servis katmaninin sorumlulugundadir ve sorgu buna GUVENMEZ.
+     */
+    @Query(value = """
+            WITH RECURSIVE chain AS (
+                SELECT id, manager_id, 1 AS depth
+                FROM employee
+                WHERE id = :startId
+
+                UNION ALL
+
+                SELECT e.id, e.manager_id, c.depth + 1
+                FROM employee e
+                JOIN chain c ON e.id = c.manager_id
+                WHERE c.depth < :maxDepth
+            )
+            SELECT id FROM chain
+            """, nativeQuery = true)
+    List<Long> findAncestorIds(@Param("startId") Long startId,
+                               @Param("maxDepth") int maxDepth);
 }
