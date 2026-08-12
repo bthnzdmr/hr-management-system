@@ -9,6 +9,7 @@ import { EmployeeFormPage } from './pages/EmployeeFormPage';
 import { UserListPage } from './pages/UserListPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { OrgChartPage } from './pages/OrgChartPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { useAuth } from './auth/AuthContext';
 
@@ -40,8 +41,11 @@ export default function App() {
           {/* Kendi parolasini herkes degistirir. */}
           <Route path="/account/password" element={<ChangePasswordPage />} />
 
+          {/* Organizasyon semasi da TOPLU yapisal veri: sunucu ayni rolleri
+              istiyor, arayuz de ayni yetenegi soruyor. */}
           <Route element={<CapabilityRoute requires="viewDashboard" />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/org-chart" element={<OrgChartPage />} />
           </Route>
 
           {/* Personel formu Ik uzmanina, hesap ekrani sistem yoneticisine

@@ -113,6 +113,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/dashboard/**")
                         .hasAnyRole("HR_SPECIALIST", "SYSTEM_ADMIN")
 
+                        // Organizasyon semasi da TOPLU yapisal veridir: butun
+                        // raporlama cizgilerini tek ekranda gosterir. Kapsami
+                        // sinirli bir kullaniciya acilmasi, tek tek goremedigi
+                        // kisileri toplu halde gostermek olurdu.
+                        .requestMatchers("/api/org-chart/**")
+                        .hasAnyRole("HR_SPECIALIST", "SYSTEM_ADMIN")
+
                         // Hesap ve erisim yonetimi sistem yoneticisine ait.
                         // Metot belirtilmez: HEAD dahil her sey kapsanmali.
                         .requestMatchers("/api/users/**").hasRole("SYSTEM_ADMIN")

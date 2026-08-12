@@ -2,6 +2,7 @@ package com.proje.employee.repository;
 
 import com.proje.employee.entity.Employee;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.repository.Repository;
 
 import java.util.List;
@@ -173,4 +174,68 @@ public interface DashboardRepository extends Repository<Employee, Long> {
                               WHERE e.department_id = d.id AND e.is_active)
             """, nativeQuery = true)
     long countEmptyDepartments();
+
+    interface OrgNode {
+        Long getEmployeeId();
+
+        String getFirstName();
+
+        String getLastName();
+
+        String getJobTitle();
+
+        String getDepartmentName();
+
+        Long getManagerId();
+
+        int getDepth();
+    }
+
+    /**
+     * Organizasyon agaci, TEK sorguda ve YUKARIDAN ASAGIYA.
+     *
+     * assertNoCycle'daki CTE yukari dogru yuruyordu; bu onun aynasi. Cikis
+     * satirlari KOKLERDIR (yoneticisi olmayan aktif personel) ve her adimda
+     * bir seviye asagi inilir.
+     *
+     * DERINLIK SIGORTASI ayni sebeple sart: veride dolayli bir dongu varsa
+     * ozyineleme sonsuza kadar calisir. Veritabani CHECK kisiti yalnizca
+     * "kendi kendinin yoneticisi" durumunu yakalar.
+     *
+     * Yalnizca AKTIF personel: ayrilmis birinin altinda duran ekip, artik var
+     * olmayan bir raporlama cizgisini gosterirdi. Bunun bedeli, yoneticisi
+     * pasiflesmis personelin agaca hic girmemesidir -- servis bunu SAYAR ve
+     * cevapta ayrica bildirir, sessizce kaybetmez.
+     */
+    @Query(value = """
+            WITH RECURSIVE org AS (
+                SELECT e.id, e.first_name, e.last_name, e.job_title,
+                       e.department_id, e.manager_id, 1 AS depth
+                FROM employee e
+                WHERE e.manager_id IS NULL AND e.is_active
+
+                UNION ALL
+
+                SELECT e.id, e.first_name, e.last_name, e.job_title,
+                       e.department_id, e.manager_id, o.depth + 1
+                FROM employee e
+                JOIN org o ON e.manager_id = o.id
+                WHERE e.is_active AND o.depth < :maxDepth
+            )
+            SELECT o.id            AS employeeId,
+                   o.first_name    AS firstName,
+                   o.last_name     AS lastName,
+                   o.job_title     AS jobTitle,
+                   d.name          AS departmentName,
+                   o.manager_id    AS managerId,
+                   o.depth         AS depth
+            FROM org o
+            JOIN department d ON d.id = o.department_id
+            ORDER BY o.depth, o.last_name, o.first_name
+            """, nativeQuery = true)
+    List<OrgNode> orgChart(@Param("maxDepth") int maxDepth);
+
+    /** Agaca girmesi BEKLENEN toplam: farki "ulasilamayan" demektir. */
+    @Query(value = "SELECT count(*) FROM employee WHERE is_active", nativeQuery = true)
+    long countActive();
 }
