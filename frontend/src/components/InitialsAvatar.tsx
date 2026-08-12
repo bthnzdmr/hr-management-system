@@ -6,11 +6,25 @@ interface Props {
   size?: number;
 }
 
+/**
+ * Renkler PALETIN icinden secilir ve her biri KENDI metin rengiyle eslesir.
+ *
+ * Tek bir beyaz metin rengi kullanilsaydi acik kil ve gul tonlarinda bas
+ * harfler okunmazdi -- kontrast zeminle birlikte secilmesi gereken bir sey,
+ * sonradan uzerine konan degil.
+ */
+const COLORS: { bg: string; fg: string }[] = [
+  { bg: '#C8937E', fg: '#1E2631' },
+  { bg: '#79A29E', fg: '#1E2631' },
+  { bg: '#C48B8B', fg: '#1E2631' },
+  { bg: '#3B4859', fg: '#F8FAFC' },
+  { bg: '#A2664D', fg: '#F8FAFC' },
+  { bg: '#4E756F', fg: '#F8FAFC' },
+];
+
 // Ayni kisi her zaman ayni rengi alsin diye ad-soyad uzerinden deterministik
 // bir secim yapilir; rastgele olsaydi her render'da renk degisirdi.
-const COLORS = ['#0F6E5C', '#7A5AF8', '#B26B00', '#2E7D4F', '#C0392B', '#2A6FB0'];
-
-function colorFor(seed: string): string {
+function colorFor(seed: string) {
   let hash = 0;
   for (let i = 0; i < seed.length; i += 1) {
     hash = (hash * 31 + seed.charCodeAt(i)) % 100000;
@@ -20,15 +34,18 @@ function colorFor(seed: string): string {
 
 export function InitialsAvatar({ firstName, lastName, size = 36 }: Props) {
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  const { bg, fg } = colorFor(`${firstName}${lastName}`);
 
   return (
     <Avatar
       sx={{
         width: size,
         height: size,
-        bgcolor: colorFor(`${firstName}${lastName}`),
-        fontSize: size * 0.4,
-        fontWeight: 600,
+        bgcolor: bg,
+        color: fg,
+        fontSize: size * 0.38,
+        fontWeight: 680,
+        letterSpacing: '0.02em',
       }}
     >
       {initials}

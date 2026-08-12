@@ -1,35 +1,85 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import {
-  Alert, Box, Button, Chip, Divider, Grid, Paper, Skeleton, Stack, Tooltip, Typography,
+  Alert, Box, Button, Chip, Divider, Grid, Paper, Skeleton, Stack, Tooltip, Typography, alpha,
 } from '@mui/material';
+import AutorenewOutlinedIcon from '@mui/icons-material/AutorenewOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import { dashboardApi } from '../api/dashboard';
 import type { DashboardOverview } from '../api/dashboard';
 import { errorMessage } from '../api/client';
 import { BarRow } from '../components/BarRow';
+import { HOVER_LIFT } from '../theme/theme';
 import { TERMINATION_REASON_LABELS } from '../types/api';
 import type { TerminationReason } from '../types/api';
 
-function StatCard({ label, value, hint, accent }: {
+type Tone = 'primary' | 'success' | 'error' | 'warning';
+
+function StatCard({ label, value, hint, icon, tone }: {
   label: string;
   value: string | number;
   hint: string;
-  accent?: 'default' | 'warning';
+  icon: ReactNode;
+  tone: Tone;
 }) {
   return (
-    <Paper sx={{ p: 2.5, height: '100%', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 650 }} color="text.secondary">
-        {label}
-      </Typography>
-      <Typography
-        variant="h4"
+    <Paper
+      sx={{
+        p: 2.5,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0.5,
+        position: 'relative',
+        overflow: 'hidden',
+        ...HOVER_LIFT,
+        '&:hover': {
+          ...HOVER_LIFT['&:hover'],
+          borderColor: (t) => alpha(t.palette[tone].main, 0.5),
+        },
+      }}
+    >
+      {/* Kosede sonuk bir isik: duz bir dikdortgeni yuzeye cevirir. */}
+      <Box
+        aria-hidden
         sx={{
-          fontWeight: 680,
-          letterSpacing: '-0.02em',
-          fontVariantNumeric: 'tabular-nums',
-          color: accent === 'warning' ? 'warning.main' : 'text.primary',
+          position: 'absolute',
+          top: -40,
+          right: -40,
+          width: 140,
+          height: 140,
+          borderRadius: '50%',
+          pointerEvents: 'none',
+          background: (t) =>
+            `radial-gradient(circle, ${alpha(t.palette[tone].main, 0.18)}, transparent 70%)`,
         }}
+      />
+
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <Box
+          sx={{
+            width: 30,
+            height: 30,
+            borderRadius: 2,
+            display: 'grid',
+            placeItems: 'center',
+            color: `${tone}.main`,
+            bgcolor: (t) => alpha(t.palette[tone].main, 0.14),
+          }}
+        >
+          {icon}
+        </Box>
+        <Typography variant="overline" color="text.secondary" sx={{ fontSize: 11 }}>
+          {label}
+        </Typography>
+      </Stack>
+
+      <Typography
+        variant="h3"
+        sx={{ fontSize: 40, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums', mt: 0.5 }}
       >
         {value}
       </Typography>
@@ -121,14 +171,56 @@ export function DashboardPage() {
 
   return (
     <Stack spacing={2.5}>
-      <Box>
-        <Typography variant="h5" component="h1">
-          Overview
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Headcount, turnover and organisation structure
-        </Typography>
-      </Box>
+      {/* Baslik bandi sayfanin en ustunde bir "yer" duygusu kurar ve paletin
+          koyu tonlarini TEK yerde yogunlastirir. Gradyan sayfanin geri
+          kalanina yayilmaz; her yere konan gradyan gurultudur. */}
+      <Paper
+        sx={{
+          p: { xs: 2.5, md: 3.5 },
+          position: 'relative',
+          overflow: 'hidden',
+          border: 'none',
+          background: 'linear-gradient(135deg, #1E2631 0%, #3B4859 100%)',
+        }}
+      >
+        <Box
+          aria-hidden
+          sx={{
+            position: 'absolute',
+            top: -80,
+            right: -60,
+            width: 300,
+            height: 300,
+            borderRadius: '50%',
+            background: `radial-gradient(circle, ${alpha('#C8937E', 0.3)}, transparent 65%)`,
+          }}
+        />
+        <Box
+          aria-hidden
+          sx={{
+            position: 'absolute',
+            bottom: -140,
+            left: '35%',
+            width: 280,
+            height: 280,
+            borderRadius: '50%',
+            background: `radial-gradient(circle, ${alpha('#709995', 0.22)}, transparent 65%)`,
+          }}
+        />
+
+        <Box sx={{ position: 'relative' }}>
+          <Typography variant="overline" sx={{ color: alpha('#F8FAFC', 0.7), fontSize: 11 }}>
+            Overview
+          </Typography>
+          <Typography variant="h4" component="h1" sx={{ color: '#F8FAFC', mt: 0.5 }}>
+            {headcount.active} people on the team
+          </Typography>
+          <Typography variant="body2" sx={{ color: alpha('#F8FAFC', 0.7), mt: 0.5 }}>
+            {headcount.hiredLast90Days} joined and {headcount.leftLast12Months} left
+            over the past year
+          </Typography>
+        </Box>
+      </Paper>
 
       <Grid container spacing={2.5}>
         <Grid size={{ xs: 6, md: 3 }}>
@@ -136,6 +228,8 @@ export function DashboardPage() {
             label="Active"
             value={headcount.active}
             hint={`${headcount.inactive} inactive on record`}
+            icon={<GroupsOutlinedIcon fontSize="small" />}
+            tone="primary"
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
@@ -143,6 +237,8 @@ export function DashboardPage() {
             label="Joined"
             value={headcount.hiredLast90Days}
             hint={`last 90 days · ${headcount.hiredLast30Days} in the last 30`}
+            icon={<TrendingUpOutlinedIcon fontSize="small" />}
+            tone="success"
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
@@ -150,6 +246,8 @@ export function DashboardPage() {
             label="Left"
             value={headcount.leftLast12Months}
             hint="last 12 months"
+            icon={<LogoutOutlinedIcon fontSize="small" />}
+            tone="error"
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
@@ -157,7 +255,8 @@ export function DashboardPage() {
             label="Turnover"
             value={`${headcount.turnoverRate}%`}
             hint="leavers ÷ active headcount"
-            accent={headcount.turnoverRate >= 20 ? 'warning' : 'default'}
+            icon={<AutorenewOutlinedIcon fontSize="small" />}
+            tone={headcount.turnoverRate >= 20 ? 'warning' : 'primary'}
           />
         </Grid>
 
@@ -217,8 +316,12 @@ export function DashboardPage() {
                       // Sifir olan ay da bir cizgi olarak gorunur: "veri yok"
                       // ile "kimse ayrilmadi" ayni sey degildir.
                       height: `${Math.max((row.leavers / maxMonthly) * 100, 3)}%`,
-                      bgcolor: row.leavers > 0 ? 'primary.main' : 'action.disabledBackground',
-                      borderRadius: 1,
+                      // Gradyan: duz bir dikdortgen yerine yukari dogru acilan
+                      // bir kutle; sutunun tepesi vurgulanir.
+                      background: (t) => (row.leavers > 0
+                        ? `linear-gradient(180deg, ${t.palette.primary.main}, ${alpha(t.palette.primary.main, 0.4)})`
+                        : t.palette.action.disabledBackground),
+                      borderRadius: 1.5,
                       transition: 'height 240ms ease',
                       '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
                     }}

@@ -73,7 +73,8 @@ describe('routing', () => {
   it('sends someone who can read the dashboard straight to it', async () => {
     renderAt('/', ['HR_SPECIALIST']);
 
-    expect(await screen.findByRole('heading', { name: 'Overview' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /people on the team/ }))
+      .toBeInTheDocument();
   });
 
   it('sends a plain employee to the list instead', async () => {

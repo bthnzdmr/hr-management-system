@@ -1,3 +1,9 @@
+// Yazi tipleri KENDI paketimizden servis edilir, CDN'den degil: harici bir
+// istek hem gizlilik hem de ilk boyama suresi demektir. Degisken surumler --
+// tek dosya butun agirliklari tasir.
+import '@fontsource-variable/inter';
+import '@fontsource-variable/bricolage-grotesque';
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';

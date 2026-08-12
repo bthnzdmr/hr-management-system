@@ -162,6 +162,7 @@ Gerekçeleri proje kurallarında kayıtlıdır.
 | ------------------ | -------------------------------------------------------------- | ----- |
 | React + TypeScript | Arayüz ve tip güvenliği                                        | ✅    |
 | MUI                | Hazır bileşenler; özel tema, sayfalı ve sıralanabilir tablo    | ✅    |
+| @fontsource        | Inter + Bricolage Grotesque, kendi sunucumuzdan (CDN yok)      | ✅    |
 | Redux Toolkit      | Sunucu verisi durumu (liste, arama, filtre, sıralama, hata)    | ✅    |
 | Context API        | Oturum, rol ve tema (seyrek değişen, her yerden okunan veri)   | ✅    |
 | Axios              | HTTP istemcisi; interceptor ile merkezi token ve hata yönetimi | ✅    |

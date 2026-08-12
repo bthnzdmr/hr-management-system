@@ -81,15 +81,17 @@ export function Layout() {
       <Toolbar sx={{ gap: 1.5 }}>
         <Box
           sx={{
-            width: 32,
-            height: 32,
-            borderRadius: 1.5,
-            bgcolor: 'primary.main',
-            color: 'primary.contrastText',
+            width: 34,
+            height: 34,
+            borderRadius: 2,
             display: 'grid',
             placeItems: 'center',
             fontWeight: 700,
             fontSize: 14,
+            color: '#1E2631',
+            // Giris ekranindaki isaretin aynisi: ayni marka iki yerde ayni
+            // gorunmeli, yoksa uygulama iki farkli yerden derlenmis gibi durur.
+            background: 'linear-gradient(135deg, #C8937E, #C48B8B)',
           }}
         >
           HR
