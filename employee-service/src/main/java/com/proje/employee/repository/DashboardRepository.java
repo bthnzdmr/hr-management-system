@@ -1,0 +1,148 @@
+package com.proje.employee.repository;
+
+import com.proje.employee.entity.Employee;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.Repository;
+
+import java.util.List;
+
+/**
+ * Gosterge panelinin toplama sorgulari.
+ *
+ * Ayri bir arayuz: bunlar okuma-raporlama sorgulari ve EmployeeRepository'nin
+ * is akisiyla ilgisi yok. Karistirilsalardi "hangi sorgu uretimde hangisi
+ * raporda" ayrimi kaybolurdu.
+ *
+ * Sorgular NATIVE: date_trunc ve generate_series gibi PostgreSQL islevlerinin
+ * JPQL karsiligi yok. Raporlama, veritabaninin gucunu kullanmanin dogru yeri.
+ */
+public interface DashboardRepository extends Repository<Employee, Long> {
+
+    interface Headcount {
+        long getActiveCount();
+
+        long getInactiveCount();
+
+        long getHiredLast30Days();
+
+        long getHiredLast90Days();
+
+        long getLeftLast12Months();
+    }
+
+    interface DepartmentHeadcount {
+        String getDepartmentName();
+
+        long getActiveCount();
+    }
+
+    interface MonthlyTurnover {
+        String getMonth();
+
+        long getLeaverCount();
+    }
+
+    interface ReasonCount {
+        String getReason();
+
+        long getLeaverCount();
+    }
+
+    interface SpanOfControl {
+        long getManagerCount();
+
+        double getAverageDirectReports();
+
+        long getLargestTeamSize();
+    }
+
+    /**
+     * FILTER (WHERE ...) tek gecişte birden fazla kosullu sayim yapar.
+     *
+     * Alternatifi bes ayri sorgu olurdu; tablo bir kez taranir ve sayaclar
+     * ayni taramada doldurulur.
+     */
+    @Query(value = """
+            SELECT count(*) FILTER (WHERE is_active)                          AS activeCount,
+                   count(*) FILTER (WHERE NOT is_active)                      AS inactiveCount,
+                   count(*) FILTER (WHERE hire_date > current_date - 30)      AS hiredLast30Days,
+                   count(*) FILTER (WHERE hire_date > current_date - 90)      AS hiredLast90Days,
+                   count(*) FILTER (WHERE terminated_at > current_date - 365) AS leftLast12Months
+            FROM employee
+            """, nativeQuery = true)
+    Headcount headcount();
+
+    // LEFT JOIN sart: personeli olmayan departman da listede gorunmeli.
+    // Bos bir departman, panelin gostermesi gereken bir bulgudur.
+    @Query(value = """
+            SELECT d.name                                  AS departmentName,
+                   count(e.id) FILTER (WHERE e.is_active)  AS activeCount
+            FROM department d
+            LEFT JOIN employee e ON e.department_id = d.id
+            GROUP BY d.name
+            ORDER BY 2 DESC, 1
+            """, nativeQuery = true)
+    List<DepartmentHeadcount> headcountByDepartment();
+
+    /**
+     * Son 12 ayin ayrilma sayilari, BOS AYLAR DAHIL.
+     *
+     * generate_series olmasaydi ayrilma olmayan aylar sonuc kumesinde hic
+     * gorunmez ve grafik o aylari atlayarak cizerdi -- "Mart yok" ile
+     * "Mart'ta kimse ayrilmadi" cok farkli seylerdir.
+     */
+    @Query(value = """
+            SELECT to_char(m.month, 'YYYY-MM') AS month,
+                   count(e.id)                 AS leaverCount
+            FROM generate_series(date_trunc('month', current_date) - interval '11 months',
+                                 date_trunc('month', current_date),
+                                 interval '1 month') AS m(month)
+            LEFT JOIN employee e
+                   ON date_trunc('month', e.terminated_at) = m.month
+            GROUP BY m.month
+            ORDER BY m.month
+            """, nativeQuery = true)
+    List<MonthlyTurnover> turnoverByMonth();
+
+    @Query(value = """
+            SELECT termination_reason AS reason,
+                   count(*)           AS leaverCount
+            FROM employee
+            WHERE terminated_at IS NOT NULL
+            GROUP BY termination_reason
+            ORDER BY 2 DESC
+            """, nativeQuery = true)
+    List<ReasonCount> terminationReasons();
+
+    /**
+     * Yonetici basina dusen ast sayisi (span of control).
+     *
+     * Ic sorgu once her yoneticinin ast sayisini bulur, dis sorgu onlarin
+     * ortalamasini alir. Dogrudan "count / count(distinct)" yazilsaydi ayni
+     * sonucu verirdi ama en buyuk ekip bulunamazdi.
+     */
+    @Query(value = """
+            SELECT count(*)                     AS managerCount,
+                   coalesce(avg(team.size), 0)  AS averageDirectReports,
+                   coalesce(max(team.size), 0)  AS largestTeamSize
+            FROM (SELECT manager_id, count(*) AS size
+                  FROM employee
+                  WHERE manager_id IS NOT NULL AND is_active
+                  GROUP BY manager_id) AS team
+            """, nativeQuery = true)
+    SpanOfControl spanOfControl();
+
+    // Veri kalitesi uyarilari: panelin en cok ise yarayan parcasi sayi degil,
+    // eyleme donusen bulgudur.
+    @Query(value = """
+            SELECT count(*) FROM employee WHERE is_active AND manager_id IS NULL
+            """, nativeQuery = true)
+    long countActiveWithoutManager();
+
+    @Query(value = """
+            SELECT count(*) FROM department d
+            WHERE NOT EXISTS (SELECT 1 FROM employee e
+                              WHERE e.department_id = d.id AND e.is_active)
+            """, nativeQuery = true)
+    long countEmptyDepartments();
+}

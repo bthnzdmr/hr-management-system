@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
@@ -39,13 +40,14 @@ interface NavItem {
   to: string;
   icon: typeof GroupsOutlinedIcon;
   /** Hangi yetenek gerekiyor; yoksa herkese acik. */
-  requires?: 'editEmployees' | 'manageAccounts';
+  requires?: 'editEmployees' | 'manageAccounts' | 'viewDashboard';
 }
 
 // Menu artik tek bir "adminOnly" bayragiyla suzulemez: personel formu Ik
 // uzmanina, hesap ekrani sistem yoneticisine ait ve bunlar farkli kisiler
 // olabilir.
 const NAV_ITEMS: NavItem[] = [
+  { label: 'Overview', to: '/dashboard', icon: InsightsOutlinedIcon, requires: 'viewDashboard' },
   { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon },
   {
     label: 'New employee',
@@ -62,7 +64,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export function Layout() {
-  const { user, canEditEmployees, canManageAccounts, logout } = useAuth();
+  const { user, canEditEmployees, canManageAccounts, canViewDashboard, logout } = useAuth();
   const { mode, toggle } = useColorMode();
   const theme = useTheme();
   const location = useLocation();
@@ -72,7 +74,11 @@ export function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenu, setUserMenu] = useState<HTMLElement | null>(null);
 
-  const allowed = { editEmployees: canEditEmployees, manageAccounts: canManageAccounts };
+  const allowed = {
+    editEmployees: canEditEmployees,
+    manageAccounts: canManageAccounts,
+    viewDashboard: canViewDashboard,
+  };
   const visibleItems = NAV_ITEMS.filter((item) => !item.requires || allowed[item.requires]);
 
   const drawerContent = (

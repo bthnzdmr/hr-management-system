@@ -8,7 +8,21 @@ import { EmployeeDetailPage } from './pages/EmployeeDetailPage';
 import { EmployeeFormPage } from './pages/EmployeeFormPage';
 import { UserListPage } from './pages/UserListPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { useAuth } from './auth/AuthContext';
+
+/**
+ * Kok adres, kullanicinin gerceklestirebilecegi ilk ekrana gider.
+ *
+ * Herkesi panele gondermek olmazdi: EMPLOYEE paneli goremez ve acilista
+ * kacinilmaz bir yonlendirme yer.
+ */
+function LandingRedirect() {
+  const { canViewDashboard } = useAuth();
+
+  return <Navigate to={canViewDashboard ? '/dashboard' : '/employees'} replace />;
+}
 
 export default function App() {
   return (
@@ -25,6 +39,10 @@ export default function App() {
 
           {/* Kendi parolasini herkes degistirir. */}
           <Route path="/account/password" element={<ChangePasswordPage />} />
+
+          <Route element={<CapabilityRoute requires="viewDashboard" />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+          </Route>
 
           {/* Personel formu Ik uzmanina, hesap ekrani sistem yoneticisine
               ait. Roller bolundugunde bunlar ayni kisi olmayabilir. */}
@@ -45,7 +63,7 @@ export default function App() {
 
       {/* Kok adres tek gercek yonlendirmedir. Onceki halde her yanlis adres
           sessizce listeye gidiyordu ve yazim hatasi hic fark edilmiyordu. */}
-      <Route path="/" element={<Navigate to="/employees" replace />} />
+      <Route path="/" element={<LandingRedirect />} />
     </Routes>
   );
 }

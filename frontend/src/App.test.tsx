@@ -16,6 +16,22 @@ vi.mock('./api/employees', () => ({
   employeeApi: { list: vi.fn(), changeStatus: vi.fn(), getDirectReports: vi.fn() },
 }));
 
+vi.mock('./api/dashboard', () => ({
+  dashboardApi: {
+    overview: vi.fn().mockResolvedValue({
+      headcount: {
+        active: 0, inactive: 0, hiredLast30Days: 0, hiredLast90Days: 0,
+        leftLast12Months: 0, turnoverRate: 0,
+      },
+      byDepartment: [],
+      turnoverByMonth: [],
+      terminationReasons: [],
+      spanOfControl: { managerCount: 0, averageDirectReports: 0, largestTeam: 0 },
+      dataQuality: { activeWithoutManager: 0, emptyDepartments: 0 },
+    }),
+  },
+}));
+
 function fakeToken(roles: Role[]): string {
   const body = {
     sub: `${roles[0].toLowerCase()}@example.com`,
@@ -54,8 +70,22 @@ describe('routing', () => {
     });
   });
 
-  it('sends the root address to the employee list', async () => {
-    renderAt('/');
+  it('sends someone who can read the dashboard straight to it', async () => {
+    renderAt('/', ['HR_SPECIALIST']);
+
+    expect(await screen.findByRole('heading', { name: 'Overview' })).toBeInTheDocument();
+  });
+
+  it('sends a plain employee to the list instead', async () => {
+    // Herkesi panele gondermek olmazdi: EMPLOYEE paneli goremez ve acilista
+    // kacinilmaz bir yonlendirme yerdi.
+    renderAt('/', ['EMPLOYEE']);
+
+    expect(await screen.findByRole('heading', { name: 'Employees' })).toBeInTheDocument();
+  });
+
+  it('keeps the dashboard away from a plain employee', async () => {
+    renderAt('/dashboard', ['EMPLOYEE']);
 
     expect(await screen.findByRole('heading', { name: 'Employees' })).toBeInTheDocument();
   });

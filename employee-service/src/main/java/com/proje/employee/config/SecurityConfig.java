@@ -101,6 +101,13 @@ public class SecurityConfig {
                         // yoneticiler parolasini degistirebilirdi.
                         .requestMatchers(HttpMethod.PUT, "/api/users/me/password").authenticated()
 
+                        // Gosterge paneli TOPLU veri gosterir. Kapsami sinirli
+                        // bir kullanici (EMPLOYEE, MANAGER) tek tek goremedigi
+                        // kisilerin toplamini da gormemeli; kucuk bir grupta
+                        // toplam, bireyi ele verir.
+                        .requestMatchers("/api/dashboard/**")
+                        .hasAnyRole("HR_SPECIALIST", "SYSTEM_ADMIN")
+
                         // Hesap ve erisim yonetimi sistem yoneticisine ait.
                         // Metot belirtilmez: HEAD dahil her sey kapsanmali.
                         .requestMatchers("/api/users/**").hasRole("SYSTEM_ADMIN")

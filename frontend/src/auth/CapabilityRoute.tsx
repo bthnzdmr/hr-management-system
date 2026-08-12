@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
-type Capability = 'editEmployees' | 'manageAccounts';
+type Capability = 'editEmployees' | 'manageAccounts' | 'viewDashboard';
 
 /**
  * Belirli bir YETENEK gerektiren rotalar.
@@ -15,13 +15,17 @@ type Capability = 'editEmployees' | 'manageAccounts';
  * gonderdiginde 403 ile karsilasmasini engellemektir.
  */
 export function CapabilityRoute({ requires }: { requires: Capability }) {
-  const { user, canEditEmployees, canManageAccounts } = useAuth();
+  const { user, canEditEmployees, canManageAccounts, canViewDashboard } = useAuth();
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  const allowed = requires === 'editEmployees' ? canEditEmployees : canManageAccounts;
+  const allowed = {
+    editEmployees: canEditEmployees,
+    manageAccounts: canManageAccounts,
+    viewDashboard: canViewDashboard,
+  }[requires];
 
   if (!allowed) {
     return <Navigate to="/employees" replace />;

@@ -26,6 +26,8 @@ interface AuthContextValue {
   canManageAccounts: boolean;
   /** Maas okuma ve yazma. */
   canSeeSalaries: boolean;
+  /** Toplu veri: kapsami sinirli kullanici gormez. */
+  canViewDashboard: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => void;
 }
@@ -137,6 +139,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Maas ve personel duzenleme ayni role ait; ayri alanlar olmasi
         // ilerde birinin degismesini kolaylastirir.
         canSeeSalaries: hasRole('HR_SPECIALIST'),
+        // Toplu veri bireysel veriden farklidir: tek tek goremedigi kisilerin
+        // toplamini da gormemeli. Kucuk bir grupta toplam, bireyi ele verir.
+        canViewDashboard: hasRole('HR_SPECIALIST') || hasRole('SYSTEM_ADMIN'),
         login,
         logout,
       };

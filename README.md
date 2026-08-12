@@ -438,6 +438,7 @@ Taban adres: `http://localhost:8080`
 | `POST` | `/api/auth/login` | Token alma (erişim + yenileme) | herkese açık | `200` |
 | `POST` | `/api/auth/refresh` | Yeni erişim jetonu; yenileme jetonu da döner | herkese açık | `200` |
 | `POST` | `/api/auth/logout` | Yenileme jetonunu iptal eder | herkese açık | `204` |
+| `GET` | `/api/dashboard` | Kadro, devir oranı, organizasyon yapısı (tek istek) | `HR_SPECIALIST`, `SYSTEM_ADMIN` | `200` |
 | `GET` | `/api/employees` | Sayfalı liste. `?page=0&size=20&sort=lastName,asc&search=liskov&active=true` | giriş yapmış | `200` |
 | `GET` | `/api/employees/{id}` | Tek kayıt | giriş yapmış | `200` |
 | `GET` | `/api/employees/{id}/direct-reports` | Doğrudan bağlı personel | giriş yapmış | `200` |
@@ -676,7 +677,7 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesi, outbox yazıcı ve relay
 │       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
 │       ├── main/resources/db/migration/   V1__ V2__ V3__ V4__
-│       └── test/               156 test
+│       └── test/               169 test
 ├── notification-service/       ✅  olayları dinleyip mail gönderen servis
 │   ├── pom.xml
 │   └── src/
@@ -700,7 +701,7 @@ HR Management System/
         ├── pages/              Giriş, liste, detay, form, 404 ekranları
         ├── components/         Kabuk, onay penceresi, geri bildirim, hata sınırı
         ├── types/              Backend sözleşmesinin TypeScript karşılığı
-        └── *.test.ts(x)        91 test (Vitest + Testing Library)
+        └── *.test.ts(x)        102 test (Vitest + Testing Library)
 
 e2e/                            ✅  çalışan sisteme dışarıdan bakan testler
 └── src/test/java/com/proje/e2e/    18 test
