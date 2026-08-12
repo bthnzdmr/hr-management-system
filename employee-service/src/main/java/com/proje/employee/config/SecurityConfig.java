@@ -51,7 +51,12 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(
+                List.of("Authorization", "Content-Type", CorrelationIdFilter.HEADER));
+        // Tarayici, kendi gonderdigi ozel basliklari cevapta OKUYAMAZ -- acikca
+        // aciga cikarilmasi gerekir. Aksi halde arayuz bir hatayi bildirirken
+        // hangi istegin izini verecegini bilemezdi.
+        configuration.setExposedHeaders(List.of(CorrelationIdFilter.HEADER));
         // Preflight cevabinin tarayicida onbelleklenme suresi; her istekten
         // once ikinci bir tur atilmasini engeller.
         configuration.setMaxAge(3600L);

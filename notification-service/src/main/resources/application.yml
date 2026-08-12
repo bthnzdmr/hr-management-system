@@ -1,7 +1,14 @@
 server:
   port: 8081
+  # Kapanirken islenmekte olan mesaj tamamlanir; yarida kesilirse RabbitMQ
+  # onu yeniden teslim eder ve mukerrer mail gider.
+  shutdown: graceful
 
 spring:
+  # Docker'in stop_grace_period'undan kucuk olmali.
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
   application:
     name: notification-service
 

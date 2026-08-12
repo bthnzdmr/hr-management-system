@@ -1,9 +1,11 @@
 package com.proje.employee.event;
 
 import com.proje.employee.config.RabbitConfig;
+import com.proje.employee.config.CorrelationIdFilter;
 import com.proje.employee.entity.OutboxEvent;
 import com.proje.employee.repository.OutboxRepository;
 import org.slf4j.Logger;
+import org.slf4j.MDC;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpConnectException;
 import org.springframework.amqp.AmqpException;
@@ -55,9 +57,20 @@ public class OutboxRelay {
         List<OutboxEvent> pending = outboxRepository.lockPending(maxAttempts, batchSize);
 
         for (OutboxEvent event : pending) {
-            if (!tryPublish(event)) {
-                // Altyapi erisilemez durumda: kalan satirlari denemek bosuna.
-                break;
+            // Zamanlayici ipliginin MDC'si bos: her satir icin kendi kimligi
+            // konur, aksi halde relay'in loglari izlenemez kalirdi.
+            // finally sart -- iplik havuzdan geldigi icin kimlik sonraki
+            // satira sizardi.
+            if (event.getCorrelationId() != null) {
+                MDC.put(CorrelationIdFilter.MDC_KEY, event.getCorrelationId());
+            }
+            try {
+                if (!tryPublish(event)) {
+                    // Altyapi erisilemez durumda: kalan satirlari denemek bosuna.
+                    break;
+                }
+            } finally {
+                MDC.remove(CorrelationIdFilter.MDC_KEY);
             }
         }
     }
@@ -129,6 +142,13 @@ public class OutboxRelay {
         properties.setContentEncoding(StandardCharsets.UTF_8.name());
         properties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
         properties.setMessageId(event.getEventId().toString());
+
+        // Kimlik mesajla birlikte kuyrugu gecer: tuketici bunu okuyup kendi
+        // MDC'sine koyar ve iki servisin loglari ayni kimlikle birlesir.
+        // Migration oncesi satirlarda null olabilir; bos baslik gonderilmez.
+        if (event.getCorrelationId() != null) {
+            properties.setHeader(CorrelationIdFilter.HEADER, event.getCorrelationId());
+        }
 
         return new Message(event.getPayload().getBytes(StandardCharsets.UTF_8), properties);
     }

@@ -47,8 +47,12 @@ class OutboxRelayTest {
     }
 
     private OutboxEvent event() {
+        return event("abc-123");
+    }
+
+    private OutboxEvent event(String correlationId) {
         return new OutboxEvent(UUID.randomUUID(), "CREATED", "employee.created",
-                "{\"eventType\":\"CREATED\"}");
+                "{\"eventType\":\"CREATED\"}", correlationId);
     }
 
     private void answerWith(boolean ack, String reason) {
@@ -140,5 +144,44 @@ class OutboxRelayTest {
 
         assertThat(event.getAttempts()).isEqualTo(MAX_ATTEMPTS);
         assertThat(event.getPublishedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("Puts the correlation id on the message so the consumer can pick it up")
+    void carriesCorrelationIdOnTheMessage() {
+        // Kimlik mesajla kuyrugu gecmezse tuketici onu hicbir yerden
+        // ogrenemez ve iki servisin loglari birlestirilemez.
+        OutboxEvent event = event("abc-123");
+        when(outboxRepository.lockPending(anyInt(), anyInt())).thenReturn(List.of(event));
+        answerWith(true, null);
+
+        relay().publishPending();
+
+        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
+        verify(rabbitTemplate).send(anyString(), anyString(), captor.capture(),
+                any(CorrelationData.class));
+
+        String header = captor.getValue().getMessageProperties().getHeader("X-Correlation-Id");
+        assertThat(header).isEqualTo("abc-123");
+    }
+
+    @Test
+    @DisplayName("Publishes rows written before the correlation column existed")
+    void publishesRowsWithoutCorrelationId() {
+        // V8 oncesi satirlarda kimlik NULL. Bos baslik gondermek yerine
+        // baslik hic konmaz; eksik kimlik yayini ENGELLEMEMELI.
+        OutboxEvent event = event(null);
+        when(outboxRepository.lockPending(anyInt(), anyInt())).thenReturn(List.of(event));
+        answerWith(true, null);
+
+        relay().publishPending();
+
+        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
+        verify(rabbitTemplate).send(anyString(), anyString(), captor.capture(),
+                any(CorrelationData.class));
+
+        String header = captor.getValue().getMessageProperties().getHeader("X-Correlation-Id");
+        assertThat(header).isNull();
+        assertThat(event.getPublishedAt()).isNotNull();
     }
 }

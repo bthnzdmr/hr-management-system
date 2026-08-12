@@ -1,7 +1,28 @@
 server:
   port: 8080
+  # Zarif kapanma: SIGTERM gelince ucustaki istekler bitirilir, sonra kapanilir.
+  # Varsayilan "immediate"da JVM aninda dagilir ve OutboxRelay parti ORTASINDA
+  # olebilir -- broker'a gonderilmis ama published_at yazilmamis mesajlar
+  # yeniden gider. At-least-once bunu emer, ama HER DAGITIMDA onlenebilir bir
+  # mukerrer mail kaynagidir.
+  shutdown: graceful
 
 spring:
+  # Zarif kapanmanin sunucu tarafina ayrilan sure. Docker'in
+  # stop_grace_period'undan KUCUK olmali, yoksa JVM isini bitiremeden
+  # SIGKILL yer ve zarif kapanma kagit uzerinde kalir.
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+  # Iki @Scheduled is var (OutboxRelay ve RefreshTokenCleanup) ve Spring'in
+  # varsayilan zamanlayici havuzu TEK ipliktir. Relay en kotu durumda
+  # batch-size x confirm-timeout kadar (20 x 5sn = 100sn) o ipligi tutar ve
+  # o sure boyunca jeton temizligi hic calisamaz.
+  task:
+    scheduling:
+      pool:
+        size: 2
+
   application:
     name: employee-service
 

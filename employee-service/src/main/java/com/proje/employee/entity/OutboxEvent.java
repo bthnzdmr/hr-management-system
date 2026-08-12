@@ -36,6 +36,15 @@ public class OutboxEvent {
     @Column(name = "payload", nullable = false, updatable = false)
     private String payload;
 
+    /**
+     * Olayi ureten HTTP istegin korelasyon kimligi.
+     *
+     * NULL olabilir: bu kolon eklenmeden once yazilmis satirlarda yok ve
+     * geriye donuk uretilemez. Tohumlama gibi istek disi yollarda da bos kalir.
+     */
+    @Column(name = "correlation_id", length = 64, updatable = false)
+    private String correlationId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -51,11 +60,17 @@ public class OutboxEvent {
     protected OutboxEvent() {
     }
 
-    public OutboxEvent(UUID eventId, String eventType, String routingKey, String payload) {
+    public OutboxEvent(UUID eventId, String eventType, String routingKey, String payload,
+                       String correlationId) {
         this.eventId = eventId;
         this.eventType = eventType;
         this.routingKey = routingKey;
         this.payload = payload;
+        this.correlationId = correlationId;
+    }
+
+    public String getCorrelationId() {
+        return correlationId;
     }
 
     @PrePersist

@@ -111,6 +111,10 @@ services:
     build: ./employee-service
     image: hr/employee-service:1.0.0
     container_name: hr-employee-service
+    # Zarif kapanma icin sure taniyin: Docker'in varsayilani 10 sn ve
+    # uygulama 20 sn'lik bir kapanma butcesi istiyor. Kisa kalsaydi JVM
+    # isini bitiremeden SIGKILL yer ve zarif kapanma kagit uzerinde kalirdi.
+    stop_grace_period: 30s
     # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
     restart: unless-stopped
     profiles: ["full"]
@@ -172,6 +176,10 @@ services:
     build: ./notification-service
     image: hr/notification-service:1.0.0
     container_name: hr-notification-service
+    # Zarif kapanma icin sure taniyin: Docker'in varsayilani 10 sn ve
+    # uygulama 20 sn'lik bir kapanma butcesi istiyor. Kisa kalsaydi JVM
+    # isini bitiremeden SIGKILL yer ve zarif kapanma kagit uzerinde kalirdi.
+    stop_grace_period: 30s
     # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
     restart: unless-stopped
     profiles: ["full"]

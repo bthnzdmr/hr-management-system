@@ -8,13 +8,19 @@ import com.proje.notification.service.ManagerLookupService;
 import com.proje.notification.service.NotificationMailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class EmployeeEventListener {
+
+    /** Uretici ile ayni baslik ve ayni MDC anahtari; ikisi de sozlesmenin parcasi. */
+    static final String CORRELATION_HEADER = "X-Correlation-Id";
+    private static final String MDC_KEY = "correlationId";
 
     private static final Logger log = LoggerFactory.getLogger(EmployeeEventListener.class);
 
@@ -32,15 +38,27 @@ public class EmployeeEventListener {
 
     @RabbitListener(queues = RabbitConfig.QUEUE)
     @Transactional
-    public void onEmployeeEvent(EmployeeEvent event) {
-        if (!claim(event)) {
-            log.debug("Duplicate event ignored: {}", event.eventId());
-            return;
+    public void onEmployeeEvent(EmployeeEvent event,
+                                @Header(name = CORRELATION_HEADER, required = false)
+                                String correlationId) {
+        // Kimlik uretici tarafindan mesaj basligina konuyor. Yoksa eventId
+        // kullanilir: o da uctan uca akan ve benzersiz olan tek deger --
+        // "izlenemez" olmaktansa "farkli bir anahtarla izlenebilir" iyidir.
+        MDC.put(MDC_KEY, correlationId != null ? correlationId : event.eventId().toString());
+        try {
+            if (!claim(event)) {
+                log.debug("Duplicate event ignored: {}", event.eventId());
+                return;
+            }
+
+            mailService.send(event, managerLookupService.managerEmail(event.employeeId()));
+
+            log.info("Notification sent for event {} ({})", event.eventId(), event.eventType());
+        } finally {
+            // Iplik havuzdan geliyor; temizlenmezse kimlik SONRAKI mesaja
+            // sizar ve iki ayri isin loglari birbirine karisir.
+            MDC.remove(MDC_KEY);
         }
-
-        mailService.send(event, managerLookupService.managerEmail(event.employeeId()));
-
-        log.info("Notification sent for event {} ({})", event.eventId(), event.eventType());
     }
 
     /**

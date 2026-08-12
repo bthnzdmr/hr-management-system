@@ -3,7 +3,9 @@ package com.proje.employee.event;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proje.employee.entity.OutboxEvent;
+import com.proje.employee.config.CorrelationIdFilter;
 import com.proje.employee.repository.OutboxRepository;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -22,11 +24,15 @@ public class OutboxWriter {
     // Cagiranin transaction'ina katilir; kendi transaction'ini acmaz. Olay kaydi
     // ile is verisi ayni commit'te yazilir, atomiklik buradan gelir.
     public void write(EmployeeEvent event) {
+        // MDC BURADA dolu: bu metot istegin ipliginde calisir. Relay ise
+        // zamanlayici ipliginde calisir ve oranin MDC'si bos olur -- kimlik
+        // bu yuzden satira yazilir, sonra okunur.
         outboxRepository.save(new OutboxEvent(
                 UUID.fromString(event.eventId()),
                 event.eventType().name(),
                 event.eventType().routingKey(),
-                serialize(event)));
+                serialize(event),
+                MDC.get(CorrelationIdFilter.MDC_KEY)));
     }
 
     private String serialize(EmployeeEvent event) {

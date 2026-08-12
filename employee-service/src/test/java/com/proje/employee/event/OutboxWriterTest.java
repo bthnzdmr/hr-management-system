@@ -1,6 +1,7 @@
 package com.proje.employee.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.proje.employee.config.CorrelationIdFilter;
 import com.proje.employee.entity.OutboxEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import com.proje.employee.repository.OutboxRepository;
 
@@ -62,5 +64,41 @@ class OutboxWriterTest {
 
         EmployeeEvent restored = objectMapper.readValue(captor.getValue().getPayload(), EmployeeEvent.class);
         assertThat(restored).isEqualTo(event);
+    }
+
+    @Test
+    @DisplayName("Carries the correlation id of the request that produced the event")
+    void storesCorrelationIdFromMdc() {
+        // Yazma ISTEGIN ipliginde olur, yani MDC doludur. Kimlik satira
+        // yazilmasaydi relay onu hic ogrenemezdi: relay zamanlayici
+        // ipliginde calisir ve oranin MDC'si bostur.
+        MDC.put(CorrelationIdFilter.MDC_KEY, "abc-123");
+        try {
+            OutboxWriter writer = new OutboxWriter(outboxRepository, objectMapper);
+            writer.write(employeeEvent(EmployeeEventType.CREATED));
+
+            ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
+            verify(outboxRepository).save(captor.capture());
+
+            assertThat(captor.getValue().getCorrelationId()).isEqualTo("abc-123");
+        } finally {
+            MDC.remove(CorrelationIdFilter.MDC_KEY);
+        }
+    }
+
+    @Test
+    @DisplayName("Writes the event even when there is no request to correlate with")
+    void writesEventWithoutCorrelationId() {
+        // Tohumlama ve zamanlanmis isler istek disidir; kimlik yoklugu
+        // olayin yazilmasini ENGELLEMEMELI.
+        MDC.remove(CorrelationIdFilter.MDC_KEY);
+
+        OutboxWriter writer = new OutboxWriter(outboxRepository, objectMapper);
+        writer.write(employeeEvent(EmployeeEventType.CREATED));
+
+        ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxRepository).save(captor.capture());
+
+        assertThat(captor.getValue().getCorrelationId()).isNull();
     }
 }

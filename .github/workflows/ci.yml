@@ -1,0 +1,130 @@
+# Surekli entegrasyon.
+#
+# Yazilmis ama kosturulmayan test, yazilmamis testtir -- ustelik guvenlik
+# yanilsamasi da yaratir. Bu dosyanin cozdugu problem hiz degil, disiplinin
+# INSANA BAGIMLI OLMAMASI: "her degisiklikten sonra testleri kos" bir kural
+# olarak unutulur, bir pipeline olarak unutulamaz.
+#
+# Docker imaji testleri bilerek atliyor (-DskipTests) cunku testler gercek
+# PostgreSQL ve RabbitMQ istiyor. Yani imaj derlemesi bir guvenlik agi degil;
+# commit ile calisan imaj arasindaki tek otomatik kapi burasi.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Ayni dal icin yeni bir itme gelirse suren kosuyu iptal et: eskimis bir
+# sonucu beklemek kimseye fayda saglamaz.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      # Bir servis kirilirsa digerinin sonucunu da gormek isteriz.
+      fail-fast: false
+      matrix:
+        service: [employee-service, notification-service]
+
+    env:
+      # CI'ya ozel, uretimle ilgisiz kimlik bilgileri. Testler bunlari
+      # dogrudan okur (test/resources/application.yml varsayilansiz istiyor).
+      DB_USERNAME: ci
+      DB_PASSWORD: ci
+      RABBITMQ_USERNAME: ci
+      RABBITMQ_PASSWORD: ci
+      JWT_SECRET: ci-only-secret-that-is-long-enough-for-hs384-signing
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: ci-admin-password
+      SERVICE_ACCOUNT_EMAIL: notification-service@internal
+      SERVICE_ACCOUNT_PASSWORD: ci-service-password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # --wait tam olarak calisiyor cunku compose'daki healthcheck'ler dogru
+      # yazilmis: Flyway veritabanina yarisyamaz.
+      - name: Start infrastructure
+        run: docker compose up -d --wait
+
+      - name: Run tests
+        run: mvn -B verify
+        working-directory: ${{ matrix.service }}
+
+      # Kirmizi bir kosuda hangi testin neden dustugunu gormek icin.
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-${{ matrix.service }}
+          path: ${{ matrix.service }}/target/surefire-reports/
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # npm install DEGIL: kilit dosyasi otoritedir ve ayni commit her yerde
+      # ayni agaci uretmelidir.
+      - name: Install
+        run: npm ci
+        working-directory: frontend
+
+      # Lint hicbir sey tarafindan cagrilmiyordu -- ne build, ne Dockerfile.
+      # Fiilen istege bagliydi; artik degil.
+      - name: Lint
+        run: npm run lint
+        working-directory: frontend
+
+      # "tsc -b && vite build": tip hatasi derlemeyi dusurur.
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+
+      - name: Test
+        run: npm test
+        working-directory: frontend
+
+  # Imajlarin GERCEKTEN derlenebildigini dogrular. Testler burada kosmaz
+  # (altyapi gerektiriyorlar); bu adim yalnizca "Dockerfile bozulmus mu"
+  # sorusunu cevaplar.
+  images:
+    name: Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build images
+        run: docker compose --profile full build
+        env:
+          # Compose zorunlu degiskenleri ${VAR:?} ile koruyor; derleme icin
+          # gecerli olmalari yeterli, gercek olmalari gerekmiyor.
+          DB_USERNAME: ci
+          DB_PASSWORD: ci
+          RABBITMQ_USERNAME: ci
+          RABBITMQ_PASSWORD: ci
+          JWT_SECRET: ci-only-secret-that-is-long-enough-for-hs384-signing
+          ADMIN_EMAIL: admin@example.com
+          ADMIN_PASSWORD: ci-admin-password
+          SERVICE_ACCOUNT_EMAIL: notification-service@internal
+          SERVICE_ACCOUNT_PASSWORD: ci-service-password
