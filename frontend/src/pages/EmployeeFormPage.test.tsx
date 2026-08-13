@@ -61,8 +61,8 @@ describe('EmployeeFormPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(departmentApi.list).mockResolvedValue([
-      { id: 1, name: 'Software Development' },
-      { id: 2, name: 'Finance' },
+      { id: 1, name: 'Software Development', active: true, activeEmployeeCount: 0 },
+      { id: 2, name: 'Finance', active: true, activeEmployeeCount: 0 },
     ]);
     vi.mocked(employeeApi.getById).mockResolvedValue(makeEmployee());
     vi.mocked(employeeApi.getSalary).mockResolvedValue({ employeeId: 5, salary: 95000 });

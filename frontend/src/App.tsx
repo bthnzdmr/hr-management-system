@@ -10,6 +10,7 @@ import { UserListPage } from './pages/UserListPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { OrgChartPage } from './pages/OrgChartPage';
+import { DepartmentListPage } from './pages/DepartmentListPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { useAuth } from './auth/AuthContext';
 
@@ -51,6 +52,9 @@ export default function App() {
           {/* Personel formu Ik uzmanina, hesap ekrani sistem yoneticisine
               ait. Roller bolundugunde bunlar ayni kisi olmayabilir. */}
           <Route element={<CapabilityRoute requires="editEmployees" />}>
+            {/* Departman referans verisidir ve yazmasi Ik uzmanina ait;
+                sunucudaki kuralla ayni yetenek soruluyor. */}
+            <Route path="/departments" element={<DepartmentListPage />} />
             <Route path="/employees/new" element={<EmployeeFormPage />} />
             <Route path="/employees/:id" element={<EmployeeFormPage />} />
           </Route>

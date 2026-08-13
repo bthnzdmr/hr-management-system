@@ -25,5 +25,11 @@ public enum AuditAction {
     EMPLOYEE_STATUS_CHANGED,
 
     /** Ucret bilgisi degisti -- degerin KENDISI kayda yazilmaz. */
-    SALARY_CHANGED
+    SALARY_CHANGED,
+
+    /** Yeni departman acildi. */
+    DEPARTMENT_CREATED,
+
+    /** Departman acildi veya kapatildi. */
+    DEPARTMENT_STATUS_CHANGED
 }

@@ -148,6 +148,13 @@ public class SecurityConfig {
                         // eslesme satiri tanimaz.
                         .requestMatchers(HttpMethod.GET, "/api/employees/**")
                         .hasAnyRole("EMPLOYEE", "MANAGER", "HR_SPECIALIST", "SYSTEM_ADMIN", "SERVICE")
+                        // Departman REFERANS VERISIDIR ve yazmasi Ik uzmanina aittir.
+                        // Bu kurallar olmasaydi uclar "anyRequest().authenticated()"
+                        // agina duser ve GIRIS YAPAN HERKES departman acabilirdi --
+                        // varsayilan guvenlik agi burada yeterince dar degil.
+                        .requestMatchers(HttpMethod.POST, "/api/departments/**").hasRole("HR_SPECIALIST")
+                        .requestMatchers(HttpMethod.PUT, "/api/departments/**").hasRole("HR_SPECIALIST")
+
                         .requestMatchers(HttpMethod.GET, "/api/departments").authenticated()
 
                         // Kural yazilmayan her sey reddedilir.

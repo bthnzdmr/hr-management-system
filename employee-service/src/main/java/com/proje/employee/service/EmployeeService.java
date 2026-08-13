@@ -16,6 +16,7 @@ import com.proje.employee.event.OutboxWriter;
 import com.proje.employee.exception.DepartmentNotFoundException;
 import com.proje.employee.exception.EmailAlreadyExistsException;
 import com.proje.employee.exception.EmployeeNotFoundException;
+import com.proje.employee.exception.InactiveDepartmentException;
 import com.proje.employee.exception.InactiveManagerException;
 import com.proje.employee.exception.ManagerCycleException;
 import com.proje.employee.exception.MissingTerminationReasonException;
@@ -130,8 +131,7 @@ public class EmployeeService {
             throw new EmailAlreadyExistsException(request.email());
         }
 
-        Department department = departmentRepository.findById(request.departmentId())
-                .orElseThrow(() -> new DepartmentNotFoundException(request.departmentId()));
+        Department department = resolveDepartment(request.departmentId());
 
         Employee employee = new Employee(
                 request.firstName(),
@@ -165,8 +165,7 @@ public class EmployeeService {
             throw new EmailAlreadyExistsException(request.email());
         }
 
-        Department department = departmentRepository.findById(request.departmentId())
-                .orElseThrow(() -> new DepartmentNotFoundException(request.departmentId()));
+        Department department = resolveDepartment(request.departmentId());
 
         employee.setFirstName(request.firstName());
         employee.setLastName(request.lastName());
@@ -333,6 +332,27 @@ public class EmployeeService {
 
         assertNoCycle(employee, manager);
         return manager;
+    }
+
+    /**
+     * Departmani cozer ve PASIF olani reddeder.
+     *
+     * Tek yol: create ve update ayni metodu cagirir. Kural iki yere
+     * yazilsaydi biri geride kalirdi -- projede bu tam olarak iki kez
+     * yasandi (pasif yonetici kurali ve ayrilmis personele hesap acma).
+     *
+     * Mevcut atamalar korunur: bir departman kapandiginda icindeki
+     * personelin baglantisi kopmaz. Engellenen sey YENI baglanti kurmaktir.
+     */
+    private Department resolveDepartment(Long departmentId) {
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new DepartmentNotFoundException(departmentId));
+
+        if (!department.isActive()) {
+            throw new InactiveDepartmentException(departmentId);
+        }
+
+        return department;
     }
 
     // Yeni yoneticiden yukari dogru bakar. Yolda calisanin kendisine

@@ -21,6 +21,7 @@ import {
   useTheme,
 } from '@mui/material';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import ApartmentOutlinedIcon from '@mui/icons-material/ApartmentOutlined';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
@@ -64,6 +65,7 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
       { label: 'Overview', to: '/dashboard', icon: InsightsOutlinedIcon, requires: 'viewDashboard' },
       { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon },
       { label: 'Org chart', to: '/org-chart', icon: AccountTreeOutlinedIcon, requires: 'viewDashboard' },
+      { label: 'Departments', to: '/departments', icon: ApartmentOutlinedIcon, requires: 'editEmployees' },
     ],
   },
 ];

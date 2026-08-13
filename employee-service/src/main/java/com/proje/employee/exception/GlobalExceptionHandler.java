@@ -133,6 +133,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts", ex.getMessage());
     }
 
+    @ExceptionHandler(InactiveDepartmentException.class)
+    public ProblemDetail handleInactiveDepartment(InactiveDepartmentException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Invalid department", ex.getMessage());
+    }
+
+    @ExceptionHandler(DepartmentRuleViolationException.class)
+    public ProblemDetail handleDepartmentRule(DepartmentRuleViolationException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Department rule violated", ex.getMessage());
+    }
+
+    @ExceptionHandler(DepartmentNameAlreadyExistsException.class)
+    public ProblemDetail handleDuplicateDepartmentName(DepartmentNameAlreadyExistsException ex) {
+        return problem(HttpStatus.CONFLICT, "Department already exists", ex.getMessage());
+    }
+
     @ExceptionHandler(InvalidSortPropertyException.class)
     public ProblemDetail handleInvalidSortProperty(InvalidSortPropertyException ex) {
         log.warn("Rejected sorting on a field that is not allowed: {}", ex.getProperty());

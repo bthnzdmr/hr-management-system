@@ -49,6 +49,9 @@ export interface LoginResponse {
 export interface Department {
   id: number;
   name: string;
+  active: boolean;
+  /** Kapatmanin mumkun olup olmadigini gosterir; arayuz dugmeyi buna gore kapatir. */
+  activeEmployeeCount: number;
 }
 
 /** Hesap. Parola ozeti sunucudan HIC gelmez. */

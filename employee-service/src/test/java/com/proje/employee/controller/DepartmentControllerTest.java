@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -20,6 +21,8 @@ import java.util.List;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,9 +43,9 @@ class DepartmentControllerTest {
     @WithMockUser(roles = "EMPLOYEE")
     @DisplayName("Returns the departments an authenticated user can choose from")
     void returnsDepartmentsForAuthenticatedUser() throws Exception {
-        when(departmentService.getAllActive()).thenReturn(List.of(
-                new DepartmentResponse(2L, "Finance"),
-                new DepartmentResponse(1L, "Software Development")));
+        when(departmentService.getAll(false)).thenReturn(List.of(
+                new DepartmentResponse(2L, "Finance", true, 3),
+                new DepartmentResponse(1L, "Software Development", true, 12)));
 
         mockMvc.perform(get("/api/departments"))
                 .andExpect(status().isOk())
@@ -57,5 +60,38 @@ class DepartmentControllerTest {
     void rejectsAnonymousRequest() throws Exception {
         mockMvc.perform(get("/api/departments"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(roles = "EMPLOYEE")
+    @DisplayName("A plain user may not open a department")
+    void plainUserMayNotCreate() throws Exception {
+        // Bu kural olmasaydi uc "anyRequest().authenticated()" agina duser ve
+        // GIRIS YAPAN HERKES departman acabilirdi.
+        mockMvc.perform(post("/api/departments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Anything\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "SYSTEM_ADMIN")
+    @DisplayName("Even a system administrator may not open a department")
+    void systemAdminMayNotCreate() throws Exception {
+        // Departman IS verisidir, kimlik verisi degil: Ik uzmanina aittir.
+        mockMvc.perform(post("/api/departments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Anything\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "EMPLOYEE")
+    @DisplayName("A plain user may not close a department")
+    void plainUserMayNotChangeStatus() throws Exception {
+        mockMvc.perform(put("/api/departments/1/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\":false}"))
+                .andExpect(status().isForbidden());
     }
 }
