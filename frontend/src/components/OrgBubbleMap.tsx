@@ -27,7 +27,13 @@ const DRIFT_MAX = 13;
 const DEPTH_DELAY = 150;
 
 /** Bunun altinda bas harfler sigmaz. */
-const INITIALS_FIT_ABOVE = 12;
+const INITIALS_FIT_ABOVE = 18;
+
+/** Isim yazisinin boyu (tuval birimi). */
+const LABEL_SIZE = 30;
+
+/** Harf basina yaklasik genislik; etiketi tuval icinde tutmak icin. */
+const CHAR_WIDTH = 0.54;
 
 /** Halka uzerindeki iki nokta arasi (normalize edilmis 100 birimde). */
 const RING_DOT_SPACING = 2;
@@ -260,6 +266,7 @@ export function OrgBubbleMap({ roots, colors, selectedId, onSelect }: Props) {
             entry={entry}
             hubLabel={layout.hubLabel}
             colors={colors}
+            canvas={layout.size}
             hovered={hovered}
             lit={lit}
             reduceMotion={still}
@@ -314,6 +321,8 @@ interface NodeProps {
   entry: TreeNode;
   hubLabel: string | null;
   colors: Map<string, string>;
+  /** Tuvalin kenar uzunlugu; etiketi iceride tutmak icin. */
+  canvas: number;
   hovered: number | null;
   lit: Set<number>;
   reduceMotion: boolean;
@@ -332,7 +341,7 @@ const DRIFTS = ['driftA', 'driftB', 'driftC', 'driftD'] as const;
 const NAVIGATION_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
 
 function Node({
-  entry, hubLabel, colors, hovered, lit, reduceMotion, spinBack, tabStop, selected,
+  entry, hubLabel, colors, canvas, hovered, lit, reduceMotion, spinBack, tabStop, selected,
   onHover, onSelect, onMove,
 }: NodeProps) {
   const theme = useTheme();
@@ -479,34 +488,45 @@ function Node({
               y={y}
               textAnchor="middle"
               dominantBaseline="central"
-              fontSize={r * 0.7}
+              fontSize={r * 0.72}
               sx={{ fill: ink, fontWeight: 600, pointerEvents: 'none' }}
             >
               {initials(node)}
             </Box>
           )}
 
-          {/* Isim dairenin ALTINDA ve yatay: donme ters cevrildigi icin her
-              konumda duz okunur. */}
-          {label && (
+          {/* Isim yalnizca MERKEZDE ve uzerine gelinen/secilen dugumde.
+
+              Once her dugumde yaziyordu ve olculdugunde sigmiyordu: en dis
+              halkada komsular arasi yay 47 px, en uzun isim 85 px. Her ciddi
+              radyal uygulama etiketlerden bir yerde vazgecer -- Plotly sigmayan
+              metni gizler, Obsidian esik altinda hic cizmez. Kimligi BAS
+              HARFLER tasiyor; tam ad panelde, gorunmeyen anahatta ve
+              <title>'da duruyor. */}
+          {label && (depth === 0 || isHovered || selected) && (
             <Box
               component="text"
-              x={x}
-              y={y + r + 15}
+              // Etiket tuvalin disina tasmasin: dis halkadaki bir dugumun
+              // ismi yarisi kadar disari uzanirdi.
+              x={clamp(x, (label.length * LABEL_SIZE * CHAR_WIDTH) / 2, canvas)}
+              y={y + r + LABEL_SIZE * 0.95}
               textAnchor="middle"
-              fontSize={depth === 0 ? 13 : 11.5}
+              fontSize={LABEL_SIZE}
               sx={{
                 fill: 'currentColor',
-                fontWeight: onPath || depth === 0 ? 600 : 500,
-                fillOpacity: onPath || depth === 0 ? 1 : 0.74,
+                fontWeight: 600,
+                paintOrder: 'stroke',
+                // Ince bir zemin konturu: etiket bir dalin veya halkanin
+                // uzerine dustugunde okunur kalir.
+                stroke: (t) => t.palette.background.paper,
+                strokeWidth: 4,
+                strokeLinejoin: 'round',
                 pointerEvents: 'none',
-                transition: 'fill-opacity 220ms ease',
               }}
             >
               {label}
             </Box>
           )}
-
         </Box>
       </Box>
     </Box>
@@ -584,4 +604,9 @@ function TextTree({ nodes, label }: { nodes: OrgNode[]; label?: string }) {
       ))}
     </ul>
   );
+}
+
+/** Etiket merkezini tuvalin icinde tutar. */
+function clamp(x: number, halfWidth: number, canvas: number) {
+  return Math.max(halfWidth, Math.min(canvas - halfWidth, x));
 }

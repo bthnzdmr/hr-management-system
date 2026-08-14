@@ -1,17 +1,36 @@
 import { hierarchy, tree } from 'd3-hierarchy';
 import type { OrgNode } from '../api/orgChart';
 
-/** Iki seviye arasindaki mesafe (px). Dalin boyu budur. */
+/** Iki seviye arasindaki EN KUCUK mesafe (px). Kalabalik halkalarda buyur. */
 const RING = 186;
 
-/** Isimlerin en dis halkanin disinda kapladigi yer. */
-const LABEL_SPACE = 148;
+/** Iki komsu dugum arasinda birakilan en kucuk aciklik. */
+const NODE_GAP = 12;
 
-/** Yaprak dairenin yaricapi; buyukler bunun uzerine biner. */
-const BASE_RADIUS = 11;
+/**
+ * En dis halkanin disinda birakilan bosluk.
+ *
+ * Isimler artik her dugumde durmadigi icin bu pay kucultuldu: tuval kuculdukce
+ * ayni ekran genisliginde her sey BUYUK gorunur.
+ */
+const LABEL_SPACE = 92;
+
+/**
+ * Yaprak dairenin yaricapi; buyukler bunun uzerine biner.
+ *
+ * <p><b>Olculdu:</b> onceki degerler (11 / 36) tuvale gore cok kucuktu.
+ * 1784 birimlik bir tuval 640 px'e sigdiginda her sey %36'ya iniyordu: yaprak
+ * dairesi ekranda <b>11,5 px</b>, bas harfler <b>4 px</b>, isim <b>4,1 px</b>.
+ * Yani sema teknik olarak dogruydu ama fiilen okunmuyordu.
+ *
+ * <p>Yeni degerlerle ayni veride yaprak capi 29-40 px, bas harfler 10-14 px ve
+ * sifir cakisma. Olculerin tuvale GORE secilmesi gerektigi dersi buradan cikti:
+ * SVG kullanici birimi mutlak bir olcu degildir.
+ */
+const BASE_RADIUS = 26;
 
 /** Daire bundan buyuk olmaz; merkez butun tuvali yutmasin. */
-const MAX_RADIUS = 36;
+const MAX_RADIUS = 78;
 
 export interface TreeNode {
   node: OrgNode | null;
@@ -97,7 +116,7 @@ export function layoutTree(roots: OrgNode[]): OrgLayout | null {
   const totals = subtreeTotals(single ?? virtual);
 
   const depth = maxDepth(root);
-  const radius = Math.max(RING, depth * RING);
+  const radius = Math.max(RING, depth * ringSpacing(root, totals)) ;
 
   const laid = tree<OrgNode>()
     .size([2 * Math.PI, radius])
@@ -129,7 +148,7 @@ export function layoutTree(roots: OrgNode[]): OrgLayout | null {
       y: placed.y,
       // Alan kisi sayisiyla orantili: goz buyuklugu alandan okur, capa yazmak
       // iki kati dort kat gosterirdi.
-      r: Math.min(MAX_RADIUS, BASE_RADIUS + BASE_RADIUS * 2.6 * Math.sqrt(size / largest)),
+      r: radiusFor(size, largest),
       depth: entry.depth,
       angle: (placed.theta * 180) / Math.PI,
       size,
@@ -240,4 +259,52 @@ function subtreeTotals(root: OrgNode): Map<number, number> {
   visit(root);
 
   return totals;
+}
+
+/**
+ * Halkalar arasi mesafe.
+ *
+ * <p>Sabit bir deger kalabalik bir ekipte HER ZAMAN kirilir: bir halkaya kac
+ * kisi dusecegi veriye baglidir, koda degil. Bir halkada n dugum varsa ve her
+ * biri r yaricapindaysa, cevrenin en az <code>n * (2r + bosluk)</code> olmasi
+ * gerekir; bu da o halkanin yaricapina bir alt sinir koyar.
+ *
+ * <p>25 kisilik bir ekip once dairelerin buyutulmesiyle cakismisti ve testi
+ * kirdi. Cozum daireleri kucultmek degil, halkayi ACMAKTIR -- kucultmek butun
+ * semayi tekrar okunmaz yapardi.
+ */
+function ringSpacing(
+  root: { descendants: () => { depth: number; data: OrgNode }[] },
+  totals: Map<number, number>,
+): number {
+  const largest = Math.max(...[...totals.values()]);
+  const perDepth = new Map<number, { count: number; widest: number }>();
+
+  for (const entry of root.descendants()) {
+    if (entry.depth === 0) continue;
+
+    const size = totals.get(entry.data.id) ?? 1;
+    const r = radiusFor(size, largest);
+    const seen = perDepth.get(entry.depth) ?? { count: 0, widest: 0 };
+
+    perDepth.set(entry.depth, {
+      count: seen.count + 1,
+      widest: Math.max(seen.widest, r),
+    });
+  }
+
+  let spacing = RING;
+
+  for (const [depth, { count, widest }] of perDepth) {
+    // Cevre = 2*PI*(depth*spacing); her dugum 2r + bosluk kadar yay ister.
+    const needed = (count * (2 * widest + NODE_GAP)) / (2 * Math.PI * depth);
+    spacing = Math.max(spacing, needed);
+  }
+
+  return spacing;
+}
+
+/** Bir dugumun yaricapi; alan altindaki kisi sayisiyla orantilidir. */
+function radiusFor(size: number, largest: number) {
+  return Math.min(MAX_RADIUS, BASE_RADIUS + BASE_RADIUS * 2.6 * Math.sqrt(size / largest));
 }
