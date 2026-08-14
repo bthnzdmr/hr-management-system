@@ -32,6 +32,9 @@ export interface TreeNode {
   hasChildren: boolean;
   /** Merkezden kendisine kadar olan zincir; uzerine gelince yol vurgulanir. */
   ancestorIds: number[];
+  /** Ayni ebeveynin kacinci cocugu (1 tabanli) ve kardes sayisi. */
+  position: number;
+  siblings: number;
 }
 
 export interface TreeLink {
@@ -120,12 +123,9 @@ export function layoutTree(roots: OrgNode[], collapsed: ReadonlySet<number>): Or
     // d3 x'i ACI, y'yi yaricap olarak verir. Aci saat 12'den baslasin diye
     // ceyrek tur geri alinir.
     const theta = entry.x - Math.PI / 2;
+    const placed = polar(theta, entry.y, centre);
 
-    return {
-      x: centre + entry.y * Math.cos(theta),
-      y: centre + entry.y * Math.sin(theta),
-      theta,
-    };
+    return { ...placed, theta, radius: entry.y };
   };
 
   const nodes: TreeNode[] = laid.descendants().map((entry) => {
@@ -149,6 +149,10 @@ export function layoutTree(roots: OrgNode[], collapsed: ReadonlySet<number>): Or
       // Kapali dugum de tiklanabilir kalmali; yoksa geri acilamazdi.
       hasChildren: entry.data.reports.length > 0,
       ancestorIds: chain(entry),
+      // Ekran okuyucu SVG'de DOM ic icelikten seviye cikaramaz; konum ve
+      // kardes sayisi acikca bildirilmeli.
+      position: (entry.parent?.children?.indexOf(entry) ?? 0) + 1,
+      siblings: entry.parent?.children?.length ?? 1,
     };
   });
 
@@ -157,7 +161,11 @@ export function layoutTree(roots: OrgNode[], collapsed: ReadonlySet<number>): Or
     .filter((entry) => entry.parent !== null)
     .map((entry) => ({
       id: `${entry.parent!.data.id}-${entry.data.id}`,
-      path: branchPath(point(entry.parent!), point(entry), centre),
+      path: branchPath(
+        { angle: point(entry.parent!).theta, radius: point(entry.parent!).radius },
+        { angle: point(entry).theta, radius: point(entry).radius },
+        centre,
+      ),
       depth: entry.depth,
       size: totals.get(entry.data.id) ?? 1,
       ancestorIds: chain(entry),
@@ -177,26 +185,37 @@ export function layoutTree(roots: OrgNode[], collapsed: ReadonlySet<number>): Or
 /**
  * Iki dugumu birlestiren dal.
  *
- * <p>Duz cizgi yerine kubik bezier: kontrol noktalari ARA YARICAPTA durur, yani
- * dal once ebeveynin halkasindan disari cikar, sonra cocugun acisina yatar. Duz
- * cizgi olsaydi kalabalik bir halkada butun dallar merkeze dogru bir yildiz
- * olusturur ve hangi dalin nereye gittigi kesisimlerde kaybolurdu.
+ * <p>Kontrol noktalarinin ikisi de ebeveyn ile cocugun ORTA YARICAPINDA durur:
+ * biri ebeveynin acisinda, digeri cocugun acisinda. Bu, `d3.linkRadial`'in
+ * kullandigi geometrinin ta kendisi ve suslemeden ibaret degil:
+ *
+ * <ul>
+ *   <li>Dal her iki ucta da yaricap dogrultusunda cikar/girer, yani halkaya
+ *       DIK degen bir bag olur. Duz bir kiris halkayi rastgele bir acida
+ *       keser ve gorsel gurultu okunur.</li>
+ *   <li>Acisal gecis, iki halka arasindaki BOS bantta yapilir. Duz kiris ise
+ *       ebeveynin kendi halkasinin icinden gecer -- tam da kardes alt
+ *       agaclarin durdugu yerden.</li>
+ * </ul>
  */
 function branchPath(
-  from: { x: number; y: number },
-  to: { x: number; y: number },
+  from: { angle: number; radius: number },
+  to: { angle: number; radius: number },
   centre: number,
 ): string {
-  const midX = (from.x + to.x) / 2;
-  const midY = (from.y + to.y) / 2;
+  const middle = (from.radius + to.radius) / 2;
 
-  // Kavis merkezden UZAGA dogru degil, ara noktadan gecerek yumusatilir.
-  const c1x = from.x + (midX - from.x) * 0.6 + (centre - from.x) * 0.04;
-  const c1y = from.y + (midY - from.y) * 0.6 + (centre - from.y) * 0.04;
-  const c2x = to.x + (midX - to.x) * 0.6 + (centre - to.x) * 0.04;
-  const c2y = to.y + (midY - to.y) * 0.6 + (centre - to.y) * 0.04;
+  const start = polar(from.angle, from.radius, centre);
+  const control1 = polar(from.angle, middle, centre);
+  const control2 = polar(to.angle, middle, centre);
+  const end = polar(to.angle, to.radius, centre);
 
-  return `M${round(from.x)},${round(from.y)}C${round(c1x)},${round(c1y)} ${round(c2x)},${round(c2y)} ${round(to.x)},${round(to.y)}`;
+  return `M${round(start.x)},${round(start.y)}C${round(control1.x)},${round(control1.y)} ${round(control2.x)},${round(control2.y)} ${round(end.x)},${round(end.y)}`;
+}
+
+/** Kutupsal koordinati tuval koordinatina cevirir. */
+function polar(angle: number, radius: number, centre: number) {
+  return { x: centre + radius * Math.cos(angle), y: centre + radius * Math.sin(angle) };
 }
 
 function round(value: number) {

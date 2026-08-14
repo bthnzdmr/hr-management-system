@@ -61,7 +61,7 @@ describe('OrgChartPage', () => {
 
     const { container } = render(<OrgChartPage />);
 
-    await screen.findByRole('img', { name: /orbiting layers/ });
+    await screen.findByRole('tree', { name: /Organisation chart/ });
     // <title> yalnizca gercek kisilerde var: yorunge halkalari ve gorunmez
     // merkez sayilmaz. Daireleri saymak bunlari da yakalardi.
     const named = [...container.querySelectorAll('title')].map((t) => t.textContent);
@@ -102,14 +102,14 @@ describe('OrgChartPage', () => {
     const user = userEvent.setup();
     const { container } = render(<OrgChartPage />);
 
-    const alpha = await screen.findByRole('button', { name: /Test Alpha, 1 people/ });
+    const alpha = await screen.findByRole('treeitem', { name: 'Test Alpha, 1 people in the team' });
     expect(alpha).toHaveAttribute('aria-expanded', 'true');
 
     await user.click(alpha);
 
     // Gamma cizimden dustu ama Alpha yerinde ve hala acilabilir.
     expect(container.querySelectorAll('title')).toHaveLength(2);
-    expect(screen.getByRole('button', { name: /Test Alpha, 1 people/ }))
+    expect(screen.getByRole('treeitem', { name: 'Test Alpha, 1 people in the team' }))
       .toHaveAttribute('aria-expanded', 'false');
   });
 
@@ -120,7 +120,7 @@ describe('OrgChartPage', () => {
     const user = userEvent.setup();
     render(<OrgChartPage />);
 
-    await user.click(await screen.findByRole('button', { name: /Test Alpha, 1 people/ }));
+    await user.click(await screen.findByRole('treeitem', { name: 'Test Alpha, 1 people in the team' }));
 
     expect(screen.getByText('+1')).toBeInTheDocument();
   });
@@ -131,7 +131,7 @@ describe('OrgChartPage', () => {
     const user = userEvent.setup();
     const { container } = render(<OrgChartPage />);
 
-    await user.click(await screen.findByRole('button', { name: /Test Alpha, 1 people/ }));
+    await user.click(await screen.findByRole('treeitem', { name: 'Test Alpha, 1 people in the team' }));
     await user.click(screen.getByRole('button', { name: 'Expand all' }));
 
     expect(container.querySelectorAll('title')).toHaveLength(3);
@@ -150,10 +150,10 @@ describe('OrgChartPage', () => {
     const user = userEvent.setup();
     render(<OrgChartPage />);
 
-    await user.click(await screen.findByRole('button', { name: /Test SalesHead, 1 people/ }));
+    await user.click(await screen.findByRole('treeitem', { name: 'Test SalesHead, 1 people in the team' }));
     await user.click(screen.getByRole('button', { name: /^Sales/ }));
 
-    expect(screen.getByRole('button', { name: /Test SalesHead, 1 people/ }))
+    expect(screen.getByRole('treeitem', { name: 'Test SalesHead, 1 people in the team' }))
       .toHaveAttribute('aria-expanded', 'true');
   });
 
@@ -179,7 +179,7 @@ describe('OrgChartPage', () => {
 
     render(<OrgChartPage />);
 
-    await screen.findByRole('img', { name: /orbiting layers/ });
+    await screen.findByRole('tree', { name: /Organisation chart/ });
     expect(screen.queryByText(/not shown/)).not.toBeInTheDocument();
   });
 
@@ -197,5 +197,79 @@ describe('OrgChartPage', () => {
     render(<OrgChartPage />);
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+
+  it('offers an explicit way to stop the motion', async () => {
+    // Isaretci veya odak cizime girince donme zaten duruyor ama bu ORTULU bir
+    // mekanizma: hicbir yere dokunmadan okuyan biri icin hareket surer.
+    // Kendiliginden baslayan ve bes saniyeden uzun suren hareket icin ACIK bir
+    // durdurma yolu gerekir (WCAG 2.2.2).
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
+
+    const user = userEvent.setup();
+    render(<OrgChartPage />);
+
+    const pause = await screen.findByRole('button', { name: 'Pause motion' });
+    expect(pause).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(pause);
+
+    const resume = screen.getByRole('button', { name: 'Resume motion' });
+    expect(resume).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+describe('keyboard navigation', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('puts one stop in the tab order, not one per person', async () => {
+    // Her dugume tabIndex vermek belgelenmis bir ANTI-DESENDIR: 32 kisilik bir
+    // semada Tab tusu 32 durak yapar ve kullanici semayi hic atlayamaz.
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
+
+    render(<OrgChartPage />);
+
+    const items = await screen.findAllByRole('treeitem');
+    expect(items).toHaveLength(3);
+    expect(items.filter((item) => item.getAttribute('tabindex') === '0')).toHaveLength(1);
+  });
+
+  it('walks between people with the arrow keys', async () => {
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
+
+    const user = userEvent.setup();
+    render(<OrgChartPage />);
+
+    const root = await screen.findByRole('treeitem', { name: /Test Root/ });
+    root.focus();
+    await user.keyboard('{ArrowDown}');
+
+    expect(screen.getByRole('treeitem', { name: /Test Alpha/ })).toHaveFocus();
+  });
+
+  it('tells the screen reader which level each person sits on', async () => {
+    // SVG'de DOM ic iceligi hiyerarsiyi IMA ETMEZ; seviye acikca bildirilmeli.
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
+
+    render(<OrgChartPage />);
+
+    expect(await screen.findByRole('treeitem', { name: /Test Root/ }))
+      .toHaveAttribute('aria-level', '1');
+    expect(screen.getByRole('treeitem', { name: /Test Gamma/ }))
+      .toHaveAttribute('aria-level', '3');
+  });
+
+  it('closes a team with the left arrow and opens it with the right', async () => {
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
+
+    const user = userEvent.setup();
+    render(<OrgChartPage />);
+
+    const alpha = await screen.findByRole('treeitem', { name: /Test Alpha/ });
+    alpha.focus();
+    await user.keyboard('{ArrowLeft}');
+
+    expect(screen.getByRole('treeitem', { name: /Test Alpha/ }))
+      .toHaveAttribute('aria-expanded', 'false');
   });
 });

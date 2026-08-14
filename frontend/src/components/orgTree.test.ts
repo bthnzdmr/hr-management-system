@@ -172,3 +172,42 @@ describe('collapsing', () => {
     expect(leaf.hasChildren).toBe(false);
   });
 });
+
+describe('branch geometry', () => {
+  /** Yol dizesindeki sayi ciftlerini cikarir. */
+  function points(path: string) {
+    return (path.match(/-?\d+(\.\d+)?,-?\d+(\.\d+)?/g) ?? [])
+      .map((pair) => pair.split(',').map(Number) as [number, number]);
+  }
+
+  it('puts both control points on the ring between parent and child', () => {
+    // `d3.linkRadial`in geometrisi: kontrol noktalari ORTA YARICAPTA durur.
+    // Boylece dal her iki ucta yaricap dogrultusunda cikip girer ve acisal
+    // gecisi halkalar arasindaki BOS bantta yapar. Duz bir kiris ebeveynin
+    // kendi halkasini keserdi -- kardes alt agaclarin durdugu yeri.
+    const layout = layoutTree([node(1, [node(2), node(3)])], NONE) as OrgLayout;
+    const centre = layout.size / 2;
+
+    const [start, control1, control2, end] = points(layout.links[0].path);
+
+    const radiusOf = ([x, y]: [number, number]) => Math.hypot(x - centre, y - centre);
+    const middle = (radiusOf(start) + radiusOf(end)) / 2;
+
+    expect(radiusOf(control1)).toBeCloseTo(middle, 1);
+    expect(radiusOf(control2)).toBeCloseTo(middle, 1);
+  });
+
+  it('starts and ends exactly on the two nodes it joins', () => {
+    // Bag dugumun uzerinde bitmezse cizim ile yapi birbirini tutmaz.
+    const layout = layoutTree([node(1, [node(2)])], NONE) as OrgLayout;
+    const [start, , , end] = points(layout.links[0].path);
+
+    const parent = layout.nodes.find((entry) => entry.node?.id === 1) as TreeNode;
+    const child = layout.nodes.find((entry) => entry.node?.id === 2) as TreeNode;
+
+    expect(start[0]).toBeCloseTo(parent.x, 1);
+    expect(start[1]).toBeCloseTo(parent.y, 1);
+    expect(end[0]).toBeCloseTo(child.x, 1);
+    expect(end[1]).toBeCloseTo(child.y, 1);
+  });
+});

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Button, Fade, Paper, Skeleton, Stack, Typography } from '@mui/material';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import PauseOutlinedIcon from '@mui/icons-material/PauseOutlined';
+import PlayArrowOutlinedIcon from '@mui/icons-material/PlayArrowOutlined';
 import { orgChartApi } from '../api/orgChart';
 import type { OrgChart, OrgNode } from '../api/orgChart';
 import { errorMessage } from '../api/client';
@@ -24,6 +26,15 @@ export function OrgChartPage() {
    * kaybediyordu. Acip kapatmak yerinde kalir: baglam hic degismez.
    */
   const [collapsed, setCollapsed] = useState<ReadonlySet<number>>(new Set());
+  /**
+   * Hareketi acikca durdurma.
+   *
+   * Isaretci veya klavye odagi cizime girdiginde donme zaten duruyor, ama bu
+   * ORTULU bir mekanizma: hicbir yere dokunmadan sayfayi okuyan biri icin
+   * hareket surer. Kendiliginden baslayan ve bes saniyeden uzun suren hareket
+   * icin ACIK bir durdurma yolu gerekir (WCAG 2.2.2).
+   */
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -147,11 +158,24 @@ export function OrgChartPage() {
                   Click a node to fold its team away — the chart stays where it is
                 </Typography>
 
-                {collapsed.size > 0 && (
-                  <Button size="small" onClick={() => setCollapsed(new Set())}>
-                    Expand all
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  {collapsed.size > 0 && (
+                    <Button size="small" onClick={() => setCollapsed(new Set())}>
+                      Expand all
+                    </Button>
+                  )}
+
+                  <Button
+                    size="small"
+                    aria-pressed={paused}
+                    startIcon={paused
+                      ? <PlayArrowOutlinedIcon fontSize="small" />
+                      : <PauseOutlinedIcon fontSize="small" />}
+                    onClick={() => setPaused((current) => !current)}
+                  >
+                    {paused ? 'Resume motion' : 'Pause motion'}
                   </Button>
-                )}
+                </Stack>
               </Stack>
 
               <Fade in key={department ?? 'all'}>
@@ -161,6 +185,7 @@ export function OrgChartPage() {
                     colors={colors}
                     collapsed={collapsed}
                     onToggle={toggle}
+                    paused={paused}
                   />
                 </Box>
               </Fade>

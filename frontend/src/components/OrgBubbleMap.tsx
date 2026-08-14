@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type React from 'react';
 import { Box, useMediaQuery, useTheme } from '@mui/material';
 import { layoutTree } from './orgTree';
@@ -13,6 +13,8 @@ interface Props {
   /** Kapali dugumler; cocuklari cizilmez. */
   collapsed: ReadonlySet<number>;
   onToggle: (node: OrgNode) => void;
+  /** Kullanici hareketi acikca durdurdu mu? */
+  paused: boolean;
 }
 
 /** Butun sistemin bir tam turu (sn). Yavas: okumayi zorlastirmamali. */
@@ -29,16 +31,42 @@ const DEPTH_DELAY = 150;
 /** Bunun altinda bas harfler sigmaz. */
 const INITIALS_FIT_ABOVE = 12;
 
+/** Halka uzerindeki iki nokta arasi (normalize edilmis 100 birimde). */
+const RING_DOT_SPACING = 2;
+
 /** En ince ve en kalin bag (px). */
 const LINK_MIN = 1;
 const LINK_MAX = 5;
 
-export function OrgBubbleMap({ roots, colors, collapsed, onToggle }: Props) {
+export function OrgBubbleMap({ roots, colors, collapsed, onToggle, paused }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
+  /**
+   * Ok tuslariyla gezilen dugum.
+   *
+   * Her dugume `tabIndex` vermek belgelenmis bir ANTI-DESENDIR: 32 kisilik bir
+   * semada Tab tusu 32 durak yapar ve kullanici semayi atlayamaz. Bilesik bir
+   * bilesende tab sirasina TEK bir eleman girer, icerideki gezinme ok
+   * tuslariyla yapilir.
+   */
+  const [roving, setRoving] = useState<number | null>(null);
+  const canvas = useRef<SVGSVGElement>(null);
+
+  // `tabIndex` degistirmek odagi TASIMAZ: imleci de goturmezsek ok tusuna
+  // basan kullanicinin odagi eski dugumde kalir ve bir sonraki ok tusu yine
+  // oradan hesaplanir.
+  useEffect(() => {
+    if (roving === null) return;
+
+    canvas.current
+      ?.querySelector<SVGGElement>(`[data-node-id="${roving}"]`)
+      ?.focus();
+  }, [roving]);
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   // Gradyan kimligi bilesen basina benzersiz olmali; sabit bir id iki sema
   // yan yana geldiginde catisirdi.
   const glowId = useId();
+  const starsId = useId();
+  const theme = useTheme();
 
   const layout = useMemo(() => layoutTree(roots, collapsed), [roots, collapsed]);
 
@@ -52,16 +80,55 @@ export function OrgBubbleMap({ roots, colors, collapsed, onToggle }: Props) {
       : layout.nodes.find((entry) => entry.node?.id === hovered)?.ancestorIds ?? [],
   );
 
+  // Gezinme sirasi cizim sirasidir: merkezden disa, kardesler arka arkaya.
+  const order = layout.nodes.filter((entry) => entry.node !== null);
+  const current = order.findIndex((entry) => entry.node?.id === roving);
+  // Hicbiri secilmediyse tab duragi ILK dugumdur; yoksa cizime hic girilemezdi.
+  const tabStop = current === -1 ? order[0]?.node?.id ?? null : roving;
+
+  const move = (from: TreeNode, key: string) => {
+    const index = order.findIndex((entry) => entry.node?.id === from.node?.id);
+
+    const target = (() => {
+      switch (key) {
+        case 'ArrowDown':
+          return order[Math.min(index + 1, order.length - 1)];
+        case 'ArrowUp':
+          return order[Math.max(index - 1, 0)];
+        case 'ArrowRight':
+          // Kapaliysa ACAR, aciksa ilk cocuga gider -- agac deseninin kurali.
+          if (from.collapsed) return null;
+          return order.find((entry) => entry.ancestorIds[1] === from.node?.id) ?? from;
+        case 'ArrowLeft':
+          if (from.hasChildren && !from.collapsed) return null;
+          return order.find((entry) => entry.node?.id === from.ancestorIds[1]) ?? from;
+        case 'Home':
+          return order[0];
+        case 'End':
+          return order[order.length - 1];
+        default:
+          return from;
+      }
+    })();
+
+    return target;
+  };
+
   const centre = layout.size / 2;
-  const spin = reduceMotion ? 'none' : `orbitSpin ${ORBIT_PERIOD}s linear infinite`;
-  const spinBack = reduceMotion ? 'none' : `orbitSpinBack ${ORBIT_PERIOD}s linear infinite`;
+  const still = reduceMotion || paused;
+  const spin = still ? 'none' : `orbitSpin ${ORBIT_PERIOD}s linear infinite`;
+  const spinBack = still ? 'none' : `orbitSpinBack ${ORBIT_PERIOD}s linear infinite`;
 
   return (
     <Box
       component="svg"
+      ref={canvas}
       viewBox={`0 0 ${layout.size} ${layout.size}`}
-      role="img"
-      aria-label={`Organisation chart as orbiting layers, ${layout.nodes.length} nodes`}
+      // role="img" DEGIL: o rol cocuklari presentational yapar ve icindeki
+      // dugumler erisilebilirlik agacina hic girmez. Cizim etkilesimli
+      // oldugu icin gecilmesi gereken bir AGACTIR.
+      role="tree"
+      aria-label={`Organisation chart, ${layout.nodes.length} people`}
       sx={{
         width: '100%',
         height: 'auto',
@@ -107,12 +174,42 @@ export function OrgBubbleMap({ roots, colors, collapsed, onToggle }: Props) {
       <defs>
         {/* Merkezdeki soluk isik: tuvali bos bir zemin degil, DERINLIGI olan
             bir bosluk gibi okutur. */}
+        {/* Isik ON YUKLEMELI duser: opaklıgin cogu %35'te biter. Dogrusal
+            bir dusus renkli bir DISK gibi gorunurdu; yayilim kaynagin yaninda
+            hizli, kuyrukta uzun soner.
+
+            Dis durak mutlaka stop-opacity=0 olmali: zemin rengiyle
+            eslestirmek tema degisince sert bir kenar birakirdi. */}
         <radialGradient id={glowId}>
-          <stop offset="0%" stopColor="currentColor" stopOpacity={0.12} />
-          <stop offset="55%" stopColor="currentColor" stopOpacity={0.03} />
+          <stop offset="0%" stopColor="currentColor" stopOpacity={0.14} />
+          <stop offset="35%" stopColor="currentColor" stopOpacity={0.05} />
+          <stop offset="70%" stopColor="currentColor" stopOpacity={0.015} />
           <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
         </radialGradient>
+
+        {/* Yildiz alani: gurultuden tek gecisle uretilir. feColorMatrix'in
+            son satiri alfayi 9 ile carpip 6 cikarir, yani yalnizca dar bir
+            bant hayatta kalir -- geri kalan tamamen seffaflasir. Sabit bir
+            filtre bedelini ILK boyamada bir kez oder; donen grubun DISINDA
+            durdugu icin her karede yeniden hesaplanmaz. */}
+        <filter id={starsId} x="0" y="0" width="100%" height="100%">
+          <feTurbulence baseFrequency="0.8" numOctaves={1} seed={7} />
+          <feColorMatrix
+            values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 9 -6"
+          />
+        </filter>
       </defs>
+
+      {/* Yildizlar yalnizca KOYU temada: acik zeminde uzay bosluğu anlamsizdir
+          ve beyaz noktalar kirlilik gibi okunurdu. */}
+      {theme.palette.mode === 'dark' && (
+        <rect
+          width={layout.size}
+          height={layout.size}
+          filter={`url(#${starsId})`}
+          opacity={0.5}
+        />
+      )}
 
       <circle cx={centre} cy={centre} r={centre} fill={`url(#${glowId})`} />
 
@@ -135,13 +232,21 @@ export function OrgBubbleMap({ roots, colors, collapsed, onToggle }: Props) {
             cy={centre}
             r={ring}
             fill="none"
-            strokeDasharray="1 9"
-            style={{ animationDelay: `${reduceMotion ? 0 : index * DEPTH_DELAY}ms` }}
+            // pathLength cevreyi 100'e normalize eder. Olmasaydi sabit bir
+            // dasharray her halkada FARKLI nokta araligi verirdi: dis halka
+            // seyrek, ic halka sik gorunur ve halkalar ayni ailedenmis gibi
+            // okunmazdi.
+            pathLength={100}
+            strokeDasharray={`0 ${RING_DOT_SPACING}`}
+            strokeLinecap="round"
+            style={{ animationDelay: `${still ? 0 : index * DEPTH_DELAY}ms` }}
             sx={{
               stroke: 'currentColor',
-              strokeOpacity: 0.16,
-              strokeWidth: 1,
-              animation: reduceMotion ? 'none' : 'fadeIn 600ms ease both',
+              strokeOpacity: 0.2,
+              // Sifir uzunlukta tire + yuvarlak uc = capi cizgi kalinligi
+              // kadar TAM BIR NOKTA.
+              strokeWidth: 1.6,
+              animation: still ? 'none' : 'fadeIn 600ms ease both',
             }}
           />
         ))}
@@ -158,10 +263,22 @@ export function OrgBubbleMap({ roots, colors, collapsed, onToggle }: Props) {
             colors={colors}
             hovered={hovered}
             lit={lit}
-            reduceMotion={reduceMotion}
+            reduceMotion={still}
             spinBack={spinBack}
+            tabStop={entry.node?.id === tabStop}
             onHover={setHovered}
             onToggle={onToggle}
+            onMove={(key) => {
+              const target = move(entry, key);
+
+              if (target === null) {
+                // Sag/sol ok, hedef yoksa acma/kapama anlamina gelir.
+                if (entry.node) onToggle(entry.node);
+                return;
+              }
+
+              if (target?.node) setRoving(target.node.id);
+            }}
           />
         ))}
       </Box>
@@ -184,9 +301,13 @@ function Link({ link, largest, lit }: { link: TreeLink; largest: number; lit: Se
       fill="none"
       sx={{
         stroke: (t) => (onPath ? t.palette.primary.main : 'currentColor'),
-        // Baglar varsayilan olarak neredeyse gorunmez: sema once ASILI
-        // katmanlar olarak okunur, bag ancak sorulunca belirir.
-        strokeOpacity: onPath ? 1 : (lit.size > 0 ? 0.04 : 0.11),
+        // Baglar SOLUK ama gorunur. Once %11'e indirilmisti; olculdu ve
+        // fazlaydi: gizlenmis bir bag, yapiyi yalnizca uzerine GELEN kullaniciya
+        // verir ve fareyle gelemeyen biri icin hiyerarsi hic okunmaz olur
+        // (WCAG 2.1.1, klavye ile isletilebilirlik). Radyal yerlesimde bag
+        // zaten kismen artiktir -- seviyeyi yaricap, kardesligi aci soyluyor --
+        // bu yuzden %28, d3'un %40 varsayilanindan daha hafif ama yok degil.
+        strokeOpacity: onPath ? 1 : (lit.size > 0 ? 0.09 : 0.28),
         strokeWidth: onPath ? width + 1.5 : width,
         strokeLinecap: 'round',
         transition: 'stroke 260ms ease, stroke-opacity 260ms ease, stroke-width 260ms ease',
@@ -203,14 +324,21 @@ interface NodeProps {
   lit: Set<number>;
   reduceMotion: boolean;
   spinBack: string;
+  /** Bu dugum tab sirasindaki TEK durak mi? */
+  tabStop: boolean;
   onHover: (id: number | null) => void;
   onToggle: (node: OrgNode) => void;
+  onMove: (key: string) => void;
 }
 
 const DRIFTS = ['driftA', 'driftB', 'driftC', 'driftD'] as const;
 
+/** Cizimin icinde gezinmeyi ustlenen tuslar. */
+const NAVIGATION_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+
 function Node({
-  entry, hubLabel, colors, hovered, lit, reduceMotion, spinBack, onHover, onToggle,
+  entry, hubLabel, colors, hovered, lit, reduceMotion, spinBack, tabStop,
+  onHover, onToggle, onMove,
 }: NodeProps) {
   const theme = useTheme();
   const { node, x, y, r, depth, size, hasChildren, collapsed, hidden } = entry;
@@ -272,18 +400,34 @@ function Node({
           onFocus={() => node && onHover(node.id)}
           onBlur={() => onHover(null)}
           onClick={() => node && hasChildren && onToggle(node)}
-          // Ekibi olan dugum bir DUGMEDIR; yaprak tiklanabilir degil, o yuzden
-          // odak sirasina da girmez.
-          {...(node && hasChildren
+          // Agac dugumu: seviye, konum ve kardes sayisi ACIKCA bildirilir.
+          // SVG'de DOM ic iceligi hiyerarsiyi ima etmez, ekran okuyucu bunlari
+          // baska turlu cikaramaz.
+          {...(node
             ? {
-              role: 'button',
-              tabIndex: 0,
-              'aria-expanded': !collapsed,
-              'aria-label': `${fullName(node)}, ${size - 1} people in the team`,
+              role: 'treeitem',
+              'data-node-id': node.id,
+              'aria-level': depth + 1,
+              'aria-setsize': entry.siblings,
+              'aria-posinset': entry.position,
+              'aria-label': hasChildren
+                ? `${fullName(node)}, ${size - 1} people in the team`
+                : fullName(node),
+              // Tab sirasina TEK bir dugum girer; gerisi ok tuslariyla.
+              tabIndex: tabStop ? 0 : -1,
+              ...(hasChildren ? { 'aria-expanded': !collapsed } : {}),
               onKeyDown: (event: React.KeyboardEvent) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
-                  onToggle(node);
+                  if (hasChildren) onToggle(node);
+                  return;
+                }
+
+                if (NAVIGATION_KEYS.includes(event.key)) {
+                  // Ok tuslari sayfayi KAYDIRMAMALI: odak cizimin icindeyken
+                  // gezinme burada olmali.
+                  event.preventDefault();
+                  onMove(event.key);
                 }
               },
             }
