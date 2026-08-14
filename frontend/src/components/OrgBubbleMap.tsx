@@ -10,11 +10,9 @@ interface Props {
   roots: OrgNode[];
   /** Renk esleme, raf ile ayni olsun diye disaridan verilir. */
   colors: Map<string, string>;
-  /** Kapali dugumler; cocuklari cizilmez. */
-  collapsed: ReadonlySet<number>;
-  onToggle: (node: OrgNode) => void;
-  /** Kullanici hareketi acikca durdurdu mu? */
-  paused: boolean;
+  /** Secili kisi; sagdaki panelle ayni durumu paylasir. */
+  selectedId: number | null;
+  onSelect: (node: OrgNode) => void;
 }
 
 /** Butun sistemin bir tam turu (sn). Yavas: okumayi zorlastirmamali. */
@@ -38,7 +36,7 @@ const RING_DOT_SPACING = 2;
 const LINK_MIN = 1;
 const LINK_MAX = 5;
 
-export function OrgBubbleMap({ roots, colors, collapsed, onToggle, paused }: Props) {
+export function OrgBubbleMap({ roots, colors, selectedId, onSelect }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
   /**
    * Ok tuslariyla gezilen dugum.
@@ -68,16 +66,19 @@ export function OrgBubbleMap({ roots, colors, collapsed, onToggle, paused }: Pro
   const starsId = useId();
   const theme = useTheme();
 
-  const layout = useMemo(() => layoutTree(roots, collapsed), [roots, collapsed]);
+  const layout = useMemo(() => layoutTree(roots), [roots]);
 
   if (!layout) return null;
 
   // Uzerine gelinen kisinin merkeze kadar olan zinciri. Baglar varsayilan
   // olarak neredeyse gorunmez; yol ancak SORULDUGUNDA beliriyor.
+  // Zincir vurgusu once uzerine GELINENI, o yoksa SECILENI izler: secim
+  // kalicidir, hover gecici bir sorudur.
+  const traced = hovered ?? selectedId;
   const lit = new Set(
-    hovered === null
+    traced === null
       ? []
-      : layout.nodes.find((entry) => entry.node?.id === hovered)?.ancestorIds ?? [],
+      : layout.nodes.find((entry) => entry.node?.id === traced)?.ancestorIds ?? [],
   );
 
   // Gezinme sirasi cizim sirasidir: merkezden disa, kardesler arka arkaya.
@@ -96,11 +97,9 @@ export function OrgBubbleMap({ roots, colors, collapsed, onToggle, paused }: Pro
         case 'ArrowUp':
           return order[Math.max(index - 1, 0)];
         case 'ArrowRight':
-          // Kapaliysa ACAR, aciksa ilk cocuga gider -- agac deseninin kurali.
-          if (from.collapsed) return null;
+          // Ic ice yapida saga gitmek ASAGI inmektir: ilk asta gecer.
           return order.find((entry) => entry.ancestorIds[1] === from.node?.id) ?? from;
         case 'ArrowLeft':
-          if (from.hasChildren && !from.collapsed) return null;
           return order.find((entry) => entry.node?.id === from.ancestorIds[1]) ?? from;
         case 'Home':
           return order[0];
@@ -115,7 +114,7 @@ export function OrgBubbleMap({ roots, colors, collapsed, onToggle, paused }: Pro
   };
 
   const centre = layout.size / 2;
-  const still = reduceMotion || paused;
+  const still = reduceMotion;
   const spin = still ? 'none' : `orbitSpin ${ORBIT_PERIOD}s linear infinite`;
   const spinBack = still ? 'none' : `orbitSpinBack ${ORBIT_PERIOD}s linear infinite`;
 
@@ -266,16 +265,11 @@ export function OrgBubbleMap({ roots, colors, collapsed, onToggle, paused }: Pro
             reduceMotion={still}
             spinBack={spinBack}
             tabStop={entry.node?.id === tabStop}
+            selected={entry.node?.id === selectedId}
             onHover={setHovered}
-            onToggle={onToggle}
+            onSelect={onSelect}
             onMove={(key) => {
               const target = move(entry, key);
-
-              if (target === null) {
-                // Sag/sol ok, hedef yoksa acma/kapama anlamina gelir.
-                if (entry.node) onToggle(entry.node);
-                return;
-              }
 
               if (target?.node) setRoving(target.node.id);
             }}
@@ -326,8 +320,9 @@ interface NodeProps {
   spinBack: string;
   /** Bu dugum tab sirasindaki TEK durak mi? */
   tabStop: boolean;
+  selected: boolean;
   onHover: (id: number | null) => void;
-  onToggle: (node: OrgNode) => void;
+  onSelect: (node: OrgNode) => void;
   onMove: (key: string) => void;
 }
 
@@ -337,11 +332,11 @@ const DRIFTS = ['driftA', 'driftB', 'driftC', 'driftD'] as const;
 const NAVIGATION_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
 
 function Node({
-  entry, hubLabel, colors, hovered, lit, reduceMotion, spinBack, tabStop,
-  onHover, onToggle, onMove,
+  entry, hubLabel, colors, hovered, lit, reduceMotion, spinBack, tabStop, selected,
+  onHover, onSelect, onMove,
 }: NodeProps) {
   const theme = useTheme();
-  const { node, x, y, r, depth, size, hasChildren, collapsed, hidden } = entry;
+  const { node, x, y, r, depth, size, hasChildren } = entry;
 
   const isHovered = node !== null && hovered === node.id;
   const onPath = node !== null && lit.has(node.id);
@@ -390,7 +385,7 @@ function Node({
         <Box
           component="g"
           sx={{
-            cursor: hasChildren ? 'pointer' : 'default',
+            cursor: 'pointer',
             transition: 'opacity 260ms ease',
             opacity: dimmed ? 0.3 : 1,
             '&:focus-visible': { outline: 'none' },
@@ -399,7 +394,9 @@ function Node({
           onMouseEnter={() => node && onHover(node.id)}
           onFocus={() => node && onHover(node.id)}
           onBlur={() => onHover(null)}
-          onClick={() => node && hasChildren && onToggle(node)}
+          // Tiklamak agaci DEGISTIRMEZ, yalnizca secer: sema yerinde kalir ve
+          // ayrinti sagdaki panelde acilir. Yaprak da secilebilir.
+          onClick={() => node && onSelect(node)}
           // Agac dugumu: seviye, konum ve kardes sayisi ACIKCA bildirilir.
           // SVG'de DOM ic iceligi hiyerarsiyi ima etmez, ekran okuyucu bunlari
           // baska turlu cikaramaz.
@@ -410,16 +407,18 @@ function Node({
               'aria-level': depth + 1,
               'aria-setsize': entry.siblings,
               'aria-posinset': entry.position,
-              'aria-label': hasChildren
-                ? `${fullName(node)}, ${size - 1} people in the team`
-                : fullName(node),
+              // Erisilebilir ad kisinin KIMLIGIDIR; ekip buyuklugu <title>'da
+              // ve sagdaki panelde duruyor. Ada sayi katmak, secim degistikce
+              // adin da degismesi demekti -- bazi ekran okuyucular guncellenen
+              // adi hic bildirmez.
+              'aria-label': `${fullName(node)}, ${node.jobTitle}`,
               // Tab sirasina TEK bir dugum girer; gerisi ok tuslariyla.
               tabIndex: tabStop ? 0 : -1,
-              ...(hasChildren ? { 'aria-expanded': !collapsed } : {}),
+              'aria-selected': selected,
               onKeyDown: (event: React.KeyboardEvent) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
-                  if (hasChildren) onToggle(node);
+                  onSelect(node);
                   return;
                 }
 
@@ -444,24 +443,10 @@ function Node({
             sx={{
               stroke: (t) => t.palette.primary.main,
               strokeWidth: 2,
-              opacity: isHovered ? 1 : 0,
+              opacity: isHovered || selected ? 1 : 0,
               transition: 'opacity 180ms ease',
             }}
           />
-
-          {/* Kapali dugumun disinda kesikli bir halka: "burada dahasi var"
-              bilgisini RENKTEN bagimsiz, bicimle tasir. */}
-          {collapsed && (
-            <Box
-              component="circle"
-              cx={x}
-              cy={y}
-              r={r + 4}
-              fill="none"
-              strokeDasharray="3 4"
-              sx={{ stroke: fill, strokeWidth: 1.5, strokeOpacity: 0.9 }}
-            />
-          )}
 
           <Box
             component="circle"
@@ -480,9 +465,7 @@ function Node({
           {node && (
             <title>
               {`${fullName(node)} — ${node.jobTitle}, ${node.departmentName}`}
-              {hasChildren
-                ? ` (${size - 1} in the team, ${collapsed ? 'closed' : 'open'})`
-                : ''}
+              {hasChildren ? ` (${size - 1} in the team)` : ''}
             </title>
           )}
 
@@ -522,20 +505,6 @@ function Node({
             </Box>
           )}
 
-          {/* Kapali dugumde gizlenen kisi sayisi: sessizce kaybetmek, eksik
-              oldugunu soylemeyen bir sema uretirdi. */}
-          {collapsed && (
-            <Box
-              component="text"
-              x={x}
-              y={y + r + (label ? 28 : 15)}
-              textAnchor="middle"
-              fontSize={10.5}
-              sx={{ fill: 'currentColor', fillOpacity: 0.6, pointerEvents: 'none' }}
-            >
-              {`+${hidden}`}
-            </Box>
-          )}
         </Box>
       </Box>
     </Box>

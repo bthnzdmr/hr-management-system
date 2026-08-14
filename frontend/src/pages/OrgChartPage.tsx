@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Button, Fade, Paper, Skeleton, Stack, Typography } from '@mui/material';
+import { Alert, Box, Fade, Paper, Skeleton, Stack, Typography } from '@mui/material';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
-import PauseOutlinedIcon from '@mui/icons-material/PauseOutlined';
-import PlayArrowOutlinedIcon from '@mui/icons-material/PlayArrowOutlined';
 import { orgChartApi } from '../api/orgChart';
 import type { OrgChart, OrgNode } from '../api/orgChart';
 import { errorMessage } from '../api/client';
@@ -13,28 +11,14 @@ import {
 } from '../components/OrgBubbleMap';
 import { DepartmentRail } from '../components/DepartmentRail';
 import { departmentsOf, scopeToDepartment } from '../components/orgScope';
+import { PersonPanel } from '../components/PersonPanel';
 
 export function OrgChartPage() {
   const [chart, setChart] = useState<OrgChart | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [department, setDepartment] = useState<string | null>(null);
-  /**
-   * Kapali dugumler.
-   *
-   * Onceki tasarim bir dugume tiklandiginda o dalin ICINE giriyordu ve her
-   * tiklama bir seviye daha derine indiriyordu -- kullanici nerede oldugunu
-   * kaybediyordu. Acip kapatmak yerinde kalir: baglam hic degismez.
-   */
-  const [collapsed, setCollapsed] = useState<ReadonlySet<number>>(new Set());
-  /**
-   * Hareketi acikca durdurma.
-   *
-   * Isaretci veya klavye odagi cizime girdiginde donme zaten duruyor, ama bu
-   * ORTULU bir mekanizma: hicbir yere dokunmadan sayfayi okuyan biri icin
-   * hareket surer. Kendiliginden baslayan ve bes saniyeden uzun suren hareket
-   * icin ACIK bir durdurma yolu gerekir (WCAG 2.2.2).
-   */
-  const [paused, setPaused] = useState(false);
+  /** Sagdaki panelde gosterilen kisi. */
+  const [selected, setSelected] = useState<OrgNode | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -72,21 +56,17 @@ export function OrgChartPage() {
     return department === null ? chart.roots : scopeToDepartment(chart.roots, department);
   }, [chart, department]);
 
-  const toggle = (node: OrgNode) => {
-    setCollapsed((current) => {
-      const next = new Set(current);
-
-      if (!next.delete(node.id)) next.add(node.id);
-
-      return next;
-    });
-  };
-
   const selectDepartment = (next: string | null) => {
     setDepartment(next);
-    // Baska bir departmanin dugumlerine ait kapali/acik durumu anlamsizdir.
-    setCollapsed(new Set());
+    // Baska bir departmanin kisisini secili birakmak anlamsizdir.
+    setSelected(null);
   };
+
+  // Secilen kisinin merkezden kendisine kadar olan zinciri; panel bunu okur.
+  const chain = useMemo(
+    () => (selected ? pathTo(scoped, selected.id) : []),
+    [scoped, selected],
+  );
 
   if (error) {
     return <Alert severity="error">{error}</Alert>;
@@ -149,43 +129,17 @@ export function OrgChartPage() {
 
           {chart && chart.roots.length > 0 && (
             <Stack spacing={2}>
-              <Stack
-                direction="row"
-                spacing={1.5}
-                sx={{ flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}
-              >
-                <Typography variant="caption" color="text.secondary">
-                  Click a node to fold its team away — the chart stays where it is
-                </Typography>
-
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                  {collapsed.size > 0 && (
-                    <Button size="small" onClick={() => setCollapsed(new Set())}>
-                      Expand all
-                    </Button>
-                  )}
-
-                  <Button
-                    size="small"
-                    aria-pressed={paused}
-                    startIcon={paused
-                      ? <PlayArrowOutlinedIcon fontSize="small" />
-                      : <PauseOutlinedIcon fontSize="small" />}
-                    onClick={() => setPaused((current) => !current)}
-                  >
-                    {paused ? 'Resume motion' : 'Pause motion'}
-                  </Button>
-                </Stack>
-              </Stack>
+              <Typography variant="caption" color="text.secondary">
+                Click anyone to see where they sit in the organisation
+              </Typography>
 
               <Fade in key={department ?? 'all'}>
                 <Box>
                   <OrgBubbleMap
                     roots={scoped}
                     colors={colors}
-                    collapsed={collapsed}
-                    onToggle={toggle}
-                    paused={paused}
+                    selectedId={selected?.id ?? null}
+                    onSelect={setSelected}
                   />
                 </Box>
               </Fade>
@@ -198,7 +152,40 @@ export function OrgChartPage() {
             </Stack>
           )}
         </Paper>
+        <Paper
+          sx={{
+            p: 2,
+            width: { xs: '100%', lg: 280 },
+            flexShrink: 0,
+            // Cizim uzun oldugunda panel ekranda kalir; secim yapip yukari
+            // kaydirmak gerekmez.
+            position: { lg: 'sticky' },
+            top: { lg: 88 },
+          }}
+        >
+          {!chart && <Skeleton variant="rounded" height={220} />}
+          {chart && (
+            <PersonPanel
+              person={selected}
+              chain={chain}
+              color={selected ? colors.get(selected.departmentName) : undefined}
+              onSelect={setSelected}
+            />
+          )}
+        </Paper>
       </Stack>
     </Stack>
   );
+}
+
+/** Koklerden verilen kisiye giden yol; kisinin kendisi sonda. */
+function pathTo(roots: OrgNode[], id: number): OrgNode[] {
+  for (const root of roots) {
+    if (root.id === id) return [root];
+
+    const below = pathTo(root.reports, id);
+    if (below.length > 0) return [root, ...below];
+  }
+
+  return [];
 }

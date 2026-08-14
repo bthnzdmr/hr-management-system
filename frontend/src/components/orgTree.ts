@@ -15,10 +15,6 @@ const MAX_RADIUS = 36;
 
 export interface TreeNode {
   node: OrgNode | null;
-  /** Kapali bir dugumun cocuklari cizilmez ama sayilari gosterilir. */
-  collapsed: boolean;
-  /** Altindaki toplam kisi; dugum kapaliyken de gercek sayiyi soyler. */
-  hidden: number;
   /** Tuval koordinati (merkez tuvalin ortasidir). */
   x: number;
   y: number;
@@ -78,7 +74,7 @@ export interface OrgLayout {
  * calisan ayni halkada gorunur ve SEVIYE bilgisi kaybolur. `tree` her dugumu
  * kendi derinliginin halkasina koyar.
  */
-export function layoutTree(roots: OrgNode[], collapsed: ReadonlySet<number>): OrgLayout | null {
+export function layoutTree(roots: OrgNode[]): OrgLayout | null {
   if (roots.length === 0) return null;
 
   // Tek kok varsa merkezde O durur. Birden fazla kok normaldir (departman
@@ -96,14 +92,8 @@ export function layoutTree(roots: OrgNode[], collapsed: ReadonlySet<number>): Or
     reports: roots,
   };
 
-  // Kapali dugumun cocuklari yerlesime HIC girmez: gizlenmis bir dugum icin
-  // yer ayirmak, kapatmanin butun amacini bosa cikarirdi.
-  const root = hierarchy<OrgNode>(single ?? virtual, (node) => (
-    collapsed.has(node.id) ? [] : node.reports
-  ));
+  const root = hierarchy<OrgNode>(single ?? virtual, (node) => node.reports);
 
-  // Gercek ekip buyuklukleri KAPATMADAN once hesaplanir; aksi halde kapali bir
-  // yoneticinin dairesi kucuk gorunur ve "kimse yok" gibi okunurdu.
   const totals = subtreeTotals(single ?? virtual);
 
   const depth = maxDepth(root);
@@ -132,12 +122,9 @@ export function layoutTree(roots: OrgNode[], collapsed: ReadonlySet<number>): Or
     const placed = point(entry);
     const size = totals.get(entry.data.id) ?? 1;
     const isHub = entry.data.id === -1;
-    const isCollapsed = collapsed.has(entry.data.id) && entry.data.reports.length > 0;
 
     return {
       node: isHub ? null : entry.data,
-      collapsed: isCollapsed,
-      hidden: isCollapsed ? size - 1 : 0,
       x: placed.x,
       y: placed.y,
       // Alan kisi sayisiyla orantili: goz buyuklugu alandan okur, capa yazmak
@@ -146,7 +133,6 @@ export function layoutTree(roots: OrgNode[], collapsed: ReadonlySet<number>): Or
       depth: entry.depth,
       angle: (placed.theta * 180) / Math.PI,
       size,
-      // Kapali dugum de tiklanabilir kalmali; yoksa geri acilamazdi.
       hasChildren: entry.data.reports.length > 0,
       ancestorIds: chain(entry),
       // Ekran okuyucu SVG'de DOM ic icelikten seviye cikaramaz; konum ve
@@ -240,7 +226,7 @@ function chain(entry: { data: OrgNode; parent: unknown }): number[] {
   return ids;
 }
 
-/** Her dugumun altindaki gercek kisi sayisi; kapatma bunu degistirmez. */
+/** Her dugumun altindaki gercek kisi sayisi. */
 function subtreeTotals(root: OrgNode): Map<number, number> {
   const totals = new Map<number, number>();
 

@@ -3,9 +3,6 @@ import { layoutTree } from './orgTree';
 import type { OrgLayout, TreeNode } from './orgTree';
 import type { OrgNode } from '../api/orgChart';
 
-/** Hicbir dugum kapali degil. */
-const NONE = new Set<number>();
-
 function node(id: number, reports: OrgNode[] = []): OrgNode {
   return {
     id,
@@ -31,7 +28,7 @@ function byId(layout: OrgLayout, id: number) {
 
 describe('orgTree', () => {
   it('puts a single root in the centre and everyone else around it', () => {
-    const layout = layoutTree([node(1, [node(2), node(3)])], NONE) as OrgLayout;
+    const layout = layoutTree([node(1, [node(2), node(3)])]) as OrgLayout;
 
     expect(radius(layout, byId(layout, 1))).toBeCloseTo(0);
     expect(radius(layout, byId(layout, 2))).toBeGreaterThan(0);
@@ -46,7 +43,7 @@ describe('orgTree', () => {
         node(2, [node(4, [node(5)])]),
         node(3),
       ]),
-    ], NONE) as OrgLayout;
+    ]) as OrgLayout;
 
     const first = radius(layout, byId(layout, 2));
     const second = radius(layout, byId(layout, 4));
@@ -60,7 +57,7 @@ describe('orgTree', () => {
   it('draws one branch per reporting line, and none from the hub', () => {
     // Birden fazla kok normaldir (departman baskanlari) ve gorunmez merkezden
     // cikan dallar cizilseydi olmayan bir raporlama cizgisi gosterilirdi.
-    const layout = layoutTree([node(1, [node(2)]), node(3)], NONE) as OrgLayout;
+    const layout = layoutTree([node(1, [node(2)]), node(3)]) as OrgLayout;
 
     expect(layout.hubLabel).toBe('Organisation');
     expect(layout.links).toHaveLength(3);
@@ -68,8 +65,8 @@ describe('orgTree', () => {
   });
 
   it('names the centre only when it is not a person', () => {
-    const single = layoutTree([node(1, [node(2)])], NONE) as OrgLayout;
-    const many = layoutTree([node(1), node(2)], NONE) as OrgLayout;
+    const single = layoutTree([node(1, [node(2)])]) as OrgLayout;
+    const many = layoutTree([node(1), node(2)]) as OrgLayout;
 
     expect(single.hubLabel).toBeNull();
     expect(many.hubLabel).toBe('Organisation');
@@ -79,7 +76,7 @@ describe('orgTree', () => {
     // Tuval yaricapa gore olceklenir; derin bir agac disari tasarsa en dis
     // halka kirpilirdi.
     const deep = node(1, [node(2, [node(3, [node(4, [node(5)])])])]);
-    const layout = layoutTree([deep], NONE) as OrgLayout;
+    const layout = layoutTree([deep]) as OrgLayout;
 
     for (const entry of layout.nodes) {
       expect(entry.x - entry.r).toBeGreaterThanOrEqual(0);
@@ -93,7 +90,7 @@ describe('orgTree', () => {
     // Kalabalik bir ekipte aci payi yetmezse dugumler ust uste biner ve iki
     // kisi tek bir daire gibi gorunur.
     const crowd = Array.from({ length: 25 }).map((_, index) => node(index + 2));
-    const layout = layoutTree([node(1, crowd)], NONE) as OrgLayout;
+    const layout = layoutTree([node(1, crowd)]) as OrgLayout;
 
     const leaves = layout.nodes.filter((entry) => !entry.hasChildren);
 
@@ -112,7 +109,7 @@ describe('orgTree', () => {
         node(2, [node(4), node(5), node(6), node(7)]),
         node(3),
       ]),
-    ], NONE) as OrgLayout;
+    ]) as OrgLayout;
 
     expect(byId(layout, 2).size).toBe(5);
     expect(byId(layout, 3).size).toBe(1);
@@ -122,54 +119,13 @@ describe('orgTree', () => {
   it('carries the whole chain back to the centre on every node', () => {
     // Uzerine gelince YOL vurgulanir; zincir dugumun kendisinde durmasaydi
     // her hover'da agac yeniden yurunurdu.
-    const layout = layoutTree([node(1, [node(2, [node(3)])])], NONE) as OrgLayout;
+    const layout = layoutTree([node(1, [node(2, [node(3)])])]) as OrgLayout;
 
     expect(byId(layout, 3).ancestorIds).toEqual([3, 2, 1]);
   });
 
   it('returns nothing when there is nobody to draw', () => {
-    expect(layoutTree([], NONE)).toBeNull();
-  });
-});
-
-describe('collapsing', () => {
-  it('leaves out the children of a closed node', () => {
-    const tree = node(1, [node(2, [node(3), node(4)])]);
-
-    const open = layoutTree([tree], NONE) as OrgLayout;
-    const shut = layoutTree([tree], new Set([2])) as OrgLayout;
-
-    expect(open.nodes).toHaveLength(4);
-    expect(shut.nodes).toHaveLength(2);
-  });
-
-  it('still reports the real team size of a closed node', () => {
-    // Kapali bir yoneticinin dairesi kucuk gorunseydi "kimse yok" gibi
-    // okunurdu; oysa gizlenen kisiler hala oradadir.
-    const tree = node(1, [node(2, [node(3), node(4)])]);
-
-    const shut = layoutTree([tree], new Set([2])) as OrgLayout;
-    const closed = shut.nodes.find((entry) => entry.node?.id === 2) as TreeNode;
-
-    expect(closed.size).toBe(3);
-    expect(closed.hidden).toBe(2);
-    expect(closed.collapsed).toBe(true);
-  });
-
-  it('keeps a closed node clickable so it can be opened again', () => {
-    const shut = layoutTree([node(1, [node(2)])], new Set([1])) as OrgLayout;
-
-    expect(shut.nodes[0].hasChildren).toBe(true);
-  });
-
-  it('does not call a childless node collapsed', () => {
-    // Kapali isaretlemek onu tiklanabilir gosterirdi ve tiklama hicbir sey
-    // yapmazdi.
-    const leafShut = layoutTree([node(1, [node(2)])], new Set([2])) as OrgLayout;
-    const leaf = leafShut.nodes.find((entry) => entry.node?.id === 2) as TreeNode;
-
-    expect(leaf.collapsed).toBe(false);
-    expect(leaf.hasChildren).toBe(false);
+    expect(layoutTree([])).toBeNull();
   });
 });
 
@@ -185,7 +141,7 @@ describe('branch geometry', () => {
     // Boylece dal her iki ucta yaricap dogrultusunda cikip girer ve acisal
     // gecisi halkalar arasindaki BOS bantta yapar. Duz bir kiris ebeveynin
     // kendi halkasini keserdi -- kardes alt agaclarin durdugu yeri.
-    const layout = layoutTree([node(1, [node(2), node(3)])], NONE) as OrgLayout;
+    const layout = layoutTree([node(1, [node(2), node(3)])]) as OrgLayout;
     const centre = layout.size / 2;
 
     const [start, control1, control2, end] = points(layout.links[0].path);
@@ -199,7 +155,7 @@ describe('branch geometry', () => {
 
   it('starts and ends exactly on the two nodes it joins', () => {
     // Bag dugumun uzerinde bitmezse cizim ile yapi birbirini tutmaz.
-    const layout = layoutTree([node(1, [node(2)])], NONE) as OrgLayout;
+    const layout = layoutTree([node(1, [node(2)])]) as OrgLayout;
     const [start, , , end] = points(layout.links[0].path);
 
     const parent = layout.nodes.find((entry) => entry.node?.id === 1) as TreeNode;
