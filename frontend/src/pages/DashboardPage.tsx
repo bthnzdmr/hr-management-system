@@ -15,7 +15,6 @@ import { errorMessage } from '../api/client';
 import { BarRow } from '../components/BarRow';
 import { PageHeader } from '../components/PageHeader';
 import { Sparkline } from '../components/Sparkline';
-import { ManagerLoad, ManagerLoadLegend } from '../components/ManagerLoad';
 import { HOVER_LIFT } from '../theme/theme';
 import { TERMINATION_REASON_LABELS } from '../types/api';
 import type { TerminationReason } from '../types/api';
@@ -175,7 +174,7 @@ export function DashboardPage() {
 
   const {
     headcount, byDepartment, turnoverByMonth, hiresByMonth, terminationReasons,
-    spanOfControl, dataQuality, managerLoad,
+    spanOfControl, dataQuality,
   } = data;
 
   const hireTrend = hiresByMonth.map((row) => row.hires);
@@ -279,18 +278,6 @@ export function DashboardPage() {
                 />
               ))
             )}
-          </Panel>
-        </Grid>
-
-        <Grid size={{ xs: 12 }}>
-          <Panel
-            title="Manager load"
-            subtitle="Circle area is the size of the team; the number is inside it"
-          >
-            {/* Balon BURADA dogru, org chart'ta degil: orada sorulan sey
-                hiyerarsi seviyesi, burada ise karsilastirma. */}
-            <ManagerLoadLegend managers={managerLoad} />
-            <ManagerLoad managers={managerLoad} />
           </Panel>
         </Grid>
 

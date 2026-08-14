@@ -23,8 +23,10 @@ function node(id: number, lastName: string, reports: OrgNode[] = []): OrgNode {
 describe('OrgChartPage', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('draws the reporting lines as a nested list', async () => {
-    // Agacin sekli VERIDEN gelir, koddan degil: bilesen ozyinelemeli.
+  it('keeps the reporting line readable as nested text, not only as a drawing', async () => {
+    // Cizim tek basina birakilsaydi agac yapisi ekran okuyucuda ve Ctrl+F'te
+    // tamamen kaybolurdu. Iddia GORUNMEYEN listeye yazilir cunku erisilebilirlik
+    // garantisini veren sey odur.
     vi.mocked(orgChartApi.get).mockResolvedValue({
       roots: [node(1, 'Root', [node(2, 'Alpha', [node(3, 'Gamma')])])],
       placed: 3,
@@ -33,13 +35,26 @@ describe('OrgChartPage', () => {
 
     render(<OrgChartPage />);
 
-    expect(await screen.findByText('Test Root')).toBeInTheDocument();
-
-    // Ic ice olma iddiasi: Gamma, Alpha'nin ALTINDA olmali. Duz bir liste de
-    // uc ismi birden gosterirdi; asil sinanan sey yerlesim.
-    const alpha = (await screen.findByText('Test Alpha')).closest('li');
+    // Iddia LISTEYE daraltilir: isim ayrica her dairenin <title>'inda da geciyor
+    // ve genel bir arama iki elemani birden bulurdu.
+    const outline = (await screen.findAllByRole('list'))[0];
+    const alpha = within(outline).getByText(/Test Alpha/).closest('li');
     expect(alpha).not.toBeNull();
-    expect(within(alpha as HTMLElement).getByText('Test Gamma')).toBeInTheDocument();
+    expect(within(alpha as HTMLElement).getByText(/Test Gamma/)).toBeInTheDocument();
+  });
+
+  it('draws one circle per person', async () => {
+    vi.mocked(orgChartApi.get).mockResolvedValue({
+      roots: [node(1, 'Root', [node(2, 'Alpha'), node(3, 'Beta')])],
+      placed: 3,
+      unreachable: 0,
+    });
+
+    const { container } = render(<OrgChartPage />);
+
+    await screen.findByRole('img', { name: /nested circles/ });
+    // Sanal kok CIZILMEZ: uc kisi, uc daire.
+    expect(container.querySelectorAll('circle')).toHaveLength(3);
   });
 
   it('says how many people the tree could not reach', async () => {
@@ -64,7 +79,7 @@ describe('OrgChartPage', () => {
 
     render(<OrgChartPage />);
 
-    await screen.findByText('Test Root');
+    await screen.findByRole('img', { name: /nested circles/ });
     expect(screen.queryByText(/not shown/)).not.toBeInTheDocument();
   });
 
