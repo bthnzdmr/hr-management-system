@@ -22,7 +22,12 @@ function Probe() {
       <span data-testid="roles">{user?.roles.join(",") ?? 'none'}</span>
       <span data-testid="canEdit">{canEditEmployees ? 'yes' : 'no'}</span>
       <span data-testid="canManage">{canManageAccounts ? 'yes' : 'no'}</span>
-      <button onClick={() => login({ email: 'a@b.c', password: 'secret' })}>login</button>
+      {/* Hata YUTULUR: uretimde LoginPage de try/catch ile yakalar ve
+          mesaji gosterir. Yutulmazsa basarisiz giris senaryosu, testte
+          yakalanmamis bir promise reddi olarak gorunurdu. */}
+      <button onClick={() => { void login({ email: 'a@b.c', password: 'secret' }).catch(() => {}); }}>
+        login
+      </button>
       <button onClick={logout}>logout</button>
     </div>
   );
@@ -92,13 +97,35 @@ describe('AuthProvider', () => {
 
   it('stores the token and identifies the user after signing in', async () => {
     const token = fakeToken({ sub: 'admin@example.com', roles: ['HR_SPECIALIST', 'SYSTEM_ADMIN'] });
-    vi.spyOn(api, 'post').mockResolvedValue({ data: { token } });
+    // Kurgu TAM bir LoginResponse: eksik hali gercegi yansitmiyordu ve
+    // "login yenileme jetonunu saklamayi tamamen birakti" senaryosunda bile
+    // test gecerdi.
+    vi.spyOn(api, 'post').mockResolvedValue({
+      data: { token, tokenType: 'Bearer', expiresInSeconds: 900, refreshToken: 'rotated' },
+    });
 
     renderProbe();
     await userEvent.click(screen.getByText('login'));
 
     await waitFor(() => expect(screen.getByTestId('email')).toHaveTextContent('admin@example.com'));
     expect(tokenStorage.get()).toBe(token);
+    // Yenileme jetonu da SAKLANMALI: saklanmazsa oturum ilk 401'de biter.
+    expect(tokenStorage.getRefresh()).toBe('rotated');
+  });
+
+  it('refuses a sign-in response that is missing the refresh token', async () => {
+    // api.post<T> bir TIP IDDIASIDIR, dogrulama degil. Sozlesme ihlalinde
+    // localStorage'a "undefined" METNI yazilirdi; truthy oldugu icin her 401
+    // mahkum bir yenileme denemesi baslatir ve oturum sessizce bozulurdu.
+    const token = fakeToken({ sub: 'admin@example.com', roles: ['EMPLOYEE'] });
+    vi.spyOn(api, 'post').mockResolvedValue({ data: { token } });
+
+    renderProbe();
+    await userEvent.click(screen.getByText('login'));
+
+    // Yarim bir oturum birakmaktansa hic birakmamak: depo temizlenir.
+    await waitFor(() => expect(tokenStorage.get()).toBeNull());
+    expect(tokenStorage.getRefresh()).toBeNull();
   });
 
   it('removes the stored token when signing out', async () => {

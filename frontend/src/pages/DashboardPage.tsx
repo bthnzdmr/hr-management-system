@@ -285,7 +285,15 @@ export function DashboardPage() {
           <Panel title="Departures by month" subtitle="Last 12 months">
             {/* Dikey sutunlar: zaman serisi soldan saga okunur ve aylar arasi
                 karsilastirma yatay cubuklarda kaybolurdu. */}
+            {/* Degerler ONCEDEN yalnizca Tooltip icindeydi ve ipucu
+                odaklanilamayan bir Box'i sariyordu: klavyeyle ulasilamiyor,
+                erisilebilirlik agacinda hic gorunmuyordu. Grafigin kendisine
+                bir ad verilir; ayni sayfadaki Sparkline zaten boyle yapiyor. */}
             <Box
+              role="img"
+              aria-label={`Departures by month: ${turnoverByMonth
+                .map((row) => `${shortMonth(row.month)} ${row.leavers}`)
+                .join(', ')}`}
               sx={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(12, 1fr)',
@@ -311,6 +319,11 @@ export function DashboardPage() {
                         ? alpha(t.palette.primary.main, row.leavers === maxMonthly ? 1 : 0.45)
                         : t.palette.action.disabledBackground),
                       borderRadius: 0.5,
+                      // Zirve ay ONCEDEN yalnizca opaklikla belirtiliyordu;
+                      // renk tek basina bilgi tasiyamaz. Ustteki ince cizgi
+                      // ayni bilgiyi BICIMLE de veriyor.
+                      borderTop: row.leavers === maxMonthly && row.leavers > 0 ? 2 : 0,
+                      borderColor: 'text.primary',
                       transition: 'height 240ms ease',
                       '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
                     }}

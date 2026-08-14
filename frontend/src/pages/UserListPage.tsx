@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert, Button, Checkbox, Chip, IconButton, ListItemText, MenuItem, Paper, Skeleton, Stack,
   Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField,
@@ -44,20 +44,32 @@ export function UserListPage() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const [pendingDeactivation, setPendingDeactivation] = useState<User | null>(null);
+  // Yalnizca EN SON listeleme istegi durumu yazabilir.
+  const listRequest = useRef(0);
 
   const load = useCallback(async () => {
+    // Cevaplar gonderildikleri SIRAYLA donmez. Olculen kusur: sayfa 1 istenip
+    // (yavas) sonra sayfa 0'a donuldugunde, gec gelen sayfa 1 cevabi satirlarin
+    // uzerine yaziyordu -- tabloda sayfa 1 verisi, sayfalayicida "sayfa 0".
+    // Ardindan yapilan rol degisikligi EKRANDA GORUNMEYEN satira uygulanirdi.
+    const request = ++listRequest.current;
+
     setLoading(true);
     try {
       const result = await userApi.list(page, size);
+      if (listRequest.current !== request) return;
       setUsers(result.content);
       setTotalElements(result.totalElements);
       setError(null);
     } catch (cause) {
+      if (listRequest.current !== request) return;
       setError(errorMessage(cause));
       setUsers([]);
       setTotalElements(0);
     } finally {
-      setLoading(false);
+      // Bayat cagri yukleme gostergesini de kapatmamali: o gosterge artik
+      // BASKA bir istege ait.
+      if (listRequest.current === request) setLoading(false);
     }
   }, [page, size]);
 
@@ -351,7 +363,9 @@ export function UserListPage() {
         title="Deactivate account"
         confirmLabel="Deactivate"
         confirmColor="error"
-        busy={busyId !== null}
+        // Satir basina; global bayrak kullaniciyi baska bir satirin
+        // istegi yuzunden pencerede kilitli birakirdi.
+        busy={busyId !== null && busyId === pendingDeactivation?.id}
         description={
           <Stack spacing={1.5}>
             <Typography variant="body2">

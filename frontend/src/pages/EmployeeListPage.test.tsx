@@ -298,4 +298,45 @@ describe('EmployeeListPage', () => {
 
     expect(screen.getByRole('button', { name: 'Switch to compact rows' })).toBeInTheDocument();
   });
+
+  it('ignores a direct-reports answer that arrives for the wrong employee', async () => {
+    // Olculen kusur: Alpha icin baslatilan YAVAS istek, kullanici Iptal edip
+    // Beta'yi actiktan SONRA donuyor ve Beta'nin penceresine Alpha'nin ast
+    // sayisini yaziyordu. Ters sirada daha kotu: 40 astli bir yonetici HIC
+    // UYARI GORULMEDEN pasiflestirilebilirdi.
+    const alpha = makeEmployee({ id: 1, firstName: 'Alpha', lastName: 'One' });
+    const beta = makeEmployee({ id: 2, firstName: 'Beta', lastName: 'Two' });
+    vi.mocked(employeeApi.list).mockResolvedValue(pageOf([alpha, beta]));
+
+    // Alpha'nin cevabi ASILI kalir; Beta'nin cevabi hemen doner.
+    let releaseAlpha: (value: Employee[]) => void = () => {};
+    vi.mocked(employeeApi.getDirectReports).mockImplementation((id: number) =>
+      (id === 1
+        ? new Promise<Employee[]>((resolve) => { releaseAlpha = resolve; })
+        : Promise.resolve([])));
+
+    const user = userEvent.setup();
+    renderPage(['HR_SPECIALIST']);
+    await screen.findByText('Alpha One');
+
+    // Dugmenin erisilebilir adi yalnizca "Deactivate": satiri bulup icinde ara.
+    const rowOf = (name: string) =>
+      screen.getByText(name).closest('tr') as HTMLElement;
+
+    await user.click(within(rowOf('Alpha One')).getByRole('button', { name: 'Deactivate' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    // MUI pencere kapanirken arka plani aria-hidden birakir; kapanmasi
+    // beklenmezse tablodaki dugmeler erisilebilirlik agacinda gorunmez.
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(within(rowOf('Beta Two')).getByRole('button', { name: 'Deactivate' }));
+
+    // Simdi Alpha'nin gecikmis cevabi gelir: uc astli.
+    releaseAlpha([makeEmployee({ id: 8 }), makeEmployee({ id: 9 }), makeEmployee({ id: 10 })]);
+
+    // Beta'nin penceresinde Alpha'nin ast uyarisi GORUNMEMELI.
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    expect(screen.queryByText(/report to this employee/i)).not.toBeInTheDocument();
+  });
+
 });

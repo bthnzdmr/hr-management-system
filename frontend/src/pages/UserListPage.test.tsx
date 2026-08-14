@@ -231,4 +231,38 @@ describe('UserListPage', () => {
 
     expect(await screen.findByText('An unexpected error occurred')).toBeInTheDocument();
   });
+
+  it('ignores a page answer that arrives after the user moved on', async () => {
+    // Cevaplar gonderildikleri SIRAYLA donmez. Sayfa 1 istenip (yavas) sonra
+    // sayfa 0'a donuldugunde, gec gelen sayfa 1 cevabi satirlarin uzerine
+    // yaziyordu: tabloda sayfa 1 verisi, sayfalayicida "sayfa 0". Ardindan
+    // yapilan rol degisikligi EKRANDA GORUNMEYEN satira uygulanirdi.
+    const first = account({ id: 1, email: 'first@example.com' });
+    const second = account({ id: 2, email: 'second@example.com' });
+
+    // Toplam sayfa boyutundan BUYUK olmali, yoksa "sonraki sayfa" devre disi.
+    const page = (users: User[], number: number) =>
+      ({ content: users, totalElements: 25, totalPages: 3, number, size: 10 });
+
+    let releaseSecondPage: (value: ReturnType<typeof page>) => void = () => {};
+    vi.mocked(userApi.list).mockImplementation((requested: number) =>
+      (requested === 1
+        ? new Promise<ReturnType<typeof page>>((resolve) => { releaseSecondPage = resolve; })
+        : Promise.resolve(page([first], 0))));
+
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText('first@example.com');
+
+    await user.click(screen.getByRole('button', { name: /next page/i }));
+    await user.click(screen.getByRole('button', { name: /previous page/i }));
+
+    // Gecikmis SAYFA 1 cevabi simdi gelir.
+    releaseSecondPage(page([second], 1));
+
+    // Ekranda hala sayfa 0 verisi olmali.
+    await waitFor(() => expect(screen.getByText('first@example.com')).toBeInTheDocument());
+    expect(screen.queryByText('second@example.com')).not.toBeInTheDocument();
+  });
+
 });

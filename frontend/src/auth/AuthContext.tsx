@@ -113,6 +113,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (credentials: LoginRequest) => {
     const { data } = await api.post<LoginResponse>('/api/auth/login', credentials);
 
+    // api.post<T> bir TIP IDDIASIDIR, dogrulama degil. Sozlesme ihlalinde
+    // localStorage.setItem(key, undefined) cagrilir ve depoya "undefined"
+    // METNI yazilir -- truthy oldugu icin her 401, mahkum bir yenileme
+    // denemesi baslatir ve oturum "girisli ama her yenileme bosa" haline
+    // sessizce dusardi.
+    if (typeof data.token !== 'string' || typeof data.refreshToken !== 'string') {
+      tokenStorage.clear();
+      throw new Error('Received an incomplete sign-in response');
+    }
+
     tokenStorage.set(data.token);
     tokenStorage.setRefresh(data.refreshToken);
 

@@ -31,6 +31,7 @@ import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
+import { ErrorBoundary } from './ErrorBoundary';
 import { useAuth } from '../auth/AuthContext';
 import { useColorMode } from '../theme/ColorModeContext';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '../types/api';
@@ -357,7 +358,15 @@ export function Layout() {
             yuksekligi kadar bosluk birakilir. */}
         <Toolbar />
         <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1280, mx: 'auto' }}>
-          <Outlet />
+          {/* Kokteki sinir kabugu da goturuyor: tek bir sayfadaki render
+              hatasi menuyu ve cikis dugmesini de siliyor, tek cikis sayfayi
+              yenilemek oluyordu. Buradaki ikinci sinir hatayi SAYFAYA hapseder.
+
+              key={location.pathname} ayni zamanda "hic sifirlanmiyor" yarisini
+              cozer: baska bir sayfaya gecmek siniri yeniden kurar. */}
+          <ErrorBoundary key={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </Box>
       </Box>
     </Box>

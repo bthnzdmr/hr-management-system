@@ -69,6 +69,8 @@ export function EmployeeListPage() {
   const { density, setDensity } = useDensity();
   const [pendingDeactivation, setPendingDeactivation] = useState<Employee | null>(null);
   const [reportCount, setReportCount] = useState<number | null>(null);
+  // Yalnizca EN SON istegin cevabi kabul edilir.
+  const reportRequest = useRef(0);
   // Sunucu sebepsiz pasiflestirmeyi reddediyor; varsayilan secili gelir ki
   // kullanici her seferinde acik bir tercih yapsin ama akis tikanmasin.
   const [reason, setReason] = useState<TerminationReason>('RESIGNED');
@@ -87,15 +89,29 @@ export function EmployeeListPage() {
   }, [dispatch, page, size, search, activeFilter, sortField, sortDirection]);
 
   const askToDeactivate = useCallback(async (employee: Employee) => {
+    // Her istege bir sira numarasi verilir ve cevap yazilmadan once "bu hala
+    // bekledigim istek mi" diye sorulur.
+    //
+    // Olculen kusur: Alpha icin baslatilan yavas istek, kullanici Iptal edip
+    // Beta'yi actiktan SONRA donuyor ve Beta'nin penceresine Alpha'nin ast
+    // sayisini yaziyordu. Ters sirada daha kotu: 40 astli bir yonetici HIC
+    // UYARI GORULMEDEN pasiflestirilebilirdi.
+    //
+    // Redux dilimi ayni korumaya requestId ile sahip; sayfanin kendi asenkronu
+    // disarida kalmisti.
+    const request = ++reportRequest.current;
+
     setPendingDeactivation(employee);
     setReportCount(null);
 
     try {
       const reports = await employeeApi.getDirectReports(employee.id);
+      if (reportRequest.current !== request) return;
       setReportCount(reports.length);
     } catch {
       // Ast sayisi bir zenginlestirmedir, onay penceresinin on kosulu degil:
       // alinamazsa uyari satiri gosterilmez ama islem yine de yapilabilir.
+      if (reportRequest.current !== request) return;
       setReportCount(null);
     }
   }, []);
@@ -489,7 +505,10 @@ export function EmployeeListPage() {
         title="Deactivate employee"
         confirmLabel="Deactivate"
         confirmColor="error"
-        busy={statusChangingId !== null}
+        // Satir BASINA. Global oldugunda 1. satirin istegi surerken 3.
+        // satirin penceresi acilirsa Iptal de Onayla da devre disi kalir,
+        // Esc ve arka plan kapanir -- kullanici pencerede KILITLI kalirdi.
+        busy={statusChangingId !== null && statusChangingId === pendingDeactivation?.id}
         description={
           <Stack spacing={1.5}>
             <Typography variant="body2">
