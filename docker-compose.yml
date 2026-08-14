@@ -19,9 +19,16 @@ services:
     ports:
       - "5672:5672"     # AMQP
       - "15672:15672"   # web panel -> http://localhost:15672
+      # 15692 YAYIMLANMAZ: metrik ucu ag icinde kalir, Prometheus oradan kazir.
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?see .env.example}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?see .env.example}
+    volumes:
+      # rabbitmq_prometheus imajda GELIR ama varsayilan olarak KAPALIDIR.
+      # Acilmasaydi panodaki DLQ gostergesi bos kalirdi -- ve bos bir gosterge,
+      # "sifir mesaj" ile "olcum yok" arasindaki farki gizler.
+      - ./ops/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./ops/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -170,7 +177,7 @@ services:
       eureka-server:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -223,7 +230,7 @@ services:
       eureka-server:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/actuator/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -266,5 +273,60 @@ services:
           cpus: '1.0'
           memory: 128M
 
+  # ---------------------------------------------------------------------
+  # Metrik yigini. AYRI BIR PROFIL: gunluk gelistirme dongusune iki
+  # konteyner daha yuklememek icin opt-in.
+  #
+  #   docker compose --profile full --profile metrics up -d
+  # ---------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: hr-prometheus
+    restart: unless-stopped
+    profiles: ["metrics"]
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      # Saklama suresi: metrik bir GECMIS kaydi degil, bir egilim gostergesi.
+      - "--storage.tsdb.retention.time=15d"
+    volumes:
+      - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9091:9090"   # host:9091 -> panel; 9090 servislerin yonetim portu
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: hr-grafana
+    restart: unless-stopped
+    profiles: ["metrics"]
+    environment:
+      # Gelistirme yigini: anonim erisim acik ve giris ekrani yok. Gercek bir
+      # dagitimda BU SATIRLAR KALKAR -- panel de bir uygulamadir ve kimlik
+      # dogrulamasi ister.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_DEFAULT_THEME: dark
+    volumes:
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
 volumes:
+  prometheus-data:
+  grafana-data:
   postgres-data:

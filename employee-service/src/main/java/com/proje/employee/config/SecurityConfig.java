@@ -1,5 +1,6 @@
 package com.proje.employee.config;
 
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -97,7 +98,17 @@ public class SecurityConfig {
                         // suresi doldugu icin buraya geliniyor.
                         .requestMatchers("/api/auth/refresh").permitAll()
                         .requestMatchers("/api/auth/logout").permitAll()
-                        .requestMatchers("/actuator/health/**").permitAll()
+                        // Actuator uclari AYRI BIR PORTTA (9090) ve o port
+                        // compose'da yayimlanmiyor: koruma AG SEVIYESINDEDIR.
+                        //
+                        // OLCULDU: "ayri yonetim portu ayri baglam acar, guvenlik
+                        // zinciri oraya uygulanmaz" varsayimi YANLIS -- zincir
+                        // oraya da uygulaniyordu ve Prometheus kazimasi 401
+                        // aliyordu. Uclar acikca izinli yazilmali.
+                        //
+                        // Port bir gun yayimlanirsa BU KURAL GERI ALINMALI:
+                        // metrikler uc desenlerini ve hata oranlarini sizdirir.
+                        .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 
                         // Kendi parolasini herkes degistirebilir. Bu kural

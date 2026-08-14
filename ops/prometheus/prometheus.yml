@@ -1,0 +1,37 @@
+# Prometheus, servisleri KENDISI kazir (pull). Servisler metrik gondermez.
+#
+# Bu tercih bilerek: gonderim (push) modelinde bir servis coktugunde susar ve
+# "veri yok" ile "sistem saglikli" ayirt edilemez. Cekme modelinde kazima
+# basarisiz olur ve BU KENDISI bir sinyaldir (up == 0).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Servislerin YONETIM portu (9090) kazilir. O port compose'da disari
+  # yayimlanmiyor; Prometheus ayni Docker aginda oldugu icin erisebiliyor.
+  - job_name: employee-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["employee-service:9090"]
+        labels:
+          service: employee-service
+
+  - job_name: notification-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["notification-service:9090"]
+        labels:
+          service: notification-service
+
+  # RabbitMQ kendi metriklerini 15692'de sunar (rabbitmq_prometheus eklentisi).
+  # DLQ derinligi buradan gelir: tasarim notlari "DLQ'nun tuketicisi yok, elle
+  # inceleme yeterli" diyerek riski kabul etmisti -- ama olcum olmadan "elle
+  # inceleme", birinin paneli acmayi hatirlamasi demektir.
+  - job_name: rabbitmq
+    static_configs:
+      - targets: ["rabbitmq:15692"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

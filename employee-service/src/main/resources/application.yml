@@ -157,12 +157,26 @@ app:
     cleanup-interval-ms: ${OUTBOX_CLEANUP_INTERVAL_MS:3600000}
 
 management:
+  # Actuator API ILE AYNI PORTTA DEGIL.
+  #
+  # 8080 disari yayimlaniyor; metrikler ayni portta kalsaydi /actuator/prometheus
+  # de disaridan okunabilirdi. Metrik masum gorunur ama uc desenlerini, istek
+  # sayilarini ve hata oranlarini sizdirir -- kesif icin degerli bilgi.
+  #
+  # 9090 compose'da YAYIMLANMIYOR: yalnizca Docker aginin icinden, yani
+  # Prometheus konteynerinden erisilebilir. Koruma AG SEVIYESINDEDIR.
+  #
+  # DIKKAT: guvenlik zinciri bu porta da uygulanir (olculdu -- kazima once 401
+  # aliyordu). Bu yuzden SecurityConfig'te actuator uclari acikca izinli
+  # yazildi; o kural, portun yayimlanmadigi varsayimina dayanir.
+  server:
+    port: ${MANAGEMENT_PORT:9090}
   endpoints:
     web:
       exposure:
         # Yalnizca gerekenler acilir. "*" yazmak /actuator/env ve /actuator/heapdump
         # gibi ortam degiskenlerini ve bellek dokumunu disariya acardi.
-        include: health,info
+        include: health,info,prometheus
   # /actuator/info'nun ICINI dolduran kaynaklar. build-info hedefi olmadan
   # uc aciktir ama bos doner -- "hangi surum calisiyor" sorusu cevapsiz kalir.
   info:

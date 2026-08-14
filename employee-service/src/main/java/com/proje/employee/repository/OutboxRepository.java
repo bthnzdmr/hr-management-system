@@ -43,4 +43,17 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
     @Modifying
     @Query("DELETE FROM OutboxEvent e WHERE e.publishedAt IS NOT NULL AND e.publishedAt < :cutoff")
     int deletePublishedBefore(@Param("cutoff") Instant cutoff);
+
+    /** Yayinlanmayi bekleyen olay sayisi -- metrik olarak izlenir. */
+    @Query("SELECT count(e) FROM OutboxEvent e WHERE e.publishedAt IS NULL")
+    long countPending();
+
+    /**
+     * EN ESKI yayinlanmamis olayin olusturulma zamani.
+     *
+     * Gecmis gecikmelerin ortalamasi degil, SU ANKI birikim olculur: "relay ne
+     * kadar geride" sorusunun cevabi budur ve eyleme donusen sayi odur.
+     */
+    @Query("SELECT min(e.createdAt) FROM OutboxEvent e WHERE e.publishedAt IS NULL")
+    Instant oldestPendingCreatedAt();
 }

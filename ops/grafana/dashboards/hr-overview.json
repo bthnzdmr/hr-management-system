@@ -1,0 +1,128 @@
+{
+  "uid": "hr-overview",
+  "title": "HR System",
+  "tags": ["hr"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Servisler ayakta mi",
+      "description": "up == 0, kazimanin BASARISIZ oldugu anlamina gelir ve bu kendisi bir sinyaldir. Gonderim modelinde bir servis coktugunde susardi ve 'veri yok' ile 'saglikli' ayirt edilemezdi.",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "up{job=~\"employee-service|notification-service\"}", "legendFormat": "{{job}}" }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "DLQ derinligi",
+      "description": "EN KRITIK GOSTERGE. Retry hakki biten mesaj employee.notification.dlq'ya duser ve orada BEKLER; otomatik yeniden oynatma yoktur. Bu sayi olculmedigi surece 'elle inceleme yeterli' demek, birinin RabbitMQ panelini acmayi hatirlamasi demektir.",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [{ "expr": "sum(rabbitmq_queue_messages{queue=\"employee.notification.dlq\"}) or vector(0)", "legendFormat": "DLQ" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Yayinlanmayi bekleyen olay",
+      "description": "Outbox'ta published_at IS NULL olan satirlar. Kalici olarak sifirdan buyuk kalmasi, relay'in ilerlemedigi anlamina gelir.",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [{ "expr": "sum(hr_outbox_pending) or vector(0)", "legendFormat": "bekleyen" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 20 }, { "color": "red", "value": 100 }]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "JVM yigin kullanimi",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [{
+        "expr": "sum(jvm_memory_used_bytes{area=\"heap\"}) by (job) / sum(jvm_memory_max_bytes{area=\"heap\"}) by (job)",
+        "legendFormat": "{{job}}"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 0.8 }, { "color": "red", "value": 0.95 }] }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP gecikmesi (p99 / p50)",
+      "description": "Ortalama yaniltir: birkac yavas istek ortalamada kaybolur ama p99'da gorunur. Kullanicinin hissettigi sey kuyrugun UCUDUR.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[5m])) by (le, job))",
+          "legendFormat": "p99 {{job}}"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[5m])) by (le, job))",
+          "legendFormat": "p50 {{job}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 8 } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Istek hizi ve hata orani",
+      "description": "5xx ayri cizilir: 4xx istemci hatasidir ve normaldir; ikisini toplamak 'kotu istek' ile 'bozuk sunucu' ayrimini yok eder.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{uri!~\"/actuator.*\"}[5m])) by (job)",
+          "legendFormat": "istek/sn {{job}}"
+        },
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[5m])) by (job)",
+          "legendFormat": "5xx/sn {{job}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 8 } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox yayin gecikmesi",
+      "description": "published_at - created_at. Sema bu olcumu BILEREK mumkun kildi: boolean yerine zaman damgasi tutuldugu icin gecikme hesaplanabiliyor.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [{ "expr": "hr_outbox_publish_lag_seconds", "legendFormat": "{{job}}" }],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 8 } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Veritabani baglanti havuzu",
+      "description": "Kullanimda olan baglanti havuz boyutuna dayanirsa istekler beklemeye baslar. Relay, temizlik isleri ve web istekleri AYNI havuzu paylasiyor.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        { "expr": "hikaricp_connections_active", "legendFormat": "aktif {{job}}" },
+        { "expr": "hikaricp_connections_max", "legendFormat": "tavan {{job}}" }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 8 } } }
+    }
+  ]
+}

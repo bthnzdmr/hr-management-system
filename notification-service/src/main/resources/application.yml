@@ -100,10 +100,22 @@ eureka:
     prefer-ip-address: true
 
 management:
+  # Actuator API ILE AYNI PORTTA DEGIL.
+  #
+  # 8080 disari yayimlaniyor; metrikler ayni portta kalsaydi /actuator/prometheus
+  # de disaridan okunabilirdi. Metrik masum gorunur ama uc desenlerini, istek
+  # sayilarini ve hata oranlarini sizdirir -- kesif icin degerli bilgi.
+  #
+  # 9090 compose'da YAYIMLANMIYOR: yalnizca Docker aginin icinden, yani
+  # Prometheus konteynerinden erisilebilir. Ayri bir yonetim portu Spring
+  # Boot'ta ayri bir baglam acar; ana guvenlik zinciri oraya uygulanmaz ve
+  # buna gerek de yoktur -- koruma AG SEVIYESINDEDIR.
+  server:
+    port: ${MANAGEMENT_PORT:9090}
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   # /actuator/info'nun ICINI dolduran kaynaklar. build-info hedefi olmadan
   # uc aciktir ama bos doner -- "hangi surum calisiyor" sorusu cevapsiz kalir.
   info:

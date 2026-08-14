@@ -1,0 +1,11 @@
+# Veri kaynagi ELLE degil dosyayla tanimlanir: panelin kurulumu tekrarlanabilir
+# olmali, "once su dugmeye bas" diye anlatilan bir kurulum belge degildir.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

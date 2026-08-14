@@ -91,6 +91,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <dependency>
+            <!-- Micrometer'in Prometheus bicimi. runtime: kod bu kutuphaneye
+                 hic bakmaz, yalnizca /actuator/prometheus ucunu var eder. -->
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
 
         <!-- 9) Kimlik dogrulama ve yetkilendirme. -->
         <dependency>
