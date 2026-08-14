@@ -3,6 +3,8 @@ import type { Department } from './orgScope';
 
 interface Props {
   departments: Department[];
+  /** Cizimdeki renklerle AYNI esleme; iki yerde hesaplansa ayrisirlardi. */
+  colors: Map<string, string>;
   /** null = butun organizasyon. */
   selected: string | null;
   onSelect: (department: string | null) => void;
@@ -16,7 +18,7 @@ interface Props {
  * ve yanlarindaki kadro sayisi tek bakista karsilastirilabiliyor. Acilir liste
  * bu karsilastirmayi bir tiklamanin arkasina saklardi.
  */
-export function DepartmentRail({ departments, selected, onSelect, total }: Props) {
+export function DepartmentRail({ departments, colors, selected, onSelect, total }: Props) {
   const largest = Math.max(...departments.map((d) => d.headcount), 1);
 
   return (
@@ -41,6 +43,7 @@ export function DepartmentRail({ departments, selected, onSelect, total }: Props
         <RailButton
           key={department.name}
           label={department.name}
+          color={colors.get(department.name)}
           count={department.headcount}
           ratio={department.headcount / largest}
           selected={selected === department.name}
@@ -53,13 +56,14 @@ export function DepartmentRail({ departments, selected, onSelect, total }: Props
 
 interface RailButtonProps {
   label: string;
+  color?: string;
   count: number;
   ratio: number;
   selected: boolean;
   onClick: () => void;
 }
 
-function RailButton({ label, count, ratio, selected, onClick }: RailButtonProps) {
+function RailButton({ label, color, count, ratio, selected, onClick }: RailButtonProps) {
   return (
     <Box
       component="button"
@@ -107,9 +111,19 @@ function RailButton({ label, count, ratio, selected, onClick }: RailButtonProps)
         }}
       />
 
-      <Typography variant="body2" sx={{ fontWeight: selected ? 600 : 400, minWidth: 0 }} noWrap>
-        {label}
-      </Typography>
+      <Stack direction="row" spacing={1} sx={{ minWidth: 0, alignItems: 'center' }}>
+        {/* Cizimdeki renk burada da duruyor: raf ile sema arasindaki bag
+            aciklama gerektirmeden kuruluyor. */}
+        {color && (
+          <Box
+            aria-hidden
+            sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: color, flexShrink: 0 }}
+          />
+        )}
+        <Typography variant="body2" sx={{ fontWeight: selected ? 600 : 400, minWidth: 0 }} noWrap>
+          {label}
+        </Typography>
+      </Stack>
 
       <Stack direction="row" spacing={1} sx={{ flexShrink: 0, alignItems: 'center' }}>
         {/* Kadro buyuklugu ayrica cubuk olarak: sayiyi okumadan siralama gorunur. */}

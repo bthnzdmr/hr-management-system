@@ -47,7 +47,7 @@ describe('OrgChartPage', () => {
     expect(within(alpha as HTMLElement).getByText(/Test Gamma/)).toBeInTheDocument();
   });
 
-  it('draws one circle per person', async () => {
+  it('gives every person their own node with an accessible name', async () => {
     vi.mocked(orgChartApi.get).mockResolvedValue({
       roots: [node(1, 'Root', 'Sales', [node(2, 'Alpha'), node(3, 'Beta')])],
       placed: 3,
@@ -57,8 +57,11 @@ describe('OrgChartPage', () => {
     const { container } = render(<OrgChartPage />);
 
     await screen.findByRole('img', { name: /branching tree/ });
-    // Sanal kok CIZILMEZ: uc kisi, uc daire.
-    expect(container.querySelectorAll('circle')).toHaveLength(3);
+    // <title> yalnizca gercek kisilerde var: seviye halkalari ve gorunmez
+    // merkez sayilmaz. Daireleri saymak bunlari da yakalardi.
+    const named = [...container.querySelectorAll('title')].map((t) => t.textContent);
+    expect(named).toHaveLength(3);
+    expect(named[0]).toContain('Test Root');
   });
 
   it('narrows the map to a department and its own head', async () => {

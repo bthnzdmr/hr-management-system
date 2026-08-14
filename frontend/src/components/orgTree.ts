@@ -2,16 +2,16 @@ import { hierarchy, tree } from 'd3-hierarchy';
 import type { OrgNode } from '../api/orgChart';
 
 /** Iki seviye arasindaki mesafe (px). Dalin boyu budur. */
-const RING = 128;
+const RING = 186;
 
 /** Isimlerin en dis halkanin disinda kapladigi yer. */
-const LABEL_SPACE = 132;
+const LABEL_SPACE = 148;
 
 /** Yaprak dairenin yaricapi; buyukler bunun uzerine biner. */
-const BASE_RADIUS = 7;
+const BASE_RADIUS = 11;
 
 /** Daire bundan buyuk olmaz; merkez butun tuvali yutmasin. */
-const MAX_RADIUS = 26;
+const MAX_RADIUS = 36;
 
 export interface TreeNode {
   node: OrgNode | null;
@@ -34,12 +34,18 @@ export interface TreeLink {
   id: string;
   path: string;
   depth: number;
+  /** Dalin ucundaki alt agacin kisi sayisi; kalinlik buna gore incelir. */
+  size: number;
   ancestorIds: number[];
 }
 
 export interface OrgLayout {
   nodes: TreeNode[];
   links: TreeLink[];
+  /** Her seviyenin yaricapi; arkaya soluk halka cizmek icin. */
+  rings: number[];
+  /** En kalabalik alt agacin kisi sayisi; dal kalinligi buna gore olceklenir. */
+  largest: number;
   /** Tuval kare; merkez tam ortasindadir. */
   size: number;
   /** Merkezdeki dugum tek bir kisi degilse gosterilecek ad. */
@@ -137,12 +143,16 @@ export function layoutTree(roots: OrgNode[]): OrgLayout | null {
       id: `${entry.parent!.data.id}-${entry.data.id}`,
       path: branchPath(point(entry.parent!), point(entry), centre),
       depth: entry.depth,
+      size: entry.descendants().length,
       ancestorIds: chain(entry),
     }));
 
   return {
     nodes,
     links,
+    // Seviye halkalari: merkezden sonraki her derinlik icin bir yaricap.
+    rings: Array.from({ length: depth }, (_, index) => ((index + 1) * radius) / depth),
+    largest,
     size: centre * 2,
     hubLabel: single ? null : 'Organisation',
   };

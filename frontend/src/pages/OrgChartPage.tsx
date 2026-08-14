@@ -8,7 +8,9 @@ import type { OrgChart, OrgNode } from '../api/orgChart';
 import { errorMessage } from '../api/client';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/EmptyState';
-import { OrgBubbleMap, OrgOutline } from '../components/OrgBubbleMap';
+import {
+  DepartmentLegend, OrgBubbleMap, OrgOutline, useDepartmentColors,
+} from '../components/OrgBubbleMap';
 import { DepartmentRail } from '../components/DepartmentRail';
 import { departmentsOf, fullName, scopeToDepartment } from '../components/orgScope';
 
@@ -40,6 +42,11 @@ export function OrgChartPage() {
     () => (chart ? departmentsOf(chart.roots) : []),
     [chart],
   );
+
+  // Renk eslemesi TEK yerde uretilir: raf ile cizim ayrı ayrı hesaplasaydi
+  // ikisi zamanla birbirinden ayrilirdi.
+  const names = useMemo(() => departments.map((d) => d.name), [departments]);
+  const colors = useDepartmentColors(names);
 
   // Departman kapsamindaki agac. Kirinti yolu bunun UZERINE biner, yani
   // departman degisince yol sifirlanmali -- baska bir departmanin kisisine
@@ -97,6 +104,7 @@ export function OrgChartPage() {
           {chart && (
             <DepartmentRail
               departments={departments}
+              colors={colors}
               selected={department}
               onSelect={selectDepartment}
               total={chart.placed}
@@ -129,10 +137,15 @@ export function OrgChartPage() {
                 <Box>
                   <OrgBubbleMap
                     roots={visible}
+                    colors={colors}
                     onDrillDown={(node) => setTrail([...trail, node])}
                   />
                 </Box>
               </Fade>
+
+              {/* Renk anahtari yalnizca birden fazla departman gorunurken
+                  anlamlidir; tek departman kapsaminda hepsi ayni renktir. */}
+              {department === null && <DepartmentLegend names={names} colors={colors} />}
 
               <OrgOutline nodes={visible} />
             </Stack>

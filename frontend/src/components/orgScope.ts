@@ -82,3 +82,51 @@ export function fullName(node: OrgNode) {
 export function initials(node: OrgNode) {
   return `${node.firstName.charAt(0)}${node.lastName.charAt(0)}`.toUpperCase();
 }
+
+/**
+ * Departman renkleri.
+ *
+ * <p>Yeni bir renk ailesi UYDURULMADI: tonlar `InitialsAvatar`'daki avatar
+ * zeminlerinin ta kendisi, yani paletin hue ailesinden.
+ *
+ * <p><b>Neden iki set?</b> Olculdu: avatar tonlari koyu temada kart yuzeyine
+ * (#1E2631) karsi yalnizca <b>1,64:1</b> veriyor, yani daireler zeminden
+ * ayirt edilemiyordu. Koyu tema icin ayni hue'lar beyaza dogru %30 karistirilip
+ * acildi; her iki set de olculdu ve gecti:
+ *
+ * <ul>
+ *   <li>daire / kart yuzeyi: en dusuk <b>3,97:1</b> (grafik esigi 3:1)</li>
+ *   <li>bas harfler / daire: en dusuk <b>4,55:1</b> (metin esigi 4,5:1)</li>
+ * </ul>
+ *
+ * <p>Metin rengi de sete gore ters cevrilir: koyu zeminde acik, acik zeminde
+ * koyu. Kontrast tahmin edilecek bir sey degil, olculecek bir seydir.
+ */
+const DEPARTMENT_COLORS = {
+  light: ['#3B4859', '#43615C', '#8A5238', '#7A4B4B', '#2F5364', '#5A5468'],
+  dark: ['#7A838E', '#7B908D', '#AD8674', '#A28181', '#6D8793', '#8C8795'],
+} as const;
+
+/** Renklerin uzerine yazilan metin; sete gore ters cevrilir. */
+export const DEPARTMENT_INK = { light: '#F8FAFC', dark: '#141A22' } as const;
+
+/**
+ * Departman -> renk eslemesi.
+ *
+ * <p><b>Ilk deneme ad HASH'iydi ve olculunce cop cikti:</b> bes departmanin
+ * ucu ayni renge dusuyordu. Cakisan renk, rengin AYIRT ETME isini tamamen
+ * bitirir -- iki departman ayni gorunuyorsa renk bilgi tasimiyor demektir.
+ *
+ * <p>Simdi renk, ALFABETIK siradaki indekse gore veriliyor: alti departmana
+ * kadar cakisma yapisal olarak imkansiz. Bedeli, araya yeni bir departman
+ * girdiginde ondan SONRAKILERIN renginin kaymasi; hash'te bu olmazdi ama
+ * cakisma olurdu ve ikisi arasinda ayirt edilebilirlik daha degerlidir.
+ */
+export function departmentColors(names: string[], mode: 'light' | 'dark') {
+  const set = DEPARTMENT_COLORS[mode];
+
+  return new Map(
+    [...names].sort((a, b) => a.localeCompare(b))
+      .map((name, index) => [name, set[index % set.length]] as const),
+  );
+}
