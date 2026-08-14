@@ -142,6 +142,11 @@ app:
     max-attempts: ${OUTBOX_MAX_ATTEMPTS:5}
     # Ag sinirini gecen her islem gibi onay beklemenin de suresi vardir.
     confirm-timeout-ms: ${OUTBOX_CONFIRM_TIMEOUT_MS:5000}
+    # Yayinlanmis satirlar bu sureden sonra silinir. Saklamanin sebebi hata
+    # ayiklama: "bu olay gercekten gonderilmis miydi" sorusu birkac gun
+    # sorulabilir, aylar sonra sorulmaz.
+    retention-days: ${OUTBOX_RETENTION_DAYS:30}
+    cleanup-interval-ms: ${OUTBOX_CLEANUP_INTERVAL_MS:3600000}
 
 management:
   endpoints:

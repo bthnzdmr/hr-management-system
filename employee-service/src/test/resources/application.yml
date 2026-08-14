@@ -52,3 +52,8 @@ app:
     batch-size: 20
     max-attempts: 5
     confirm-timeout-ms: 5000
+    # Yayinlanmis satirlar bu sureden sonra silinir. Saklamanin sebebi hata
+    # ayiklama: "bu olay gercekten gonderilmis miydi" sorusu birkac gun
+    # sorulabilir, aylar sonra sorulmaz.
+    retention-days: ${OUTBOX_RETENTION_DAYS:30}
+    cleanup-interval-ms: ${OUTBOX_CLEANUP_INTERVAL_MS:3600000}

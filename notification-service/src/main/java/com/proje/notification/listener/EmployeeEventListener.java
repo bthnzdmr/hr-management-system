@@ -1,9 +1,8 @@
 package com.proje.notification.listener;
 
 import com.proje.notification.config.RabbitConfig;
-import com.proje.notification.entity.ProcessedEvent;
 import com.proje.notification.event.EmployeeEvent;
-import com.proje.notification.repository.ProcessedEventRepository;
+import com.proje.notification.service.EventClaimService;
 import com.proje.notification.service.ManagerLookupService;
 import com.proje.notification.service.NotificationMailService;
 import org.slf4j.Logger;
@@ -24,16 +23,16 @@ public class EmployeeEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(EmployeeEventListener.class);
 
-    private final ProcessedEventRepository processedEventRepository;
     private final NotificationMailService mailService;
     private final ManagerLookupService managerLookupService;
+    private final EventClaimService eventClaimService;
 
-    public EmployeeEventListener(ProcessedEventRepository processedEventRepository,
-                                 NotificationMailService mailService,
-                                 ManagerLookupService managerLookupService) {
-        this.processedEventRepository = processedEventRepository;
+    public EmployeeEventListener(NotificationMailService mailService,
+                                 ManagerLookupService managerLookupService,
+                                 EventClaimService eventClaimService) {
         this.mailService = mailService;
         this.managerLookupService = managerLookupService;
+        this.eventClaimService = eventClaimService;
     }
 
     @RabbitListener(queues = RabbitConfig.QUEUE)
@@ -46,7 +45,7 @@ public class EmployeeEventListener {
         // "izlenemez" olmaktansa "farkli bir anahtarla izlenebilir" iyidir.
         MDC.put(MDC_KEY, correlationId != null ? correlationId : event.eventId().toString());
         try {
-            if (!claim(event)) {
+            if (!claimed(event)) {
                 log.debug("Duplicate event ignored: {}", event.eventId());
                 return;
             }
@@ -62,34 +61,22 @@ public class EmployeeEventListener {
     }
 
     /**
-     * Olayi "bu benim" diye isaretler.
+     * Sahiplenmeyi dener ve yarisi kaybetmeyi NORMAL bir sonuc sayar.
      *
-     * saveAndFlush sart: duz save() yazmayi yalnizca KUYRUGA ALIR ve gercek
-     * INSERT commit aninda, yani mail coktan gittikten sonra calisirdi. O
-     * durumda birincil anahtar mukerrer SATIRI engelleyebilir ama mukerrer
-     * MAILI engelleyemezdi.
-     *
-     * @return olay ilk kez bu tuketici tarafindan sahiplenildiyse true
+     * Istisna, EventClaimService'in transaction sinirinin DISINDA yakalanir.
+     * Iceride yakalansaydi o transaction rollback-only isaretli kalir ve kendi
+     * commit'inde UnexpectedRollbackException firlatirdi -- mesaj reddedilir,
+     * bir retry hakki yanardi. Olculdu.
      */
-    private boolean claim(EmployeeEvent event) {
-        // Hizli yol: mukerrer teslimlerin buyuk cogunlugu burada elenir ve
-        // istisna maliyeti hic odenmez.
-        if (processedEventRepository.existsById(event.eventId())) {
-            return false;
-        }
-
+    private boolean claimed(EmployeeEvent event) {
         try {
-            processedEventRepository.saveAndFlush(new ProcessedEvent(
-                    event.eventId(), event.eventType().name(), event.employeeId()));
-            return true;
-
+            return eventClaimService.claim(event);
         } catch (DataIntegrityViolationException e) {
             // Yaris: baska bir tuketici ayni olayi biz kontrol ettikten sonra
             // kaydetti. Mail HENUZ gonderilmedi, dogru davranis atlamaktir.
-            // Transaction geri alinabilir; mesaj yeniden teslim edildiginde
-            // hizli yol devreye girer ve sessizce atlanir.
             log.info("Event already claimed by another consumer: {}", event.eventId());
             return false;
         }
     }
+
 }

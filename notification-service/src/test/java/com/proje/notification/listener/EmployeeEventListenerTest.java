@@ -1,21 +1,18 @@
 package com.proje.notification.listener;
 
-import com.proje.notification.entity.ProcessedEvent;
 import com.proje.notification.event.EmployeeEvent;
 import com.proje.notification.event.EmployeeEventType;
-import com.proje.notification.repository.ProcessedEventRepository;
+import com.proje.notification.service.EventClaimService;
 import com.proje.notification.service.ManagerLookupService;
 import com.proje.notification.service.NotificationMailService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -35,7 +32,7 @@ import static org.mockito.Mockito.when;
 class EmployeeEventListenerTest {
 
     @Mock
-    private ProcessedEventRepository processedEventRepository;
+    private EventClaimService eventClaimService;
 
     @Mock
     private NotificationMailService mailService;
@@ -55,14 +52,13 @@ class EmployeeEventListenerTest {
     @DisplayName("Sends a mail and records the event when it is seen for the first time")
     void processesNewEvent() {
         UUID eventId = UUID.randomUUID();
-        when(processedEventRepository.existsById(eventId)).thenReturn(false);
+        when(eventClaimService.claim(any())).thenReturn(true);
 
         listener.onEmployeeEvent(event(eventId), null);
 
-        ArgumentCaptor<ProcessedEvent> captor = ArgumentCaptor.forClass(ProcessedEvent.class);
-        verify(processedEventRepository).saveAndFlush(captor.capture());
-        assertThat(captor.getValue().getEventId()).isEqualTo(eventId);
-        assertThat(captor.getValue().getEmployeeId()).isEqualTo(42L);
+        // Sahiplenme ayri bir bean'e tasindi (EventClaimService); dinleyicinin
+        // sorumlulugu artik yalnizca ORKESTRASYON.
+        verify(eventClaimService).claim(any());
         verify(mailService).send(any(), any());
     }
 
@@ -70,28 +66,26 @@ class EmployeeEventListenerTest {
     @DisplayName("Sends no second mail when the same event is delivered again")
     void ignoresAlreadyProcessedEvent() {
         UUID eventId = UUID.randomUUID();
-        when(processedEventRepository.existsById(eventId)).thenReturn(true);
+        when(eventClaimService.claim(any())).thenReturn(false);
 
         listener.onEmployeeEvent(event(eventId), null);
 
         verify(mailService, never()).send(any(), any());
-        // saveAndFlush dogrulanir: uretim kodu artik save() cagirmiyor, yani
-        // save uzerinden yazilan bir kontrol hicbir zaman basarisiz olamazdi.
-        verify(processedEventRepository, never()).saveAndFlush(any());
     }
 
     @Test
     @DisplayName("Writes the record to the database before sending the mail")
     void writesRecordBeforeSendingMail() {
         UUID eventId = UUID.randomUUID();
-        when(processedEventRepository.existsById(eventId)).thenReturn(false);
+        when(eventClaimService.claim(any())).thenReturn(true);
 
         listener.onEmployeeEvent(event(eventId), null);
 
-        // saveAndFlush sart: duz save() yalnizca kuyruga alir ve INSERT commit
-        // aninda, yani mail gittikten SONRA calisirdi.
-        InOrder order = inOrder(processedEventRepository, mailService);
-        order.verify(processedEventRepository).saveAndFlush(any());
+        // Sira SART: once sahiplen, sonra mail. Ters sirada mail gidip kayit
+        // yazilamazsa tekrar teslimde IKINCI MAIL giderdi -- gonderilmis mail
+        // geri alinamaz.
+        InOrder order = inOrder(eventClaimService, mailService);
+        order.verify(eventClaimService).claim(any());
         order.verify(mailService).send(any(), any());
     }
 
@@ -101,9 +95,7 @@ class EmployeeEventListenerTest {
         // Yaris durumu: iki tuketici de existsById kontrolunu gecti, biri once
         // kaydetti. Kaybeden taraf maili HENUZ gondermemis olmalidir.
         UUID eventId = UUID.randomUUID();
-        when(processedEventRepository.existsById(eventId)).thenReturn(false);
-        when(processedEventRepository.saveAndFlush(any()))
-                .thenThrow(new DataIntegrityViolationException("duplicate key"));
+        when(eventClaimService.claim(any())).thenReturn(false);
 
         listener.onEmployeeEvent(event(eventId), null);
 
@@ -114,7 +106,7 @@ class EmployeeEventListenerTest {
     @DisplayName("Lets a mail failure propagate so the message is redelivered")
     void propagatesMailFailure() {
         UUID eventId = UUID.randomUUID();
-        when(processedEventRepository.existsById(eventId)).thenReturn(false);
+        when(eventClaimService.claim(any())).thenReturn(true);
         doThrow(new RuntimeException("smtp down")).when(mailService).send(any(), any());
 
         assertThatThrownBy(() -> listener.onEmployeeEvent(event(eventId), null))
@@ -129,7 +121,7 @@ class EmployeeEventListenerTest {
         // almazsa iki servisin loglari birlestirilemez -- ki bu servisin bugune
         // kadar yazdigi HER satir bos kimlikle basiliyordu.
         UUID eventId = UUID.randomUUID();
-        when(processedEventRepository.existsById(eventId)).thenReturn(false);
+        when(eventClaimService.claim(any())).thenReturn(true);
 
         AtomicReference<String> seen = new AtomicReference<>();
         doAnswer(invocation -> {
@@ -149,7 +141,7 @@ class EmployeeEventListenerTest {
         // benzersiz bir deger: "izlenemez" olmaktansa farkli bir anahtarla
         // izlenebilir olmak iyidir.
         UUID eventId = UUID.randomUUID();
-        when(processedEventRepository.existsById(eventId)).thenReturn(false);
+        when(eventClaimService.claim(any())).thenReturn(true);
 
         AtomicReference<String> seen = new AtomicReference<>();
         doAnswer(invocation -> {
@@ -168,7 +160,7 @@ class EmployeeEventListenerTest {
         // Iplik havuzdan geliyor: temizlenmezse iki ayri isin loglari
         // birbirine karisir ve iz yanlis yere baglanir.
         UUID eventId = UUID.randomUUID();
-        when(processedEventRepository.existsById(eventId)).thenReturn(false);
+        when(eventClaimService.claim(any())).thenReturn(true);
 
         listener.onEmployeeEvent(event(eventId), "abc-123");
 

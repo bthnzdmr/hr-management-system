@@ -1,0 +1,12 @@
+-- Saatlik temizlik ("DELETE FROM refresh_token WHERE expires_at < now()")
+-- index'siz calisiyordu: sirali tarama.
+--
+-- V5 yalnizca token_hash (benzersiz) ve kismi bir (user_id) index'i tanimladi;
+-- expires_at uzerinde hicbir sey yoktu. Oysa tasarim notlari bu tablonun
+-- buyumesini "olabilir" degil KESIN diye niteliyor -- Notification Service de
+-- servis hesabiyla duzenli giris yapiyor ve her giris bir satir birakiyor.
+--
+-- Kismi DEGIL tam index: silme sorgusu tablonun TAMAMINI tarar ve hangi
+-- satirlarin suresinin doldugu zamana gore degisir; kismi bir index
+-- ("WHERE expires_at < now()") zaten yazilamaz cunku now() sabit degildir.
+CREATE INDEX idx_refresh_token_expires_at ON refresh_token (expires_at);
