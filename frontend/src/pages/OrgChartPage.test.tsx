@@ -297,3 +297,37 @@ describe('keyboard navigation', () => {
     expect(screen.getByRole('treeitem', { name: /Test Alpha/ })).toHaveFocus();
   });
 });
+
+describe('the panel as an ordered path', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('marks the selected person as the current location, not a page', async () => {
+    // "page" sayfa gezinmesini bildirir; burada gezinilen sey SEMADAKI KONUM.
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('treeitem', { name: /Test Alpha/ }));
+
+    const current = screen.getByRole('listitem', { current: 'location' });
+    expect(current).toHaveTextContent('Test Alpha');
+  });
+
+  it('keeps the chain in order, top of the organisation first', async () => {
+    // Sira bilginin KENDISI: zincir tepeden asagi okunur.
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('treeitem', { name: /Test Gamma/ }));
+
+    const path = screen.getByRole('list', { name: 'Where they sit' });
+    const rows = within(path).getAllByRole('listitem');
+
+    expect(rows[0]).toHaveTextContent('Test Root');
+    expect(rows[1]).toHaveTextContent('Test Alpha');
+    expect(rows[2]).toHaveTextContent('Test Gamma');
+  });
+});

@@ -106,7 +106,7 @@ export function PersonPanel({ person, chain, color, onSelect }: Props) {
 
         {/* Tek bir dikey cizgi: tepeden seçili kisiye iner. Cizim ile panel
             ayni hiyerarsiyi iki farkli dilde anlatiyor. */}
-        <Rail>
+        <Rail label="Where they sit">
           {managers.map((manager) => (
             <RailRow key={manager.id}>
               <Dot />
@@ -122,7 +122,7 @@ export function PersonPanel({ person, chain, color, onSelect }: Props) {
             </RailRow>
           ))}
 
-          <RailRow>
+          <RailRow current>
             <Dot color={color} filled />
             <Typography
               variant="body2"
@@ -135,8 +135,8 @@ export function PersonPanel({ person, chain, color, onSelect }: Props) {
           {/* Ekip ayni raydan bir kademe iceri dallanir: "altinda" olmak
               girintiyle anlatiliyor. */}
           {team.length > 0 && (
-            <Box sx={{ pl: 2.5 }}>
-              <Rail dense>
+            <Box component="li" sx={{ pl: 2.5, listStyle: 'none' }}>
+              <Rail dense label="Their team">
                 {team.map((report) => (
                   <RailRow key={report.id}>
                     <Dot small />
@@ -181,11 +181,23 @@ function Label({ children }: { children: string }) {
   );
 }
 
-/** Dikey baglanti cizgisi; noktalar bunun uzerinde durur. */
-function Rail({ children, dense }: { children: ReactNode; dense?: boolean }) {
+/**
+ * Dikey baglanti cizgisi; noktalar bunun uzerinde durur.
+ *
+ * <p><code>&lt;ol&gt;</code> cunku zincir SIRALIDIR: tepeden asagi okunur ve
+ * sira bilginin kendisidir. <code>role="tree"</code> KULLANILMAZ -- o rol
+ * gezinme sozlesmesidir (ok tuslari, Home/End, yazarak arama) ve uygulamadan
+ * ilan etmek, hic isaretlememekten kotudur.
+ */
+function Rail({ children, dense, label }: { children: ReactNode; dense?: boolean; label?: string }) {
   return (
     <Stack
+      component="ol"
+      aria-label={label}
       sx={{
+        listStyle: 'none',
+        m: 0,
+        p: 0,
         position: 'relative',
         '&::before': {
           content: '""',
@@ -203,11 +215,14 @@ function Rail({ children, dense }: { children: ReactNode; dense?: boolean }) {
   );
 }
 
-function RailRow({ children }: { children: ReactNode }) {
+function RailRow({ children, current }: { children: ReactNode; current?: boolean }) {
   return (
     <Stack
+      component="li"
       direction="row"
       spacing={1.25}
+      // "page" degil "location": sayfa gezinmesi degil, semadaki KONUM.
+      {...(current ? { 'aria-current': 'location' as const } : {})}
       sx={{ alignItems: 'center', minHeight: 26, minWidth: 0 }}
     >
       {children}

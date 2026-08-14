@@ -182,12 +182,18 @@ export function OrgChartPage() {
         >
           {!chart && <Skeleton variant="rounded" height={220} />}
           {chart && (
-            <PersonPanel
-              person={selected}
-              chain={chain}
-              color={selected ? colors.get(selected.departmentName) : undefined}
-              onSelect={setSelected}
-            />
+            // `key` ile yeniden kuruluyor: hizlica birkac kisiye tiklandiginda
+            // gecisler ic ice girmesin. Ayni desen semada da kullaniliyor.
+            <Fade in key={selected?.id ?? 'none'} timeout={220}>
+              <Box>
+                <PersonPanel
+                  person={selected}
+                  chain={chain}
+                  color={selected ? colors.get(selected.departmentName) : undefined}
+                  onSelect={setSelected}
+                />
+              </Box>
+            </Fade>
           )}
         </Paper>
         </Stack>

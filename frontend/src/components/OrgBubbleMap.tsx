@@ -444,7 +444,9 @@ function Node({
               stroke: (t) => t.palette.primary.main,
               strokeWidth: 2,
               opacity: isHovered || selected ? 1 : 0,
-              transition: 'opacity 180ms ease',
+              // Dogrudan manipulasyon geri bildirimi ANINDA olmali; geciktikce
+              // tiklama kaydedilmemis gibi hissettirir.
+              transition: 'opacity 90ms ease',
             }}
           />
 
