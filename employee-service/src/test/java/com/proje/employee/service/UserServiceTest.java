@@ -3,6 +3,10 @@ package com.proje.employee.service;
 import com.proje.employee.dto.PasswordChangeRequest;
 import com.proje.employee.dto.UserCreateRequest;
 import com.proje.employee.entity.Role;
+import java.time.LocalDate;
+import com.proje.employee.entity.TerminationReason;
+import com.proje.employee.entity.Employee;
+import com.proje.employee.entity.Department;
 import com.proje.employee.entity.User;
 import com.proje.employee.exception.EmailAlreadyExistsException;
 import com.proje.employee.exception.InvalidPasswordException;
@@ -242,5 +246,75 @@ class UserServiceTest {
 
         assertThat(ada.getPasswordHash()).isEqualTo("new-hash");
         verify(refreshTokenService).revokeAllFor(eq(1L), anyString());
+    }
+
+    @Test
+    @DisplayName("Refuses to let an administrator grant themselves another role")
+    void refusesSelfRoleEscalation() {
+        // Olculen acik: kural yalnizca kendi SYSTEM_ADMIN rolunu CIKARMAYI
+        // engelliyordu. Kendine rol EKLEMEK serbestti, yani sistem yoneticisi
+        // tek istekle kendine HR_SPECIALIST verip maasa erisebiliyordu --
+        // rol modelinin butun gerekcesi olan gorevler ayriligi kagit uzerinde
+        // kalirdi.
+        User admin = user(1L, "admin@example.com", Role.SYSTEM_ADMIN, true);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+
+        assertThatThrownBy(() -> service().changeRoles(
+                1L, User.rolesOf(Role.SYSTEM_ADMIN, Role.HR_SPECIALIST), "admin@example.com"))
+                .isInstanceOf(UserRuleViolationException.class)
+                // Mesaj NE YAPILMASI gerektigini soyler.
+                .hasMessageContaining("ask another system administrator");
+
+        assertThat(admin.getRoles()).containsExactly(Role.SYSTEM_ADMIN);
+    }
+
+    @Test
+    @DisplayName("Lets an administrator change somebody else's roles")
+    void allowsChangingSomebodyElsesRoles() {
+        // Kural yalnizca KENDI hesabina uygulanir; baskasinin rolunu
+        // degistirmek sistem yoneticisinin asil isidir.
+        User other = user(5L, "other@example.com", Role.EMPLOYEE, true);
+        when(userRepository.findById(5L)).thenReturn(Optional.of(other));
+
+        service().changeRoles(5L, User.rolesOf(Role.HR_SPECIALIST), "admin@example.com");
+
+        assertThat(other.getRoles()).containsExactly(Role.HR_SPECIALIST);
+    }
+
+    @Test
+    @DisplayName("Accepts a no-op role change on your own account")
+    void allowsIdenticalSelfRoleSet() {
+        // Ayni kumeyi tekrar gondermek bir DEGISIKLIK degildir; istemcinin
+        // butun kumeyi gondermesi zaten idempotentlik icin secilmisti.
+        User admin = user(1L, "admin@example.com", Role.SYSTEM_ADMIN, true);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+
+        service().changeRoles(1L, User.rolesOf(Role.SYSTEM_ADMIN), "admin@example.com");
+
+        assertThat(admin.getRoles()).containsExactly(Role.SYSTEM_ADMIN);
+    }
+
+    @Test
+    @DisplayName("Refuses to open an account for an employee who has left")
+    void refusesAccountForTerminatedEmployee() {
+        // Ayrilis hesabi KAPATIYOR; acilis da ayni kurala uymak zorunda.
+        // Aksi halde kural tek yonlu olur ve sirketten ayrilmis birine
+        // calisan girisi verilebilirdi -- sahipsiz hesap, iceriden tehdidin
+        // en bilinen kaynagidir.
+        Employee left = new Employee("Ada", "Lovelace", "ada@example.com",
+                new Department("Sales"), "Engineer", LocalDate.now().minusYears(2));
+        ReflectionTestUtils.setField(left, "id", 42L);
+        left.terminate(LocalDate.now().minusMonths(1), TerminationReason.RESIGNED);
+
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+        when(employeeRepository.findById(42L)).thenReturn(Optional.of(left));
+
+        assertThatThrownBy(() -> service().create(new UserCreateRequest(
+                "new@example.com", "a-long-enough-password",
+                User.rolesOf(Role.EMPLOYEE), 42L)))
+                .isInstanceOf(UserRuleViolationException.class)
+                .hasMessageContaining("has left the company");
+
+        verify(userRepository, never()).save(org.mockito.ArgumentMatchers.any());
     }
 }

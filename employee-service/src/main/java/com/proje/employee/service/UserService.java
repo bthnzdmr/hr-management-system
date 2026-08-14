@@ -67,6 +67,17 @@ public class UserService {
         if (request.employeeId() != null) {
             Employee employee = employeeRepository.findById(request.employeeId())
                     .orElseThrow(() -> new EmployeeNotFoundException(request.employeeId()));
+
+            // Ayrilmis personele hesap acilmaz. Ayrilis hesabi KAPATIYOR
+            // (disableAccountOf); acilis da ayni kurala uymak zorunda, yoksa
+            // kural tek yonlu olur ve sirketten ayrilmis birine calisan girisi
+            // verilebilirdi. uk_users_employee_id kisiti bunu yakalamaz --
+            // ortada mevcut bir satir yok.
+            if (!employee.isActive()) {
+                throw new UserRuleViolationException(
+                        "Cannot create an account for an employee who has left the company");
+            }
+
             user.setEmployee(employee);
         }
 
@@ -78,11 +89,17 @@ public class UserService {
     public UserResponse changeRoles(Long id, Set<Role> roles, String actingUserEmail) {
         User user = find(id);
 
-        // Kendi sistem yoneticiligini birakmak, hesap yonetimini kendine
-        // kapatmaktir. Baska bir yonetici geri veremezse sistem yonetilemez.
-        if (user.getEmail().equals(actingUserEmail) && !roles.contains(Role.SYSTEM_ADMIN)) {
+        // Kendi rolune HIC dokunulamaz -- yalnizca dusurmek degil, YUKSELTMEK de
+        // yasak. Onceki hali sadece "kendi SYSTEM_ADMIN rolunu cikarma" diyordu
+        // ve bu, gorevler ayriligini tek istekle atlamaya izin veriyordu:
+        // sistem yoneticisi kendine HR_SPECIALIST verip maasa erisebiliyordu.
+        //
+        // Rol modelinin butun gerekcesi "erisimi yoneten kisinin ucret bilgisine
+        // ihtiyaci yoktur" idi; bu kural olmadan o ayrim kagit uzerinde kalirdi.
+        // Degisikligi baska bir yonetici yapar: dort goz ilkesi.
+        if (user.getEmail().equals(actingUserEmail) && !user.getRoles().equals(roles)) {
             throw new UserRuleViolationException(
-                    "You cannot remove your own system administrator role");
+                    "You cannot change your own roles; ask another system administrator");
         }
 
         if (user.getRoles().equals(roles)) {
