@@ -96,7 +96,7 @@ export function OrgChartPage() {
         <Paper
           sx={{
             p: 1,
-            width: { xs: '100%', md: 250 },
+            width: { xs: '100%', md: 230 },
             flexShrink: 0,
             // Cizim uzun oldugunda raf ekranda kalir; secim yapmak icin
             // yukari kaydirmak gerekmez.
@@ -116,7 +116,24 @@ export function OrgChartPage() {
           )}
         </Paper>
 
-        <Paper sx={{ p: { xs: 2, md: 3 }, flexGrow: 1, width: '100%', minWidth: 0 }}>
+        {/* Cizim ve panel ORTAK bir sutunda.
+
+            Ucu birden md'de satira girseydi -- ilk yazildigi gibi -- panel
+            `flexShrink: 0` ile butun satiri kapar ve cizim sifira sikisirdi;
+            tam olarak bu yasandi.
+
+            Kirilma noktasi OLCULEREK secildi. Icerik `maxWidth: 1280` ve
+            kenar bosluklariyla sinirli, yani lg'de (1200 px) kullanilabilir
+            genislik 888 px. Uc sutun orada acilsaydi cizime 318 px kalirdi --
+            33 dugum icin okunmaz. xl'de acilinca cizim her iki durumda da
+            ~620-650 px: lg'de panel altta ve cizim 618, xl'de yan yana ve
+            cizim 646. */}
+        <Stack
+          direction={{ xs: 'column', xl: 'row' }}
+          spacing={2.5}
+          sx={{ flexGrow: 1, minWidth: 0, width: '100%', alignItems: 'flex-start' }}
+        >
+        <Paper sx={{ p: { xs: 2, md: 3 }, flexGrow: 1, minWidth: 0, width: '100%' }}>
           {!chart && <Skeleton variant="rounded" sx={{ pt: '100%' }} />}
 
           {chart && chart.roots.length === 0 && (
@@ -154,13 +171,13 @@ export function OrgChartPage() {
         </Paper>
         <Paper
           sx={{
-            p: 2,
-            width: { xs: '100%', lg: 280 },
+            p: 2.5,
+            width: { xs: '100%', xl: 300 },
             flexShrink: 0,
             // Cizim uzun oldugunda panel ekranda kalir; secim yapip yukari
             // kaydirmak gerekmez.
-            position: { lg: 'sticky' },
-            top: { lg: 88 },
+            position: { xl: 'sticky' },
+            top: { xl: 88 },
           }}
         >
           {!chart && <Skeleton variant="rounded" height={220} />}
@@ -173,6 +190,7 @@ export function OrgChartPage() {
             />
           )}
         </Paper>
+        </Stack>
       </Stack>
     </Stack>
   );

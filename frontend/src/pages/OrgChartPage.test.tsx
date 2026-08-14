@@ -138,7 +138,7 @@ describe('OrgChartPage', () => {
     expect(screen.getByRole('button', { name: /Test Alpha/ })).toBeInTheDocument();
   });
 
-  it('says so when the selected person is at the top', async () => {
+  it('shows nobody above someone who is at the top', async () => {
     vi.mocked(orgChartApi.get).mockResolvedValue(chain());
 
     const user = userEvent.setup();
@@ -146,7 +146,10 @@ describe('OrgChartPage', () => {
 
     await user.click(await screen.findByRole('treeitem', { name: /Test Root/ }));
 
-    expect(screen.getByText(/sits at the top of the chart/)).toBeInTheDocument();
+    // Ekibi panelde duruyor ama uzerinde kimse yok: yonetici satiri hic
+    // cizilmemeli, bos bir satir birakilmamali.
+    expect(screen.getByRole('button', { name: 'Test Alpha' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Test Root' })).not.toBeInTheDocument();
   });
 
   it('lets you walk the organisation from the panel itself', async () => {
@@ -158,7 +161,11 @@ describe('OrgChartPage', () => {
     await user.click(await screen.findByRole('treeitem', { name: /Test Gamma/ }));
     await user.click(screen.getByRole('button', { name: /Test Alpha/ }));
 
-    expect(screen.getByText(/1 direct report/)).toBeInTheDocument();
+    // Alpha secildi: uzerindeki Root ve altindaki Gamma artik panelde
+    // tiklanabilir satirlar. Panel kendi basina bir gezinme araci.
+    expect(screen.getByRole('button', { name: 'Test Root' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Test Gamma' })).toBeInTheDocument();
+    expect(screen.getByText('1 direct')).toBeInTheDocument();
   });
 
   it('forgets the selection when the department changes', async () => {
