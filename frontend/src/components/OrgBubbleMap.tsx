@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import type React from 'react';
 import { Box, useMediaQuery } from '@mui/material';
-import { CANVAS, packForest } from './circlePacking';
-import type { PackedCircle } from './circlePacking';
-import { fullName, initials } from './orgScope';
+import { layoutTree } from './orgTree';
+import type { TreeLink, TreeNode } from './orgTree';
+import { fullName } from './orgScope';
 import type { OrgNode } from '../api/orgChart';
 
 interface Props {
@@ -12,56 +12,68 @@ interface Props {
   onDrillDown: (node: OrgNode) => void;
 }
 
-/** Bu yariçapin altinda isim sigmaz; yalnizca bas harfler yazilir. */
-const NAME_FITS_ABOVE = 46;
+/** Her seviyenin gecikmesi (ms): sema merkezden DISARI dogru aciliyor. */
+const DEPTH_DELAY = 130;
 
-/** Bunun altinda hicbir sey yazilmaz. */
-const INITIALS_FIT_ABOVE = 15;
+/** Bir dalin cizilme suresi. */
+const BRANCH_DURATION = 420;
 
-/** Her seviyenin gecikmesi (ms): sema disaridan ICERI dogru aciliyor. */
-const DEPTH_DELAY = 90;
-
-/** Ayni seviyedeki kardesler arasindaki gecikme (ms). */
-const SIBLING_DELAY = 22;
+/** Daire ile isim arasindaki bosluk. */
+const LABEL_GAP = 9;
 
 export function OrgBubbleMap({ roots, onDrillDown }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
 
   // Yerlesim yalnizca veri degisince hesaplanir; her hover'da yeniden
-  // paketlemek 32 dugumde bile gorulur bir israftir.
-  const packed = useMemo(() => packForest(roots), [roots]);
+  // hesaplamak 32 dugumde bile gorulur bir israftir.
+  const layout = useMemo(() => layoutTree(roots), [roots]);
 
-  if (!packed) return null;
+  if (!layout) return null;
 
-  const flat = flatten(packed);
+  // Uzerine gelinen kisinin merkeze kadar olan zinciri; dal ve daire vurgusu
+  // buna bakar. Bir kisinin nereye bagli oldugu YOLU izlenerek okunur.
+  const lit = new Set(
+    hovered === null
+      ? []
+      : layout.nodes.find((entry) => entry.node?.id === hovered)?.ancestorIds ?? [],
+  );
 
   return (
     <Box
       component="svg"
-      viewBox={`0 0 ${CANVAS} ${CANVAS}`}
+      viewBox={`0 0 ${layout.size} ${layout.size}`}
       role="img"
-      aria-label={`Organisation chart as nested circles, ${flat.length} people`}
+      aria-label={`Organisation chart as a branching tree, ${layout.nodes.length} nodes`}
       sx={{
         width: '100%',
         height: 'auto',
         display: 'block',
         color: 'text.primary',
-        // Bir dairenin icine girildiginde tuval degisir; bu gecis kesme
-        // yerine yumusatilir.
-        '@keyframes bubbleIn': {
-          from: { opacity: 0, transform: 'scale(0.82)' },
+        '@keyframes branchGrow': {
+          from: { strokeDashoffset: 1 },
+          to: { strokeDashoffset: 0 },
+        },
+        '@keyframes nodeIn': {
+          from: { opacity: 0, transform: 'scale(0.4)' },
           to: { opacity: 1, transform: 'scale(1)' },
         },
       }}
       onMouseLeave={() => setHovered(null)}
     >
-      {flat.map((circle, index) => (
-        <Bubble
-          key={circle.node.id}
-          circle={circle}
-          index={index}
+      {/* Dallar once cizilir: dugumler onlarin uzerinde durur ve kesisimlerde
+          cizgi dairenin altindan gecer. */}
+      {layout.links.map((link) => (
+        <Branch key={link.id} link={link} lit={lit} reduceMotion={reduceMotion} />
+      ))}
+
+      {layout.nodes.map((entry) => (
+        <Node
+          key={entry.node?.id ?? 'hub'}
+          entry={entry}
+          hubLabel={layout.hubLabel}
           hovered={hovered}
+          lit={lit}
           reduceMotion={reduceMotion}
           onHover={setHovered}
           onDrillDown={onDrillDown}
@@ -71,128 +83,159 @@ export function OrgBubbleMap({ roots, onDrillDown }: Props) {
   );
 }
 
-interface BubbleProps {
-  circle: PackedCircle;
-  index: number;
+function Branch({
+  link, lit, reduceMotion,
+}: { link: TreeLink; lit: Set<number>; reduceMotion: boolean }) {
+  // Dal ancak IKI ucu da vurgulanan zincirdeyse yanar; yoksa bir kardesin dali
+  // da aydinlanir ve yol belirsizlesirdi.
+  const onPath = lit.size > 0 && link.ancestorIds.every((id) => lit.has(id));
+
+  return (
+    <Box
+      component="path"
+      d={link.path}
+      fill="none"
+      // pathLength uzunlugu 1'e normalize eder; boylece dashoffset 1'den 0'a
+      // gidince dal, gercek uzunlugu ne olursa olsun tam olarak uctan uca
+      // cizilir.
+      pathLength={1}
+      style={{ animationDelay: `${reduceMotion ? 0 : link.depth * DEPTH_DELAY}ms` }}
+      sx={{
+        stroke: (t) => (onPath ? t.palette.primary.main : 'currentColor'),
+        strokeOpacity: onPath ? 0.95 : (lit.size > 0 ? 0.12 : 0.26),
+        strokeWidth: onPath ? 2.2 : 1.4,
+        strokeLinecap: 'round',
+        transition: 'stroke 200ms ease, stroke-opacity 200ms ease, stroke-width 200ms ease',
+        strokeDasharray: 1,
+        animation: reduceMotion
+          ? 'none'
+          : `branchGrow ${BRANCH_DURATION}ms cubic-bezier(0.16, 1, 0.3, 1) both`,
+      }}
+    />
+  );
+}
+
+interface NodeProps {
+  entry: TreeNode;
+  hubLabel: string | null;
   hovered: number | null;
+  lit: Set<number>;
   reduceMotion: boolean;
   onHover: (id: number | null) => void;
   onDrillDown: (node: OrgNode) => void;
 }
 
-function Bubble({ circle, index, hovered, reduceMotion, onHover, onDrillDown }: BubbleProps) {
-  const { node, x, y, r, depth, children } = circle;
-  const isLeaf = children.length === 0;
-  const isHovered = hovered === node.id;
-  // Baska bir daire uzerindeyken geri kalanlar SONMEZ, yalnizca geri cekilir:
-  // karsilastirma yapabilmek icin cevrenin gorunur kalmasi gerekir.
-  const dimmed = hovered !== null && !isHovered;
+function Node({ entry, hubLabel, hovered, lit, reduceMotion, onHover, onDrillDown }: NodeProps) {
+  const { node, x, y, r, depth, angle, size, hasChildren } = entry;
 
-  const delay = reduceMotion ? 0 : depth * DEPTH_DELAY + index * SIBLING_DELAY;
+  const isHovered = node !== null && hovered === node.id;
+  const onPath = node !== null && lit.has(node.id);
+  // Zincir vurgulanirken digerleri SONMEZ, yalnizca geri cekilir: bir yolu
+  // karsilastirabilmek icin cevresinin gorunur kalmasi gerekir.
+  const dimmed = lit.size > 0 && !onPath;
+
+  const drillable = node !== null && hasChildren;
+  const label = node ? fullName(node) : hubLabel;
+
+  // Isim halkanin DISINDA durur ve daireyle birlikte doner; sol yaridakiler
+  // bas asagi okunmasin diye ters cevrilip saga hizalanir.
+  const flipped = Math.abs(angle) > 90;
+  const base = `rotate(${angle} ${x} ${y}) translate(${x + r + LABEL_GAP} ${y})`;
 
   return (
     <Box
       component="g"
-      // Odak dairenin merkezinde olmali: buyume kenardan degil, ortadan.
       style={{
         transformOrigin: `${x}px ${y}px`,
-        animationDelay: `${delay}ms`,
+        animationDelay: `${reduceMotion ? 0 : depth * DEPTH_DELAY + BRANCH_DURATION * 0.5}ms`,
       }}
       sx={{
-        cursor: isLeaf ? 'default' : 'pointer',
-        animation: reduceMotion ? 'none' : 'bubbleIn 420ms cubic-bezier(0.16, 1, 0.3, 1) both',
-        transition: 'opacity 180ms ease',
-        opacity: dimmed ? 0.55 : 1,
-        '& circle': { transition: 'fill 180ms ease, stroke 180ms ease, stroke-width 180ms ease' },
+        cursor: drillable ? 'pointer' : 'default',
+        animation: reduceMotion ? 'none' : 'nodeIn 380ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        transition: 'opacity 200ms ease',
+        opacity: dimmed ? 0.35 : 1,
+        '&:focus-visible': { outline: 'none' },
+        '&:focus-visible circle': { stroke: (t) => t.palette.primary.main, strokeWidth: 3 },
       }}
-      onMouseEnter={() => onHover(node.id)}
-      onFocus={() => onHover(node.id)}
+      onMouseEnter={() => node && onHover(node.id)}
+      onFocus={() => node && onHover(node.id)}
       onBlur={() => onHover(null)}
-      onClick={() => !isLeaf && onDrillDown(node)}
+      onClick={() => drillable && onDrillDown(node)}
       // Ekibi olan daire bir DUGMEDIR: yalnizca fareyle acilabilseydi klavye
-      // kullanicisi semanin icine hic giremezdi. Yaprak tiklanabilir degil,
-      // o yuzden odak sirasina da girmez.
-      {...(isLeaf ? {} : {
-        role: 'button',
-        tabIndex: 0,
-        'aria-label': `Open the team of ${fullName(node)}, ${circle.size - 1} people`,
-        onKeyDown: (event: React.KeyboardEvent) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            onDrillDown(node);
-          }
-        },
-      })}
+      // kullanicisi semanin icine hic giremezdi. Yaprak tiklanabilir degil, o
+      // yuzden odak sirasina da girmez.
+      {...(drillable
+        ? {
+          role: 'button',
+          tabIndex: 0,
+          'aria-label': `Open the team of ${fullName(node)}, ${size - 1} people`,
+          onKeyDown: (event: React.KeyboardEvent) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              onDrillDown(node);
+            }
+          },
+        }
+        : {})}
     >
+      {/* Uzerine gelince dairenin arkasinda yumusak bir hale: vurgu yalnizca
+          renkle degil BICIMLE de tasinir. */}
+      {isHovered && (
+        <Box
+          component="circle"
+          cx={x}
+          cy={y}
+          r={r + 7}
+          sx={{ fill: (t) => t.palette.primary.main, fillOpacity: 0.18 }}
+        />
+      )}
+
       <Box
         component="circle"
         cx={x}
         cy={y}
         r={r}
         sx={{
-          // Derinlik disardan ice dogru koyulasir: tek vurgu renginde kalinir,
-          // her seviyeye ayri renk vermek dekoratif gurultu olurdu.
-          fill: (t) => `color-mix(in srgb, ${t.palette.primary.main} ${
-            isHovered ? 26 + depth * 8 : 7 + depth * 8}%, transparent)`,
-          stroke: (t) => (isHovered ? t.palette.primary.main : 'currentColor'),
-          strokeOpacity: isHovered ? 0.9 : 0.2,
-          strokeWidth: isHovered ? 2 : 1,
+          fill: (t) => (node === null
+            ? t.palette.background.paper
+            : `color-mix(in srgb, ${t.palette.primary.main} ${
+              onPath ? 78 : 30 + Math.max(0, 22 - depth * 7)}%, ${t.palette.background.paper})`),
+          stroke: (t) => (onPath ? t.palette.primary.main : 'currentColor'),
+          strokeOpacity: onPath ? 1 : 0.35,
+          strokeWidth: node === null ? 2 : 1.25,
+          transition: 'fill 200ms ease, stroke 200ms ease',
         }}
       />
 
-      {/* Tarayici ipucu ve erisilebilir ad; SVG'de dogal karsiligi budur. */}
-      <title>
-        {`${fullName(node)} — ${node.jobTitle}, ${node.departmentName}`}
-        {isLeaf ? '' : ` (${circle.size - 1} in the team, click to open)`}
-      </title>
-
-      {/* Yaprakta isim ICERIYE sigmaz, bas harfler yazilir. Ic dugumde merkez
-          zaten cocuklarla dolu, o yuzden isim UST KENARA konur. */}
-      {isLeaf && r > INITIALS_FIT_ABOVE && (
-        <text
-          x={x}
-          y={y}
-          textAnchor="middle"
-          dominantBaseline="central"
-          fontSize={r * 0.5}
-          fontWeight={600}
-          fill="currentColor"
-          pointerEvents="none"
-        >
-          {initials(node)}
-        </text>
+      {node && (
+        <title>
+          {`${fullName(node)} — ${node.jobTitle}, ${node.departmentName}`}
+          {hasChildren ? ` (${size - 1} in the team, open to see them)` : ''}
+        </title>
       )}
 
-      {!isLeaf && r > NAME_FITS_ABOVE && (
-        <text
-          x={x}
-          y={y - r + 17}
-          textAnchor="middle"
-          fontSize={13}
-          fontWeight={600}
-          fill="currentColor"
-          pointerEvents="none"
+      {label && (
+        <Box
+          component="text"
+          // Ters cevrilen etiket daireden yine DISARI uzansin diye kendi
+          // ekseninde 180 derece dondurulur ve saga hizalanir.
+          transform={flipped ? `${base} rotate(180)` : base}
+          textAnchor={flipped ? 'end' : 'start'}
+          dominantBaseline="central"
+          fontSize={depth === 0 ? 14 : 12}
+          sx={{
+            fontWeight: onPath || depth === 0 ? 600 : 500,
+            fill: 'currentColor',
+            fillOpacity: onPath || depth === 0 ? 1 : 0.78,
+            pointerEvents: 'none',
+            transition: 'fill-opacity 200ms ease',
+          }}
         >
-          {fullName(node)}
-        </text>
+          {label}
+        </Box>
       )}
     </Box>
   );
-}
-
-/** Agaci cizim sirasina acar: ebeveyn once, cocuklar ustune. */
-function flatten(root: PackedCircle): PackedCircle[] {
-  // Sanal kok cizilmez.
-  const out: PackedCircle[] = [];
-
-  const visit = (circle: PackedCircle) => {
-    out.push(circle);
-    circle.children.forEach(visit);
-  };
-
-  root.children.forEach(visit);
-
-  return out;
 }
 
 /**

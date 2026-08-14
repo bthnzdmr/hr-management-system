@@ -56,7 +56,7 @@ describe('OrgChartPage', () => {
 
     const { container } = render(<OrgChartPage />);
 
-    await screen.findByRole('img', { name: /nested circles/ });
+    await screen.findByRole('img', { name: /branching tree/ });
     // Sanal kok CIZILMEZ: uc kisi, uc daire.
     expect(container.querySelectorAll('circle')).toHaveLength(3);
   });
@@ -150,7 +150,7 @@ describe('OrgChartPage', () => {
 
     render(<OrgChartPage />);
 
-    await screen.findByRole('img', { name: /nested circles/ });
+    await screen.findByRole('img', { name: /branching tree/ });
     expect(screen.queryByText(/not shown/)).not.toBeInTheDocument();
   });
 
