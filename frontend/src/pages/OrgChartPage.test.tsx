@@ -22,9 +22,18 @@ function node(id: number, lastName: string, department = 'Sales', reports: OrgNo
 }
 
 /** Cizimin yanindaki gorunmez anahat; agac yapisinin erisilebilir karsiligi. */
-async function outline() {
-  // Kirinti yolu da bir listedir; iddia ANAHATA daraltilir.
+function outline() {
+  // Renk anahtari da bir listedir; iddia ANAHATA daraltilir.
   return screen.findByRole('list', { name: 'Reporting structure' });
+}
+
+/** Root -> Alpha -> Gamma zinciri. */
+function chain() {
+  return {
+    roots: [node(1, 'Root', 'Sales', [node(2, 'Alpha', 'Sales', [node(3, 'Gamma')])])],
+    placed: 3,
+    unreachable: 0,
+  };
 }
 
 describe('OrgChartPage', () => {
@@ -34,11 +43,7 @@ describe('OrgChartPage', () => {
     // Cizim tek basina birakilsaydi agac yapisi ekran okuyucuda ve Ctrl+F'te
     // tamamen kaybolurdu. Iddia GORUNMEYEN listeye yazilir cunku erisilebilirlik
     // garantisini veren sey odur.
-    vi.mocked(orgChartApi.get).mockResolvedValue({
-      roots: [node(1, 'Root', 'Sales', [node(2, 'Alpha', 'Sales', [node(3, 'Gamma')])])],
-      placed: 3,
-      unreachable: 0,
-    });
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
 
     render(<OrgChartPage />);
 
@@ -56,8 +61,8 @@ describe('OrgChartPage', () => {
 
     const { container } = render(<OrgChartPage />);
 
-    await screen.findByRole('img', { name: /branching tree/ });
-    // <title> yalnizca gercek kisilerde var: seviye halkalari ve gorunmez
+    await screen.findByRole('img', { name: /orbiting layers/ });
+    // <title> yalnizca gercek kisilerde var: yorunge halkalari ve gorunmez
     // merkez sayilmaz. Daireleri saymak bunlari da yakalardi.
     const named = [...container.querySelectorAll('title')].map((t) => t.textContent);
     expect(named).toHaveLength(3);
@@ -85,35 +90,55 @@ describe('OrgChartPage', () => {
       expect.stringContaining('Test SalesHead'),
       expect.stringContaining('Test Rep'),
     ]);
-    // Baska departmandaki kisi kapsamda gorunmemeli.
     expect(within(await outline()).queryByText(/Test Designer/)).not.toBeInTheDocument();
   });
 
-  it('opens a team with the keyboard, not only with the mouse', async () => {
-    // Yalnizca fareyle acilabilseydi klavye kullanicisi semanin icine hic
-    // giremezdi.
-    vi.mocked(orgChartApi.get).mockResolvedValue({
-      roots: [node(1, 'Root', 'Sales', [node(2, 'Alpha', 'Sales', [node(3, 'Gamma')])])],
-      placed: 3,
-      unreachable: 0,
-    });
+  it('folds a team away with the keyboard, not only with the mouse', async () => {
+    // Onceki tasarim tiklandiginda dalin ICINE giriyordu ve her tiklama bir
+    // seviye daha derine indiriyordu; kullanici nerede oldugunu kaybediyordu.
+    // Acip kapatmak yerinde kalir: baglam hic degismez.
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
+
+    const user = userEvent.setup();
+    const { container } = render(<OrgChartPage />);
+
+    const alpha = await screen.findByRole('button', { name: /Test Alpha, 1 people/ });
+    expect(alpha).toHaveAttribute('aria-expanded', 'true');
+
+    await user.click(alpha);
+
+    // Gamma cizimden dustu ama Alpha yerinde ve hala acilabilir.
+    expect(container.querySelectorAll('title')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: /Test Alpha, 1 people/ }))
+      .toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('says how many people a folded node is hiding', async () => {
+    // Sessizce kaybetmek, eksik oldugunu SOYLEMEYEN bir sema uretirdi.
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
 
     const user = userEvent.setup();
     render(<OrgChartPage />);
 
-    await user.click(await screen.findByRole('button', { name: /Open the team of Test Alpha/ }));
+    await user.click(await screen.findByRole('button', { name: /Test Alpha, 1 people/ }));
 
-    // Icine girilen kisi artik tepede; kirinti yolu geri donusu tasiyor.
-    const items = within(await outline()).getAllByRole('listitem');
-    expect(items.map((item) => item.textContent)).toEqual([
-      expect.stringContaining('Test Alpha'),
-      expect.stringContaining('Test Gamma'),
-    ]);
-    expect(screen.getByRole('button', { name: 'Whole organisation' })).toBeInTheDocument();
+    expect(screen.getByText('+1')).toBeInTheDocument();
   });
 
-  it('forgets where you had drilled when the department changes', async () => {
-    // Baska bir departmanin kisisine ait bir kirinti yolu anlamsizdir.
+  it('reopens everything in one go', async () => {
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
+
+    const user = userEvent.setup();
+    const { container } = render(<OrgChartPage />);
+
+    await user.click(await screen.findByRole('button', { name: /Test Alpha, 1 people/ }));
+    await user.click(screen.getByRole('button', { name: 'Expand all' }));
+
+    expect(container.querySelectorAll('title')).toHaveLength(3);
+  });
+
+  it('forgets what was folded when the department changes', async () => {
+    // Baska bir departmanin dugumlerine ait kapali durumu anlamsizdir.
     vi.mocked(orgChartApi.get).mockResolvedValue({
       roots: [node(1, 'Chief', 'Executive', [
         node(2, 'SalesHead', 'Sales', [node(3, 'Rep', 'Sales')]),
@@ -125,10 +150,11 @@ describe('OrgChartPage', () => {
     const user = userEvent.setup();
     render(<OrgChartPage />);
 
-    await user.click(await screen.findByRole('button', { name: /Open the team of Test SalesHead/ }));
+    await user.click(await screen.findByRole('button', { name: /Test SalesHead, 1 people/ }));
     await user.click(screen.getByRole('button', { name: /^Sales/ }));
 
-    expect(screen.queryByRole('link', { name: 'Test SalesHead' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Test SalesHead, 1 people/ }))
+      .toHaveAttribute('aria-expanded', 'true');
   });
 
   it('says how many people the tree could not reach', async () => {
@@ -153,7 +179,7 @@ describe('OrgChartPage', () => {
 
     render(<OrgChartPage />);
 
-    await screen.findByRole('img', { name: /branching tree/ });
+    await screen.findByRole('img', { name: /orbiting layers/ });
     expect(screen.queryByText(/not shown/)).not.toBeInTheDocument();
   });
 

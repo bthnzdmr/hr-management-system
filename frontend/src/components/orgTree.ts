@@ -15,6 +15,10 @@ const MAX_RADIUS = 36;
 
 export interface TreeNode {
   node: OrgNode | null;
+  /** Kapali bir dugumun cocuklari cizilmez ama sayilari gosterilir. */
+  collapsed: boolean;
+  /** Altindaki toplam kisi; dugum kapaliyken de gercek sayiyi soyler. */
+  hidden: number;
   /** Tuval koordinati (merkez tuvalin ortasidir). */
   x: number;
   y: number;
@@ -71,7 +75,7 @@ export interface OrgLayout {
  * calisan ayni halkada gorunur ve SEVIYE bilgisi kaybolur. `tree` her dugumu
  * kendi derinliginin halkasina koyar.
  */
-export function layoutTree(roots: OrgNode[]): OrgLayout | null {
+export function layoutTree(roots: OrgNode[], collapsed: ReadonlySet<number>): OrgLayout | null {
   if (roots.length === 0) return null;
 
   // Tek kok varsa merkezde O durur. Birden fazla kok normaldir (departman
@@ -89,7 +93,15 @@ export function layoutTree(roots: OrgNode[]): OrgLayout | null {
     reports: roots,
   };
 
-  const root = hierarchy<OrgNode>(single ?? virtual, (node) => node.reports);
+  // Kapali dugumun cocuklari yerlesime HIC girmez: gizlenmis bir dugum icin
+  // yer ayirmak, kapatmanin butun amacini bosa cikarirdi.
+  const root = hierarchy<OrgNode>(single ?? virtual, (node) => (
+    collapsed.has(node.id) ? [] : node.reports
+  ));
+
+  // Gercek ekip buyuklukleri KAPATMADAN once hesaplanir; aksi halde kapali bir
+  // yoneticinin dairesi kucuk gorunur ve "kimse yok" gibi okunurdu.
+  const totals = subtreeTotals(single ?? virtual);
 
   const depth = maxDepth(root);
   const radius = Math.max(RING, depth * RING);
@@ -102,7 +114,7 @@ export function layoutTree(roots: OrgNode[]): OrgLayout | null {
     .separation((a, b) => (a.parent === b.parent ? 1 : 2) / Math.max(1, a.depth))(root);
 
   const centre = radius + LABEL_SPACE;
-  const largest = laid.descendants().length;
+  const largest = Math.max(...[...totals.values()]);
 
   const point = (entry: { x: number; y: number }) => {
     // d3 x'i ACI, y'yi yaricap olarak verir. Aci saat 12'den baslasin diye
@@ -118,11 +130,14 @@ export function layoutTree(roots: OrgNode[]): OrgLayout | null {
 
   const nodes: TreeNode[] = laid.descendants().map((entry) => {
     const placed = point(entry);
-    const size = entry.descendants().length;
+    const size = totals.get(entry.data.id) ?? 1;
     const isHub = entry.data.id === -1;
+    const isCollapsed = collapsed.has(entry.data.id) && entry.data.reports.length > 0;
 
     return {
       node: isHub ? null : entry.data,
+      collapsed: isCollapsed,
+      hidden: isCollapsed ? size - 1 : 0,
       x: placed.x,
       y: placed.y,
       // Alan kisi sayisiyla orantili: goz buyuklugu alandan okur, capa yazmak
@@ -131,7 +146,8 @@ export function layoutTree(roots: OrgNode[]): OrgLayout | null {
       depth: entry.depth,
       angle: (placed.theta * 180) / Math.PI,
       size,
-      hasChildren: (entry.children?.length ?? 0) > 0,
+      // Kapali dugum de tiklanabilir kalmali; yoksa geri acilamazdi.
+      hasChildren: entry.data.reports.length > 0,
       ancestorIds: chain(entry),
     };
   });
@@ -143,7 +159,7 @@ export function layoutTree(roots: OrgNode[]): OrgLayout | null {
       id: `${entry.parent!.data.id}-${entry.data.id}`,
       path: branchPath(point(entry.parent!), point(entry), centre),
       depth: entry.depth,
-      size: entry.descendants().length,
+      size: totals.get(entry.data.id) ?? 1,
       ancestorIds: chain(entry),
     }));
 
@@ -203,4 +219,20 @@ function chain(entry: { data: OrgNode; parent: unknown }): number[] {
   }
 
   return ids;
+}
+
+/** Her dugumun altindaki gercek kisi sayisi; kapatma bunu degistirmez. */
+function subtreeTotals(root: OrgNode): Map<number, number> {
+  const totals = new Map<number, number>();
+
+  const visit = (node: OrgNode): number => {
+    const total = 1 + node.reports.reduce((sum, report) => sum + visit(report), 0);
+    totals.set(node.id, total);
+
+    return total;
+  };
+
+  visit(root);
+
+  return totals;
 }

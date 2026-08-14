@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import type React from 'react';
 import { Box, useMediaQuery, useTheme } from '@mui/material';
 import { layoutTree } from './orgTree';
@@ -10,38 +10,42 @@ interface Props {
   roots: OrgNode[];
   /** Renk esleme, raf ile ayni olsun diye disaridan verilir. */
   colors: Map<string, string>;
-  /** Icine girilen daire; ust bilesen kirinti yolunu tutar. */
-  onDrillDown: (node: OrgNode) => void;
+  /** Kapali dugumler; cocuklari cizilmez. */
+  collapsed: ReadonlySet<number>;
+  onToggle: (node: OrgNode) => void;
 }
 
-/** Her seviyenin gecikmesi (ms): sema merkezden DISARI dogru aciliyor. */
-const DEPTH_DELAY = 130;
+/** Butun sistemin bir tam turu (sn). Yavas: okumayi zorlastirmamali. */
+const ORBIT_PERIOD = 240;
 
-/** Bir dalin cizilme suresi. */
-const BRANCH_DURATION = 440;
+/** Dugumlerin kendi yerinde salinim genligi (px) ve sure araligi (sn). */
+const DRIFT_AMPLITUDE = 5;
+const DRIFT_MIN = 7;
+const DRIFT_MAX = 13;
 
-/** Daire ile isim arasindaki bosluk. */
-const LABEL_GAP = 10;
+/** Halkanin belirme gecikmesi (ms): sema icten disa dogru kuruluyor. */
+const DEPTH_DELAY = 150;
 
 /** Bunun altinda bas harfler sigmaz. */
-const INITIALS_FIT_ABOVE = 13;
+const INITIALS_FIT_ABOVE = 12;
 
-/** En ince ve en kalin dal (px). */
-const BRANCH_MIN = 1.2;
-const BRANCH_MAX = 7;
+/** En ince ve en kalin bag (px). */
+const LINK_MIN = 1;
+const LINK_MAX = 5;
 
-export function OrgBubbleMap({ roots, colors, onDrillDown }: Props) {
+export function OrgBubbleMap({ roots, colors, collapsed, onToggle }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  // Gradyan kimligi bilesen basina benzersiz olmali; sabit bir id iki sema
+  // yan yana geldiginde catisirdi.
+  const glowId = useId();
 
-  // Yerlesim yalnizca veri degisince hesaplanir; her hover'da yeniden
-  // hesaplamak 32 dugumde bile gorulur bir israftir.
-  const layout = useMemo(() => layoutTree(roots), [roots]);
+  const layout = useMemo(() => layoutTree(roots, collapsed), [roots, collapsed]);
 
   if (!layout) return null;
 
-  // Uzerine gelinen kisinin merkeze kadar olan zinciri; dal ve daire vurgusu
-  // buna bakar. Bir kisinin nereye bagli oldugu YOLU izlenerek okunur.
+  // Uzerine gelinen kisinin merkeze kadar olan zinciri. Baglar varsayilan
+  // olarak neredeyse gorunmez; yol ancak SORULDUGUNDA beliriyor.
   const lit = new Set(
     hovered === null
       ? []
@@ -49,121 +53,143 @@ export function OrgBubbleMap({ roots, colors, onDrillDown }: Props) {
   );
 
   const centre = layout.size / 2;
+  const spin = reduceMotion ? 'none' : `orbitSpin ${ORBIT_PERIOD}s linear infinite`;
+  const spinBack = reduceMotion ? 'none' : `orbitSpinBack ${ORBIT_PERIOD}s linear infinite`;
 
   return (
     <Box
       component="svg"
       viewBox={`0 0 ${layout.size} ${layout.size}`}
       role="img"
-      aria-label={`Organisation chart as a branching tree, ${layout.nodes.length} nodes`}
+      aria-label={`Organisation chart as orbiting layers, ${layout.nodes.length} nodes`}
       sx={{
         width: '100%',
         height: 'auto',
         display: 'block',
         color: 'text.primary',
-        '@keyframes branchGrow': {
-          from: { strokeDashoffset: 1 },
-          to: { strokeDashoffset: 0 },
+        '@keyframes orbitSpin': {
+          from: { transform: 'rotate(0deg)' },
+          to: { transform: 'rotate(360deg)' },
         },
-        '@keyframes nodeIn': {
-          from: { opacity: 0, transform: 'scale(0.35)' },
-          to: { opacity: 1, transform: 'scale(1)' },
+        '@keyframes orbitSpinBack': {
+          from: { transform: 'rotate(0deg)' },
+          to: { transform: 'rotate(-360deg)' },
         },
-        '@keyframes ringIn': {
-          from: { opacity: 0 },
-          to: { opacity: 1 },
+        // Salinim, dugumu kendi yerinde tutar: yer degistirmez, ASILI durur.
+        '@keyframes driftA': {
+          '0%, 100%': { transform: 'translate(0px, 0px)' },
+          '50%': { transform: `translate(0px, ${-DRIFT_AMPLITUDE}px)` },
+        },
+        '@keyframes driftB': {
+          '0%, 100%': { transform: 'translate(0px, 0px)' },
+          '50%': { transform: `translate(${DRIFT_AMPLITUDE}px, ${DRIFT_AMPLITUDE * 0.6}px)` },
+        },
+        '@keyframes driftC': {
+          '0%, 100%': { transform: 'translate(0px, 0px)' },
+          '50%': { transform: `translate(${-DRIFT_AMPLITUDE}px, ${DRIFT_AMPLITUDE * 0.5}px)` },
+        },
+        '@keyframes driftD': {
+          '0%, 100%': { transform: 'translate(0px, 0px)' },
+          '50%': { transform: `translate(${DRIFT_AMPLITUDE * 0.7}px, ${-DRIFT_AMPLITUDE * 0.8}px)` },
+        },
+        '@keyframes fadeIn': { from: { opacity: 0 }, to: { opacity: 1 } },
+        // HAREKETLI HEDEF sorunu: donen bir seyi tiklamak zordur. Isaretcinin
+        // veya klavye odaginin girdigi an butun donme DURUR.
+        '&:hover .orbit-system, &:focus-within .orbit-system': {
+          animationPlayState: 'paused',
+        },
+        '&:hover .orbit-counter, &:focus-within .orbit-counter': {
+          animationPlayState: 'paused',
         },
       }}
       onMouseLeave={() => setHovered(null)}
     >
-      {/* Seviye halkalari en arkada: yapiyi tasimazlar, yalnizca "kacinci
-          halkadayim" sorusuna sessiz bir cevap verirler. */}
-      {layout.rings.map((ring, index) => (
-        <Box
-          key={ring}
-          component="circle"
-          cx={centre}
-          cy={centre}
-          r={ring}
-          fill="none"
-          strokeDasharray="2 7"
-          style={{ animationDelay: `${reduceMotion ? 0 : index * DEPTH_DELAY}ms` }}
-          sx={{
-            stroke: 'currentColor',
-            strokeOpacity: 0.13,
-            strokeWidth: 1,
-            animation: reduceMotion ? 'none' : 'ringIn 500ms ease both',
-          }}
-        />
-      ))}
+      <defs>
+        {/* Merkezdeki soluk isik: tuvali bos bir zemin degil, DERINLIGI olan
+            bir bosluk gibi okutur. */}
+        <radialGradient id={glowId}>
+          <stop offset="0%" stopColor="currentColor" stopOpacity={0.12} />
+          <stop offset="55%" stopColor="currentColor" stopOpacity={0.03} />
+          <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
+        </radialGradient>
+      </defs>
 
-      {/* Dallar dugumlerden once cizilir: kesisimlerde cizgi dairenin
-          ALTINDAN gecer. */}
-      {layout.links.map((link) => (
-        <Branch
-          key={link.id}
-          link={link}
-          largest={layout.largest}
-          lit={lit}
-          reduceMotion={reduceMotion}
-        />
-      ))}
+      <circle cx={centre} cy={centre} r={centre} fill={`url(#${glowId})`} />
 
-      {layout.nodes.map((entry) => (
-        <Node
-          key={entry.node?.id ?? 'hub'}
-          entry={entry}
-          hubLabel={layout.hubLabel}
-          colors={colors}
-          hovered={hovered}
-          lit={lit}
-          reduceMotion={reduceMotion}
-          onHover={setHovered}
-          onDrillDown={onDrillDown}
-        />
-      ))}
+      <Box
+        component="g"
+        className="orbit-system"
+        sx={{
+          transformBox: 'view-box',
+          transformOrigin: `${centre}px ${centre}px`,
+          animation: spin,
+        }}
+      >
+        {/* Yorungeler: her seviye bir halka. Yapiyi tasimazlar, katmani
+            gorunur kilarlar. */}
+        {layout.rings.map((ring, index) => (
+          <Box
+            key={ring}
+            component="circle"
+            cx={centre}
+            cy={centre}
+            r={ring}
+            fill="none"
+            strokeDasharray="1 9"
+            style={{ animationDelay: `${reduceMotion ? 0 : index * DEPTH_DELAY}ms` }}
+            sx={{
+              stroke: 'currentColor',
+              strokeOpacity: 0.16,
+              strokeWidth: 1,
+              animation: reduceMotion ? 'none' : 'fadeIn 600ms ease both',
+            }}
+          />
+        ))}
+
+        {layout.links.map((link) => (
+          <Link key={link.id} link={link} largest={layout.largest} lit={lit} />
+        ))}
+
+        {layout.nodes.map((entry) => (
+          <Node
+            key={entry.node?.id ?? 'hub'}
+            entry={entry}
+            hubLabel={layout.hubLabel}
+            colors={colors}
+            hovered={hovered}
+            lit={lit}
+            reduceMotion={reduceMotion}
+            spinBack={spinBack}
+            onHover={setHovered}
+            onToggle={onToggle}
+          />
+        ))}
+      </Box>
     </Box>
   );
 }
 
-interface BranchProps {
-  link: TreeLink;
-  largest: number;
-  lit: Set<number>;
-  reduceMotion: boolean;
-}
-
-function Branch({ link, largest, lit, reduceMotion }: BranchProps) {
-  // Dal ancak IKI ucu da vurgulanan zincirdeyse yanar; yoksa bir kardesin dali
-  // da aydinlanir ve yol belirsizlesirdi.
+function Link({ link, largest, lit }: { link: TreeLink; largest: number; lit: Set<number> }) {
+  // Bag ancak IKI ucu da vurgulanan zincirdeyse yanar; yoksa kardes baglari da
+  // aydinlanir ve yol belirsizlesirdi.
   const onPath = lit.size > 0 && link.ancestorIds.every((id) => lit.has(id));
 
-  // Dal, tasidigi kisi sayisiyla KALINLASIR: govde kalin, uc dallar ince.
-  // Ayni bilgi daire alaninda da var ama burada AKIS olarak okunuyor -- bir
-  // dalin nereye gittigi kalinligindan da anlasiliyor.
-  const width = BRANCH_MIN
-    + (BRANCH_MAX - BRANCH_MIN) * Math.sqrt(link.size / Math.max(1, largest));
+  // Bag, tasidigi kisi sayisiyla kalinlasir: govde kalin, uclar ince.
+  const width = LINK_MIN + (LINK_MAX - LINK_MIN) * Math.sqrt(link.size / Math.max(1, largest));
 
   return (
     <Box
       component="path"
       d={link.path}
       fill="none"
-      // pathLength uzunlugu 1'e normalize eder; boylece dashoffset 1'den 0'a
-      // gidince dal, gercek uzunlugu ne olursa olsun tam olarak uctan uca
-      // cizilir. Olmasaydi her yolun boyunu getTotalLength ile olcmek gerekirdi.
-      pathLength={1}
-      style={{ animationDelay: `${reduceMotion ? 0 : link.depth * DEPTH_DELAY}ms` }}
       sx={{
         stroke: (t) => (onPath ? t.palette.primary.main : 'currentColor'),
-        strokeOpacity: onPath ? 1 : (lit.size > 0 ? 0.1 : 0.24),
-        strokeWidth: onPath ? width + 1.4 : width,
+        // Baglar varsayilan olarak neredeyse gorunmez: sema once ASILI
+        // katmanlar olarak okunur, bag ancak sorulunca belirir.
+        strokeOpacity: onPath ? 1 : (lit.size > 0 ? 0.04 : 0.11),
+        strokeWidth: onPath ? width + 1.5 : width,
         strokeLinecap: 'round',
-        transition: 'stroke 200ms ease, stroke-opacity 200ms ease, stroke-width 200ms ease',
-        strokeDasharray: 1,
-        animation: reduceMotion
-          ? 'none'
-          : `branchGrow ${BRANCH_DURATION}ms cubic-bezier(0.16, 1, 0.3, 1) both`,
+        transition: 'stroke 260ms ease, stroke-opacity 260ms ease, stroke-width 260ms ease',
       }}
     />
   );
@@ -176,15 +202,18 @@ interface NodeProps {
   hovered: number | null;
   lit: Set<number>;
   reduceMotion: boolean;
+  spinBack: string;
   onHover: (id: number | null) => void;
-  onDrillDown: (node: OrgNode) => void;
+  onToggle: (node: OrgNode) => void;
 }
 
+const DRIFTS = ['driftA', 'driftB', 'driftC', 'driftD'] as const;
+
 function Node({
-  entry, hubLabel, colors, hovered, lit, reduceMotion, onHover, onDrillDown,
+  entry, hubLabel, colors, hovered, lit, reduceMotion, spinBack, onHover, onToggle,
 }: NodeProps) {
   const theme = useTheme();
-  const { node, x, y, r, depth, angle, size, hasChildren } = entry;
+  const { node, x, y, r, depth, size, hasChildren, collapsed, hidden } = entry;
 
   const isHovered = node !== null && hovered === node.id;
   const onPath = node !== null && lit.has(node.id);
@@ -192,132 +221,179 @@ function Node({
   // karsilastirabilmek icin cevresinin gorunur kalmasi gerekir.
   const dimmed = lit.size > 0 && !onPath;
 
-  const drillable = node !== null && hasChildren;
   const label = node ? fullName(node) : hubLabel;
-
   const fill = node
     ? colors.get(node.departmentName) ?? theme.palette.primary.main
     : theme.palette.background.paper;
   const ink = DEPARTMENT_INK[theme.palette.mode];
 
-  // Isim halkanin DISINDA durur ve dugumle ayni acida uzanir; sol yaridakiler
-  // bas asagi okunmasin diye ters cevrilip saga hizalanir. Cevirmeyi atlamak
-  // radyal semanin klasik tuzagi: seman yarisi okunmaz olur.
-  const flipped = Math.abs(angle) > 90;
-  const base = `rotate(${angle} ${x} ${y}) translate(${x + r + LABEL_GAP} ${y})`;
+  // Salinim deterministik olarak dagitilir: hepsi ayni anda ayni yone gitseydi
+  // sema nefes alan tek bir kutle gibi gorunur, ASILI degil.
+  const seed = node?.id ?? 0;
+  const drift = DRIFTS[seed % DRIFTS.length];
+  const period = DRIFT_MIN + (seed % (DRIFT_MAX - DRIFT_MIN));
 
   return (
     <Box
       component="g"
-      style={{
-        transformOrigin: `${x}px ${y}px`,
-        animationDelay: `${reduceMotion ? 0 : depth * DEPTH_DELAY + BRANCH_DURATION * 0.45}ms`,
-      }}
+      className="orbit-counter"
       sx={{
-        cursor: drillable ? 'pointer' : 'default',
-        animation: reduceMotion ? 'none' : 'nodeIn 400ms cubic-bezier(0.16, 1, 0.3, 1) both',
-        transition: 'opacity 200ms ease',
-        opacity: dimmed ? 0.32 : 1,
-        '&:focus-visible': { outline: 'none' },
-        '&:focus-visible .node-ring': { opacity: 1 },
+        // Sistem donerken dugum KENDI EKSENINDE ters doner; boylece isim
+        // yatay kalir. Ters cevirmeseydik semanin yarisi bas asagi okunurdu.
+        transformBox: 'view-box',
+        transformOrigin: `${x}px ${y}px`,
+        animation: spinBack,
       }}
-      onMouseEnter={() => node && onHover(node.id)}
-      onFocus={() => node && onHover(node.id)}
-      onBlur={() => onHover(null)}
-      onClick={() => drillable && onDrillDown(node)}
-      // Ekibi olan daire bir DUGMEDIR: yalnizca fareyle acilabilseydi klavye
-      // kullanicisi semanin icine hic giremezdi. Yaprak tiklanabilir degil, o
-      // yuzden odak sirasina da girmez.
-      {...(drillable
-        ? {
-          role: 'button',
-          tabIndex: 0,
-          'aria-label': `Open the team of ${fullName(node)}, ${size - 1} people`,
-          onKeyDown: (event: React.KeyboardEvent) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              onDrillDown(node);
-            }
-          },
-        }
-        : {})}
     >
-      {/* Vurgu halkasi: uzerine gelince ve klavye odaginda gorunur. Vurgu
-          yalnizca renkle degil BICIMLE de tasinir. */}
       <Box
-        component="circle"
-        className="node-ring"
-        cx={x}
-        cy={y}
-        r={r + 6}
-        fill="none"
-        sx={{
-          stroke: (t) => t.palette.primary.main,
-          strokeWidth: 2,
-          opacity: isHovered ? 1 : 0,
-          transition: 'opacity 180ms ease',
+        component="g"
+        style={{
+          animationDuration: `${period}s`,
+          // Negatif gecikme: bileşen kurulur kurulmaz salinimin ORTASINDAN
+          // baslar, yani hepsi ayni noktadan hareket etmez.
+          animationDelay: `${-(seed % period)}s`,
         }}
-      />
-
-      <Box
-        component="circle"
-        cx={x}
-        cy={y}
-        r={r}
         sx={{
-          fill,
-          // Derinlik ARTTIKCA daire seffaflasir: govde tok, uclar hafif.
-          // Bilgi tek basina buna binmiyor -- boyut ve konum zaten soyluyor.
-          fillOpacity: node === null ? 1 : Math.max(0.62, 1 - depth * 0.12),
-          stroke: (t) => (onPath ? t.palette.primary.main : t.palette.background.paper),
-          strokeWidth: onPath ? 2.5 : 1.5,
-          transition: 'stroke 200ms ease, stroke-width 200ms ease',
+          animationName: reduceMotion ? 'none' : drift,
+          animationTimingFunction: 'ease-in-out',
+          animationIterationCount: 'infinite',
         }}
-      />
-
-      {node && (
-        <title>
-          {`${fullName(node)} — ${node.jobTitle}, ${node.departmentName}`}
-          {hasChildren ? ` (${size - 1} in the team, open to see them)` : ''}
-        </title>
-      )}
-
-      {/* Bas harfler dairenin ICINDE: balon bos bir leke olmaktan cikar ve
-          kim oldugu isme bakmadan da secilebilir. */}
-      {node && r > INITIALS_FIT_ABOVE && (
+      >
         <Box
-          component="text"
-          x={x}
-          y={y}
-          textAnchor="middle"
-          dominantBaseline="central"
-          fontSize={r * 0.66}
-          sx={{ fill: ink, fontWeight: 600, letterSpacing: '0.01em', pointerEvents: 'none' }}
-        >
-          {initials(node)}
-        </Box>
-      )}
-
-      {label && (
-        <Box
-          component="text"
-          // Ters cevrilen etiket daireden yine DISARI uzansin diye kendi
-          // ekseninde 180 derece dondurulur ve saga hizalanir.
-          transform={flipped ? `${base} rotate(180)` : base}
-          textAnchor={flipped ? 'end' : 'start'}
-          dominantBaseline="central"
-          fontSize={depth === 0 ? 14 : 12}
+          component="g"
           sx={{
-            fill: 'currentColor',
-            fontWeight: onPath || depth === 0 ? 600 : 500,
-            fillOpacity: onPath || depth === 0 ? 1 : 0.76,
-            pointerEvents: 'none',
-            transition: 'fill-opacity 200ms ease',
+            cursor: hasChildren ? 'pointer' : 'default',
+            transition: 'opacity 260ms ease',
+            opacity: dimmed ? 0.3 : 1,
+            '&:focus-visible': { outline: 'none' },
+            '&:focus-visible .node-ring': { opacity: 1 },
           }}
+          onMouseEnter={() => node && onHover(node.id)}
+          onFocus={() => node && onHover(node.id)}
+          onBlur={() => onHover(null)}
+          onClick={() => node && hasChildren && onToggle(node)}
+          // Ekibi olan dugum bir DUGMEDIR; yaprak tiklanabilir degil, o yuzden
+          // odak sirasina da girmez.
+          {...(node && hasChildren
+            ? {
+              role: 'button',
+              tabIndex: 0,
+              'aria-expanded': !collapsed,
+              'aria-label': `${fullName(node)}, ${size - 1} people in the team`,
+              onKeyDown: (event: React.KeyboardEvent) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onToggle(node);
+                }
+              },
+            }
+            : {})}
         >
-          {label}
+          {/* Vurgu halkasi: uzerine gelince ve klavye odaginda gorunur. */}
+          <Box
+            component="circle"
+            className="node-ring"
+            cx={x}
+            cy={y}
+            r={r + 6}
+            fill="none"
+            sx={{
+              stroke: (t) => t.palette.primary.main,
+              strokeWidth: 2,
+              opacity: isHovered ? 1 : 0,
+              transition: 'opacity 180ms ease',
+            }}
+          />
+
+          {/* Kapali dugumun disinda kesikli bir halka: "burada dahasi var"
+              bilgisini RENKTEN bagimsiz, bicimle tasir. */}
+          {collapsed && (
+            <Box
+              component="circle"
+              cx={x}
+              cy={y}
+              r={r + 4}
+              fill="none"
+              strokeDasharray="3 4"
+              sx={{ stroke: fill, strokeWidth: 1.5, strokeOpacity: 0.9 }}
+            />
+          )}
+
+          <Box
+            component="circle"
+            cx={x}
+            cy={y}
+            r={r}
+            sx={{
+              fill,
+              fillOpacity: node === null ? 1 : Math.max(0.66, 1 - depth * 0.1),
+              stroke: (t) => (onPath ? t.palette.primary.main : t.palette.background.paper),
+              strokeWidth: onPath ? 2.5 : 1.5,
+              transition: 'stroke 200ms ease, stroke-width 200ms ease',
+            }}
+          />
+
+          {node && (
+            <title>
+              {`${fullName(node)} — ${node.jobTitle}, ${node.departmentName}`}
+              {hasChildren
+                ? ` (${size - 1} in the team, ${collapsed ? 'closed' : 'open'})`
+                : ''}
+            </title>
+          )}
+
+          {/* Bas harfler dairenin ICINDE: balon bos bir leke olmaktan cikar. */}
+          {node && r > INITIALS_FIT_ABOVE && (
+            <Box
+              component="text"
+              x={x}
+              y={y}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={r * 0.7}
+              sx={{ fill: ink, fontWeight: 600, pointerEvents: 'none' }}
+            >
+              {initials(node)}
+            </Box>
+          )}
+
+          {/* Isim dairenin ALTINDA ve yatay: donme ters cevrildigi icin her
+              konumda duz okunur. */}
+          {label && (
+            <Box
+              component="text"
+              x={x}
+              y={y + r + 15}
+              textAnchor="middle"
+              fontSize={depth === 0 ? 13 : 11.5}
+              sx={{
+                fill: 'currentColor',
+                fontWeight: onPath || depth === 0 ? 600 : 500,
+                fillOpacity: onPath || depth === 0 ? 1 : 0.74,
+                pointerEvents: 'none',
+                transition: 'fill-opacity 220ms ease',
+              }}
+            >
+              {label}
+            </Box>
+          )}
+
+          {/* Kapali dugumde gizlenen kisi sayisi: sessizce kaybetmek, eksik
+              oldugunu soylemeyen bir sema uretirdi. */}
+          {collapsed && (
+            <Box
+              component="text"
+              x={x}
+              y={y + r + (label ? 28 : 15)}
+              textAnchor="middle"
+              fontSize={10.5}
+              sx={{ fill: 'currentColor', fillOpacity: 0.6, pointerEvents: 'none' }}
+            >
+              {`+${hidden}`}
+            </Box>
+          )}
         </Box>
-      )}
+      </Box>
     </Box>
   );
 }
@@ -328,35 +404,20 @@ export function DepartmentLegend({ names, colors }: { names: string[]; colors: M
     <Box
       component="ul"
       aria-label="Colour key"
-      sx={{
-        listStyle: 'none',
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: 1.5,
-        m: 0,
-        p: 0,
-      }}
+      sx={{ listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: 1.5, m: 0, p: 0 }}
     >
       {names.map((name) => (
         <Box
           component="li"
           key={name}
           sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.75,
-            fontSize: 12,
-            color: 'text.secondary',
+            display: 'flex', alignItems: 'center', gap: 0.75, fontSize: 12, color: 'text.secondary',
           }}
         >
           <Box
             aria-hidden
             sx={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              bgcolor: colors.get(name),
-              flexShrink: 0,
+              width: 10, height: 10, borderRadius: '50%', bgcolor: colors.get(name), flexShrink: 0,
             }}
           />
           {name}
@@ -370,10 +431,7 @@ export function DepartmentLegend({ names, colors }: { names: string[]; colors: M
 export function useDepartmentColors(names: string[]) {
   const theme = useTheme();
 
-  return useMemo(
-    () => departmentColors(names, theme.palette.mode),
-    [names, theme.palette.mode],
-  );
+  return useMemo(() => departmentColors(names, theme.palette.mode), [names, theme.palette.mode]);
 }
 
 /**

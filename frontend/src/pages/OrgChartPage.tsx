@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert, Box, Breadcrumbs, Fade, Link, Paper, Skeleton, Stack, Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Fade, Paper, Skeleton, Stack, Typography } from '@mui/material';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { orgChartApi } from '../api/orgChart';
 import type { OrgChart, OrgNode } from '../api/orgChart';
@@ -12,14 +10,20 @@ import {
   DepartmentLegend, OrgBubbleMap, OrgOutline, useDepartmentColors,
 } from '../components/OrgBubbleMap';
 import { DepartmentRail } from '../components/DepartmentRail';
-import { departmentsOf, fullName, scopeToDepartment } from '../components/orgScope';
+import { departmentsOf, scopeToDepartment } from '../components/orgScope';
 
 export function OrgChartPage() {
   const [chart, setChart] = useState<OrgChart | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [department, setDepartment] = useState<string | null>(null);
-  /** Icine girilen kisiler; son eleman su anda tepede duran kisidir. */
-  const [trail, setTrail] = useState<OrgNode[]>([]);
+  /**
+   * Kapali dugumler.
+   *
+   * Onceki tasarim bir dugume tiklandiginda o dalin ICINE giriyordu ve her
+   * tiklama bir seviye daha derine indiriyordu -- kullanici nerede oldugunu
+   * kaybediyordu. Acip kapatmak yerinde kalir: baglam hic degismez.
+   */
+  const [collapsed, setCollapsed] = useState<ReadonlySet<number>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -57,11 +61,20 @@ export function OrgChartPage() {
     return department === null ? chart.roots : scopeToDepartment(chart.roots, department);
   }, [chart, department]);
 
-  const visible = trail.length > 0 ? [trail[trail.length - 1]] : scoped;
+  const toggle = (node: OrgNode) => {
+    setCollapsed((current) => {
+      const next = new Set(current);
+
+      if (!next.delete(node.id)) next.add(node.id);
+
+      return next;
+    });
+  };
 
   const selectDepartment = (next: string | null) => {
     setDepartment(next);
-    setTrail([]);
+    // Baska bir departmanin dugumlerine ait kapali/acik durumu anlamsizdir.
+    setCollapsed(new Set());
   };
 
   if (error) {
@@ -125,20 +138,29 @@ export function OrgChartPage() {
 
           {chart && chart.roots.length > 0 && (
             <Stack spacing={2}>
-              <Trail
-                department={department}
-                trail={trail}
-                onOpen={(depth) => setTrail(trail.slice(0, depth))}
-              />
+              <Stack
+                direction="row"
+                spacing={1.5}
+                sx={{ flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Click a node to fold its team away — the chart stays where it is
+                </Typography>
 
-              {/* Kapsam degisince bilesen YENIDEN kurulur: giris animasyonu
-                  bastan calisir ve gecis kesme yerine acilma gibi okunur. */}
-              <Fade in key={`${department ?? 'all'}:${trail.map((n) => n.id).join('>')}`}>
+                {collapsed.size > 0 && (
+                  <Button size="small" onClick={() => setCollapsed(new Set())}>
+                    Expand all
+                  </Button>
+                )}
+              </Stack>
+
+              <Fade in key={department ?? 'all'}>
                 <Box>
                   <OrgBubbleMap
-                    roots={visible}
+                    roots={scoped}
                     colors={colors}
-                    onDrillDown={(node) => setTrail([...trail, node])}
+                    collapsed={collapsed}
+                    onToggle={toggle}
                   />
                 </Box>
               </Fade>
@@ -147,60 +169,11 @@ export function OrgChartPage() {
                   anlamlidir; tek departman kapsaminda hepsi ayni renktir. */}
               {department === null && <DepartmentLegend names={names} colors={colors} />}
 
-              <OrgOutline nodes={visible} />
+              <OrgOutline nodes={scoped} />
             </Stack>
           )}
         </Paper>
       </Stack>
-    </Stack>
-  );
-}
-
-interface TrailProps {
-  department: string | null;
-  trail: OrgNode[];
-  onOpen: (depth: number) => void;
-}
-
-/** Nereye kadar girildigini gosterir ve geri donusu tek tiklamaya indirir. */
-function Trail({ department, trail, onOpen }: TrailProps) {
-  const scopeLabel = department ?? 'Whole organisation';
-
-  return (
-    <Stack
-      direction="row"
-      spacing={1.5}
-      sx={{ flexWrap: 'wrap', minHeight: 28, alignItems: 'center', justifyContent: 'space-between' }}
-    >
-      <Breadcrumbs aria-label="Open team" sx={{ fontSize: 14 }}>
-        {trail.length === 0 ? (
-          <Typography variant="body2" color="text.primary">{scopeLabel}</Typography>
-        ) : (
-          <Link component="button" type="button" variant="body2" onClick={() => onOpen(0)}>
-            {scopeLabel}
-          </Link>
-        )}
-
-        {trail.map((node, depth) => (depth === trail.length - 1 ? (
-          <Typography key={node.id} variant="body2" color="text.primary">
-            {fullName(node)}
-          </Typography>
-        ) : (
-          <Link
-            key={node.id}
-            component="button"
-            type="button"
-            variant="body2"
-            onClick={() => onOpen(depth + 1)}
-          >
-            {fullName(node)}
-          </Link>
-        )))}
-      </Breadcrumbs>
-
-      <Typography variant="caption" color="text.secondary">
-        Click a circle with a team inside to open it
-      </Typography>
     </Stack>
   );
 }
