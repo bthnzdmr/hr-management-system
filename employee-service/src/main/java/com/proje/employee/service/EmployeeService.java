@@ -84,7 +84,7 @@ public class EmployeeService {
                 : "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
 
         return employeeRepository
-                .search(pattern, active, visibleId(scope), scope.kind() == AccessScope.Kind.TEAM, pageable)
+                .search(pattern, active, scope.visibleEmployeeId(), scope.includesDirectReports(), pageable)
                 .map(employeeMapper::toResponse);
     }
 
@@ -103,10 +103,6 @@ public class EmployeeService {
         return employeeMapper.toResponse(employee);
     }
 
-    private Long visibleId(AccessScope scope) {
-        return scope.isUnrestricted() ? null : scope.employeeId();
-    }
-
     private boolean canSee(Employee employee, AccessScope scope) {
         if (scope.isUnrestricted()) {
             return true;
@@ -117,7 +113,7 @@ public class EmployeeService {
         if (scope.employeeId().equals(employee.getId())) {
             return true;
         }
-        return scope.kind() == AccessScope.Kind.TEAM
+        return scope.includesDirectReports()
                 && employee.getManager() != null
                 && scope.employeeId().equals(employee.getManager().getId());
     }

@@ -8,6 +8,14 @@ server:
   shutdown: graceful
 
 spring:
+  # Sayfa boyutu TAVANI. Spring Data'nin varsayilani 2000: "?size=2000" ile
+  # butun PII dizini tek cevapta cekilebiliyordu -- hem toplu sizdirma yolu
+  # hem de her cagiran icin bellek sicramasi.
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+
   # Zarif kapanmanin sunucu tarafina ayrilan sure. Docker'in
   # stop_grace_period'undan KUCUK olmali, yoksa JVM isini bitiremeden
   # SIGKILL yer ve zarif kapanma kagit uzerinde kalir.

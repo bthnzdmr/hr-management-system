@@ -184,4 +184,52 @@ class OutboxRelayTest {
         assertThat(header).isNull();
         assertThat(event.getPublishedAt()).isNotNull();
     }
+
+    @Test
+    @DisplayName("Does not blame the message when the channel died after sending")
+    void doesNotCountInfrastructureNack() {
+        // Kural zaten yaziliydi -- "erisilemezlik o mesajin kusuru degildir" --
+        // ama yalnizca send()'in firlattigi istisnalar icin isliyordu. Kanal
+        // send()'den SONRA olurse red bir NACK olarak gelir ve sayaci haksiz
+        // yere artirirdi: tek bir broker yeniden baslatmasi, ucustaki 20
+        // mesajin bes hakkindan birini birden yakardi.
+        OutboxEvent event = event();
+        when(outboxRepository.lockPending(anyInt(), anyInt())).thenReturn(List.of(event));
+        answerWith(false, "channel closed");
+
+        relay().publishPending();
+
+        assertThat(event.getAttempts())
+                .as("an infrastructure failure must not consume the message's attempts")
+                .isZero();
+        assertThat(event.getPublishedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("Treats a nack with no reason as infrastructure, not as the message's fault")
+    void treatsReasonlessNackAsInfrastructure() {
+        // Broker bir mesaji KENDI kusuru yuzunden reddettiginde sebep bildirir.
+        // Sebepsiz red, kapanmakta olan bir kanaldan gelir.
+        OutboxEvent event = event();
+        when(outboxRepository.lockPending(anyInt(), anyInt())).thenReturn(List.of(event));
+        answerWith(false, null);
+
+        relay().publishPending();
+
+        assertThat(event.getAttempts()).isZero();
+    }
+
+    @Test
+    @DisplayName("Still blames the message when the broker rejects it with a real reason")
+    void stillCountsGenuineNack() {
+        // Ayrim korunmali: gercek bir red hala sayilmali, yoksa bozuk bir mesaj
+        // sonsuza kadar denenir ve kuyrugun onunu tikardi.
+        OutboxEvent event = event();
+        when(outboxRepository.lockPending(anyInt(), anyInt())).thenReturn(List.of(event));
+        answerWith(false, "NO_ROUTE for routing key employee.created");
+
+        relay().publishPending();
+
+        assertThat(event.getAttempts()).isEqualTo(1);
+    }
 }

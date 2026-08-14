@@ -1,4 +1,12 @@
 spring:
+  # Sayfa boyutu TAVANI. Spring Data'nin varsayilani 2000: "?size=2000" ile
+  # butun PII dizini tek cevapta cekilebiliyordu -- hem toplu sizdirma yolu
+  # hem de her cagiran icin bellek sicramasi.
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/employee_db}
     username: ${DB_USERNAME}

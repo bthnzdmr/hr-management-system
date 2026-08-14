@@ -148,6 +148,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.CONFLICT, "Department already exists", ex.getMessage());
     }
 
+    /**
+     * Jetonun arkasindaki hesap yok.
+     *
+     * Mesaj kasitli olarak belirsiz: hesabin silinmis mi yoksa hic var olmamis
+     * mi oldugunu soylemek, gecerli e-posta cikarmaya yarardi.
+     */
+    @ExceptionHandler(StaleCredentialsException.class)
+    public ProblemDetail handleStaleCredentials(StaleCredentialsException ex) {
+        log.warn("Token presented for an account that no longer exists: {}", ex.getMessage());
+        return problem(HttpStatus.UNAUTHORIZED, "Authentication failed", "Invalid credentials");
+    }
+
     @ExceptionHandler(InvalidSortPropertyException.class)
     public ProblemDetail handleInvalidSortProperty(InvalidSortPropertyException ex) {
         log.warn("Rejected sorting on a field that is not allowed: {}", ex.getProperty());

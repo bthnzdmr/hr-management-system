@@ -1,6 +1,7 @@
 package com.proje.employee.service;
 
 import com.proje.employee.entity.User;
+import com.proje.employee.exception.StaleCredentialsException;
 import com.proje.employee.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,9 +30,11 @@ public class AccessScopeResolver {
     @Transactional(readOnly = true)
     public AccessScope resolve(Principal principal) {
         User user = userRepository.findByEmail(principal.getName())
-                // Token gecerli ama hesap silinmis: hicbir sey goremez.
-                .orElseThrow(() -> new IllegalStateException(
-                        "Authenticated user no longer exists: " + principal.getName()));
+                // Token gecerli ama hesap silinmis. Bu bir ISTEMCI durumudur
+                // (eskimis kimlik bilgisi), sunucu arizasi degil: 401 doner.
+                // Onceden IllegalStateException ile 500 donuyordu ve izleme
+                // kirleniyordu -- olmayan bir arizayi bildiren alarm.
+                .orElseThrow(() -> new StaleCredentialsException(principal.getName()));
 
         return AccessScope.forUser(user);
     }

@@ -90,6 +90,17 @@ public class OutboxRelay {
             if (confirm.isAck()) {
                 event.markPublished();
                 log.debug("Outbox event published: {} {}", event.getEventType(), event.getEventId());
+            } else if (isInfrastructureFailure(confirm.getReason())) {
+                // Kanal send()'den SONRA oldu. Kural zaten yaziliydi --
+                // "erisilemezlik o mesajin kusuru degildir" -- ama yalnizca
+                // send()'in firlattigi istisnalar icin isliyordu. Burada nack
+                // olarak geliyor ve sayaci HAKSIZ YERE artiriyordu: tek bir
+                // broker yeniden baslatmasi, ucustaki 20 mesajin bes hakkindan
+                // birini birden yakardi.
+                log.warn("Confirm failed for infrastructure reasons, not counted: {} ({})",
+                        event.getEventId(), confirm.getReason());
+                return false;
+
             } else {
                 // Broker mesaji acikca reddetti: bu mesajin kendi kusuru.
                 recordFailure(event, "nack: " + confirm.getReason());
@@ -110,10 +121,18 @@ public class OutboxRelay {
             return false;
 
         } catch (ExecutionException e) {
+            // Onay beklenirken kanal oldu: yine altyapi kaynakli olabilir.
+            if (isInfrastructureFailure(String.valueOf(e.getCause()))) {
+                log.warn("Confirm failed while the channel was closing: {}", event.getEventId());
+                return false;
+            }
             recordFailure(event, String.valueOf(e.getCause()));
             return true;
 
         } catch (InterruptedException e) {
+            // Kesinti genelde kapanista gelir; iz birakmadan gecilirse
+            // "bu parti neden yarida kaldi" sorusu cevapsiz kalir.
+            log.warn("Outbox publishing interrupted at {}", event.getEventId());
             Thread.currentThread().interrupt();
             return false;
 
@@ -132,6 +151,27 @@ public class OutboxRelay {
             log.warn("Outbox event rejected, attempt {}: {} ({})",
                     event.getAttempts(), event.getEventId(), reason);
         }
+    }
+
+    /**
+     * Reddin sebebi ALTYAPI mi, mesajin kendisi mi?
+     *
+     * Ayrim onemli cunku "attempts" sayaci yalnizca mesajin KENDI kusurunu
+     * saymalidir. Broker yeniden baslarken bekleyen onaylar sebepsiz veya
+     * "channel closed" gibi baglanti kaynakli sebeplerle tamamlanir; bunlari
+     * saymak, bes yeniden baslatmadan sonra saglam olaylari kalici olarak
+     * terk etmek demektir.
+     *
+     * Sebep NULL ise altyapi sayilir: broker bir mesaji kendi kusuru yuzunden
+     * reddettiginde sebep bildirir.
+     */
+    private boolean isInfrastructureFailure(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return true;
+        }
+        String lower = reason.toLowerCase(java.util.Locale.ROOT);
+        return lower.contains("channel") || lower.contains("connection")
+                || lower.contains("shutdown") || lower.contains("closed");
     }
 
     // payload zaten JSON metnidir. Donusturucuye verilirse ikinci kez kodlanir;

@@ -42,6 +42,23 @@ public record AccessScope(Kind kind, Long employeeId) {
         return new AccessScope(Kind.SELF, employeeId);
     }
 
+    /**
+     * Kapsam dogrudan astlari da iceriyor mu?
+     *
+     * Onceden cagiran taraf "scope.kind() == Kind.TEAM" diye SORUYORDU ve ayni
+     * karsilastirma iki ayri yerde tekrarlaniyordu. Bu, AccessScope'un kendi
+     * semantiginin disari SIZMASIYDI: kapsam turu degistiginde her cagiran
+     * yeri duzeltmek gerekirdi.
+     */
+    public boolean includesDirectReports() {
+        return kind == Kind.TEAM;
+    }
+
+    /** Sorguya verilecek kimlik; sinirsiz kapsamda filtre yok demektir. */
+    public Long visibleEmployeeId() {
+        return isUnrestricted() ? null : employeeId;
+    }
+
     public boolean isUnrestricted() {
         return kind == Kind.ALL;
     }
