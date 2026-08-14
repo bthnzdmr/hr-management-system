@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { DashboardPage } from './DashboardPage';
 import { dashboardApi } from '../api/dashboard';
@@ -37,6 +37,7 @@ function overview(overrides: Partial<DashboardOverview> = {}): DashboardOverview
       { reason: 'RETIRED', count: 1 },
     ],
     spanOfControl: { managerCount: 12, averageDirectReports: 2.3, largestTeam: 4 },
+    managerLoad: [],
     dataQuality: { activeWithoutManager: 5, emptyDepartments: 1 },
     ...overrides,
   };
@@ -126,5 +127,38 @@ describe('DashboardPage', () => {
     renderPage();
 
     expect(await screen.findByText('An unexpected error occurred')).toBeInTheDocument();
+  });
+
+  it('shows each manager and the size of the team they carry', async () => {
+    // Ozet (ortalama, en buyuk ekip) DAGILIMI gizler: "biri 12 tasirken
+    // digeri 1 tasiyor" durumu ortalamada 6.5 gorunur ve ikisi de normal
+    // sanilir.
+    vi.mocked(dashboardApi.overview).mockResolvedValue(overview({
+      managerLoad: [
+        { employeeId: 1, firstName: 'Ada', lastName: 'Lovelace', departmentName: 'Sales', directReports: 12 },
+        { employeeId: 2, firstName: 'Grace', lastName: 'Hopper', departmentName: 'Finance', directReports: 1 },
+      ],
+    }));
+
+    renderPage();
+
+    // Isimler GERCEK METIN: ekran okuyucu okur, Ctrl+F bulur. Bir canvas
+    // veya SVG olsaydi ikisi de calismazdi.
+    expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
+
+    // Sayi dairenin ICINDE yaziyor: bilgi renkten ve boyuttan bagimsiz.
+    // Iddia BALONA daraltilir -- "12" panelde baska yerde de geciyor
+    // (managerCount), genel bir arama yanlis elemani yakalardi.
+    const adaBubble = screen.getByText('Ada Lovelace').closest('li') as HTMLElement;
+    expect(within(adaBubble).getByText('12')).toBeInTheDocument();
+  });
+
+  it('says so when nobody carries a team', async () => {
+    vi.mocked(dashboardApi.overview).mockResolvedValue(overview({ managerLoad: [] }));
+
+    renderPage();
+
+    expect(await screen.findByText('Nobody has direct reports yet.')).toBeInTheDocument();
   });
 });

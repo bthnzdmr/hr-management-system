@@ -63,6 +63,12 @@ public class DashboardService {
                         round(span.getAverageDirectReports()),
                         span.getLargestTeamSize()),
 
+                dashboardRepository.managerLoad().stream()
+                        .map(row -> new DashboardResponse.ManagerLoad(
+                                row.getEmployeeId(), row.getFirstName(), row.getLastName(),
+                                row.getDepartmentName(), row.getDirectReports()))
+                        .toList(),
+
                 new DashboardResponse.DataQuality(
                         dashboardRepository.countActiveWithoutManager(),
                         dashboardRepository.countEmptyDepartments()));
