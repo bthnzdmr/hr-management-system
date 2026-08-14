@@ -6,9 +6,7 @@ import type { OrgChart, OrgNode } from '../api/orgChart';
 import { errorMessage } from '../api/client';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/EmptyState';
-import {
-  DepartmentLegend, OrgBubbleMap, OrgOutline, useDepartmentColors,
-} from '../components/OrgBubbleMap';
+import { OrgBubbleMap, OrgOutline, useDepartmentColors } from '../components/OrgBubbleMap';
 import { DepartmentRail } from '../components/DepartmentRail';
 import { departmentsOf, scopeToDepartment } from '../components/orgScope';
 import { PersonPanel } from '../components/PersonPanel';
@@ -160,10 +158,6 @@ export function OrgChartPage() {
                   />
                 </Box>
               </Fade>
-
-              {/* Renk anahtari yalnizca birden fazla departman gorunurken
-                  anlamlidir; tek departman kapsaminda hepsi ayni renktir. */}
-              {department === null && <DepartmentLegend names={names} colors={colors} />}
 
               <OrgOutline nodes={scoped} />
             </Stack>

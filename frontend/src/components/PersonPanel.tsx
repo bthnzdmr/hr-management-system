@@ -4,13 +4,14 @@ import { Link as RouterLink } from 'react-router-dom';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { InitialsAvatar } from './InitialsAvatar';
 import { fullName } from './orgScope';
+import type { Swatch } from './orgScope';
 import type { OrgNode } from '../api/orgChart';
 
 interface Props {
   person: OrgNode | null;
   /** Kokten bu kisiye kadar olan zincir; kisinin kendisi sonda. */
   chain: OrgNode[];
-  color?: string;
+  color?: Swatch;
   onSelect: (person: OrgNode) => void;
 }
 
@@ -85,7 +86,7 @@ export function PersonPanel({ person, chain, color, onSelect }: Props) {
             sx={{
               // Semadaki daireyle AYNI renk: hangi dalin parcasi oldugu
               // aciklama gerektirmeden kuruluyor.
-              ...(color ? { bgcolor: color, color: 'inherit' } : {}),
+              ...(color ? { bgcolor: color.fill, color: color.ink } : {}),
             }}
           />
           {team.length > 0 && (
@@ -123,7 +124,7 @@ export function PersonPanel({ person, chain, color, onSelect }: Props) {
           ))}
 
           <RailRow current>
-            <Dot color={color} filled />
+            <Dot color={color?.fill} filled />
             <Typography
               variant="body2"
               sx={{ fontWeight: 600, minWidth: 0, overflowWrap: 'anywhere' }}

@@ -3,13 +3,14 @@ import type React from 'react';
 import { Box, useMediaQuery, useTheme } from '@mui/material';
 import { layoutTree } from './orgTree';
 import type { TreeLink, TreeNode } from './orgTree';
-import { DEPARTMENT_INK, departmentColors, fullName, initials } from './orgScope';
+import { departmentColors, fullName, initials } from './orgScope';
+import type { Swatch } from './orgScope';
 import type { OrgNode } from '../api/orgChart';
 
 interface Props {
   roots: OrgNode[];
   /** Renk esleme, raf ile ayni olsun diye disaridan verilir. */
-  colors: Map<string, string>;
+  colors: Map<string, Swatch>;
   /** Secili kisi; sagdaki panelle ayni durumu paylasir. */
   selectedId: number | null;
   onSelect: (node: OrgNode) => void;
@@ -320,7 +321,7 @@ function Link({ link, largest, lit }: { link: TreeLink; largest: number; lit: Se
 interface NodeProps {
   entry: TreeNode;
   hubLabel: string | null;
-  colors: Map<string, string>;
+  colors: Map<string, Swatch>;
   /** Tuvalin kenar uzunlugu; etiketi iceride tutmak icin. */
   canvas: number;
   hovered: number | null;
@@ -354,10 +355,9 @@ function Node({
   const dimmed = lit.size > 0 && !onPath;
 
   const label = node ? fullName(node) : hubLabel;
-  const fill = node
-    ? colors.get(node.departmentName) ?? theme.palette.primary.main
-    : theme.palette.background.paper;
-  const ink = DEPARTMENT_INK[theme.palette.mode];
+  const swatch = node ? colors.get(node.departmentName) : undefined;
+  const fill = swatch?.fill ?? theme.palette.background.paper;
+  const ink = swatch?.ink ?? theme.palette.text.primary;
 
   // Salinim deterministik olarak dagitilir: hepsi ayni anda ayni yone gitseydi
   // sema nefes alan tek bir kutle gibi gorunur, ASILI degil.
@@ -466,7 +466,10 @@ function Node({
             r={r}
             sx={{
               fill,
-              fillOpacity: node === null ? 1 : Math.max(0.66, 1 - depth * 0.1),
+              // Derinlige gore opaklik DEGISMEZ. Once degisiyordu ve ayni
+          // departman her seviyede baska renk gibi okunuyordu -- rengin
+          // tasidigi tek bilgiyi bozan sey buydu.
+          fillOpacity: 1,
               stroke: (t) => (onPath ? t.palette.primary.main : t.palette.background.paper),
               strokeWidth: onPath ? 2.5 : 1.5,
               transition: 'stroke 200ms ease, stroke-width 200ms ease',
@@ -529,35 +532,6 @@ function Node({
           )}
         </Box>
       </Box>
-    </Box>
-  );
-}
-
-/** Cizimdeki renklerin hangi departmana ait oldugunu soyler. */
-export function DepartmentLegend({ names, colors }: { names: string[]; colors: Map<string, string> }) {
-  return (
-    <Box
-      component="ul"
-      aria-label="Colour key"
-      sx={{ listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: 1.5, m: 0, p: 0 }}
-    >
-      {names.map((name) => (
-        <Box
-          component="li"
-          key={name}
-          sx={{
-            display: 'flex', alignItems: 'center', gap: 0.75, fontSize: 12, color: 'text.secondary',
-          }}
-        >
-          <Box
-            aria-hidden
-            sx={{
-              width: 10, height: 10, borderRadius: '50%', bgcolor: colors.get(name), flexShrink: 0,
-            }}
-          />
-          {name}
-        </Box>
-      ))}
     </Box>
   );
 }

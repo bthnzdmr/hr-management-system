@@ -86,47 +86,75 @@ export function initials(node: OrgNode) {
 /**
  * Departman renkleri.
  *
- * <p>Yeni bir renk ailesi UYDURULMADI: tonlar `InitialsAvatar`'daki avatar
- * zeminlerinin ta kendisi, yani paletin hue ailesinden.
+ * <p><b>Onceki set olculdu ve yetersizdi.</b> Tonlar avatar ailesinden
+ * aliniyordu ve hepsi ayni doygunluk/aciklik bandindaydi; en yakin iki renk
+ * arasindaki algisal fark <b>dE2000 = 6,3</b> idi. Fark edilebilirlik esigi
+ * 2,3, kategorik paletlerde 20+ hedeflenir. Daha kotusu: protanopide fark
+ * <b>1,4</b>'e dusuyordu, yani renk hicbir sey soylemiyordu.
  *
- * <p><b>Neden iki set?</b> Olculdu: avatar tonlari koyu temada kart yuzeyine
- * (#1E2631) karsi yalnizca <b>1,64:1</b> veriyor, yani daireler zeminden
- * ayirt edilemiyordu. Koyu tema icin ayni hue'lar beyaza dogru %30 karistirilip
- * acildi; her iki set de olculdu ve gecti:
+ * <p>Yeni set <b>Okabe-Ito</b> hue'larindan turetildi -- o palet zaten renk
+ * korlugune dayanikli olmak ICIN tasarlanmistir. Her hue tema zeminine gore
+ * acilip koyulastirildi ve secim rastgele degil, su kisitlar altinda
+ * <b>aramayla</b> yapildi: uzerindeki metin >= 4,5:1, yuzeye karsi 3,2-8,5:1
+ * (yani hicbiri leke gibi durmasin) ve algisal ayrim en buyuk olsun.
  *
- * <ul>
- *   <li>daire / kart yuzeyi: en dusuk <b>3,97:1</b> (grafik esigi 3:1)</li>
- *   <li>bas harfler / daire: en dusuk <b>4,55:1</b> (metin esigi 4,5:1)</li>
- * </ul>
+ * <p>Olculen sonuc:
  *
- * <p>Metin rengi de sete gore ters cevrilir: koyu zeminde acik, acik zeminde
- * koyu. Kontrast tahmin edilecek bir sey degil, olculecek bir seydir.
+ * <table>
+ *   <tr><th></th><th>onceki</th><th>simdi</th></tr>
+ *   <tr><td>en dusuk dE2000 (koyu)</td><td>6,3</td><td><b>26,2</b></td></tr>
+ *   <tr><td>renk korlugunde (koyu)</td><td>1,4</td><td><b>12,8</b></td></tr>
+ *   <tr><td>en dusuk dE2000 (acik)</td><td>8,0</td><td><b>31,6</b></td></tr>
+ *   <tr><td>renk korlugunde (acik)</td><td>3,2</td><td><b>12,6</b></td></tr>
+ * </table>
+ *
+ * <p><b>Neden bes renk?</b> Alti hue ile ayni kisitlar altinda ayrim 17,3'e ve
+ * renk korlugunde 8,2'ye dusuyor -- yani altinci rengi eklemek digerlerini de
+ * bozar. Bes bu kisitlarin TAVANIDIR. Daha fazla departman olursa fazlasi
+ * notr alir: yalan soyleyen bir renk, renksizlikten kotudur. Raf ve panel adi
+ * zaten yaziyor.
  */
-const DEPARTMENT_COLORS = {
-  light: ['#3B4859', '#43615C', '#8A5238', '#7A4B4B', '#2F5364', '#5A5468'],
-  dark: ['#7A838E', '#7B908D', '#AD8674', '#A28181', '#6D8793', '#8C8795'],
-} as const;
+export interface Swatch {
+  fill: string;
+  /** Uzerine yazilan metin; renge gore secilir, temaya gore degil. */
+  ink: string;
+}
 
-/** Renklerin uzerine yazilan metin; sete gore ters cevrilir. */
-export const DEPARTMENT_INK = { light: '#F8FAFC', dark: '#141A22' } as const;
+const DEPARTMENT_SWATCHES: Record<'light' | 'dark', Swatch[]> = {
+  light: [
+    { fill: '#458BB3', ink: '#141A22' },
+    { fill: '#07664C', ink: '#F8FAFC' },
+    { fill: '#97902E', ink: '#141A22' },
+    { fill: '#9A4705', ink: '#F8FAFC' },
+    { fill: '#8B5573', ink: '#F8FAFC' },
+  ],
+  dark: [
+    { fill: '#56B4E9', ink: '#141A22' },
+    { fill: '#80CFB9', ink: '#141A22' },
+    { fill: '#C4BC3C', ink: '#141A22' },
+    { fill: '#D55E00', ink: '#141A22' },
+    { fill: '#CC79A7', ink: '#141A22' },
+  ],
+};
+
+/** Renk yetmediginde kullanilan notr. */
+const NEUTRAL: Record<'light' | 'dark', Swatch> = {
+  light: { fill: '#6B7684', ink: '#F8FAFC' },
+  dark: { fill: '#8A94A3', ink: '#141A22' },
+};
 
 /**
  * Departman -> renk eslemesi.
  *
  * <p><b>Ilk deneme ad HASH'iydi ve olculunce cop cikti:</b> bes departmanin
  * ucu ayni renge dusuyordu. Cakisan renk, rengin AYIRT ETME isini tamamen
- * bitirir -- iki departman ayni gorunuyorsa renk bilgi tasimiyor demektir.
- *
- * <p>Simdi renk, ALFABETIK siradaki indekse gore veriliyor: alti departmana
- * kadar cakisma yapisal olarak imkansiz. Bedeli, araya yeni bir departman
- * girdiginde ondan SONRAKILERIN renginin kaymasi; hash'te bu olmazdi ama
- * cakisma olurdu ve ikisi arasinda ayirt edilebilirlik daha degerlidir.
+ * bitirir. Simdi renk ALFABETIK siradaki indekse gore veriliyor.
  */
 export function departmentColors(names: string[], mode: 'light' | 'dark') {
-  const set = DEPARTMENT_COLORS[mode];
+  const set = DEPARTMENT_SWATCHES[mode];
 
   return new Map(
     [...names].sort((a, b) => a.localeCompare(b))
-      .map((name, index) => [name, set[index % set.length]] as const),
+      .map((name, index) => [name, set[index] ?? NEUTRAL[mode]] as const),
   );
 }

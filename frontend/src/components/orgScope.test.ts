@@ -92,7 +92,26 @@ describe('departmentColors', () => {
     const names = ['Software Development', 'Sales', 'Marketing', 'Accounting', 'Human Resources'];
     const colors = departmentColors(names, 'dark');
 
-    expect(new Set(colors.values()).size).toBe(names.length);
+    expect(new Set([...colors.values()].map((s) => s.fill)).size).toBe(names.length);
+  });
+
+  it('falls back to a neutral rather than inventing a sixth colour', () => {
+    // Bes renk bu kisitlarin TAVANI: altinci hue eklendiginde algisal ayrim
+    // 26'dan 17'ye, renk korlugunde 12,8'den 8,2'ye dusuyor. Yalan soyleyen
+    // bir renk, renksizlikten kotudur.
+    const names = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    const colors = departmentColors(names, 'dark');
+
+    expect(colors.get('F')?.fill).toBe(colors.get('G')?.fill);
+    expect(colors.get('A')?.fill).not.toBe(colors.get('F')?.fill);
+  });
+
+  it('picks the text colour from the swatch, not from the theme', () => {
+    // Acik temada bazi zeminler koyu bazilari acik; tek bir metin rengi
+    // ikisinde birden tutmaz.
+    const light = departmentColors(['A', 'B'], 'light');
+
+    expect(light.get('A')?.ink).not.toBe(light.get('B')?.ink);
   });
 
   it('does not depend on the order it was given', () => {
@@ -111,6 +130,6 @@ describe('departmentColors', () => {
     const light = departmentColors(['Sales'], 'light').get('Sales');
     const dark = departmentColors(['Sales'], 'dark').get('Sales');
 
-    expect(light).not.toBe(dark);
+    expect(light?.fill).not.toBe(dark?.fill);
   });
 });

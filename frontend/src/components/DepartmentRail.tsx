@@ -1,10 +1,10 @@
 import { Box, Stack, Typography } from '@mui/material';
-import type { Department } from './orgScope';
+import type { Department, Swatch } from './orgScope';
 
 interface Props {
   departments: Department[];
   /** Cizimdeki renklerle AYNI esleme; iki yerde hesaplansa ayrisirlardi. */
-  colors: Map<string, string>;
+  colors: Map<string, Swatch>;
   /** null = butun organizasyon. */
   selected: string | null;
   onSelect: (department: string | null) => void;
@@ -43,7 +43,7 @@ export function DepartmentRail({ departments, colors, selected, onSelect, total 
         <RailButton
           key={department.name}
           label={department.name}
-          color={colors.get(department.name)}
+          color={colors.get(department.name)?.fill}
           count={department.headcount}
           ratio={department.headcount / largest}
           selected={selected === department.name}
