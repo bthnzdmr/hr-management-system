@@ -1,0 +1,159 @@
+import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { LeaveListPage } from './LeaveListPage';
+import { leaveRequestApi } from '../api/leaveRequests';
+import type { LeaveRequest } from '../api/leaveRequests';
+import { SnackbarProvider } from '../components/SnackbarProvider';
+
+vi.mock('../api/leaveRequests', () => ({
+  leaveRequestApi: { list: vi.fn(), create: vi.fn(), decide: vi.fn() },
+}));
+
+const canEdit = vi.fn(() => true);
+
+vi.mock('../auth/AuthContext', () => ({
+  useAuth: () => ({ canEditEmployees: canEdit() }),
+}));
+
+function leave(overrides: Partial<LeaveRequest> = {}): LeaveRequest {
+  return {
+    id: 1,
+    employeeId: 10,
+    employeeFullName: 'Ada Lovelace',
+    type: 'ANNUAL',
+    status: 'PENDING',
+    startDate: '2031-03-10',
+    endDate: '2031-03-15',
+    days: 6,
+    note: null,
+    decidedBy: null,
+    decidedAt: null,
+    createdAt: '2031-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+function page(rows: LeaveRequest[]) {
+  return {
+    content: rows,
+    totalElements: rows.length,
+    totalPages: 1,
+    number: 0,
+    size: 20,
+  } as Awaited<ReturnType<typeof leaveRequestApi.list>>;
+}
+
+function renderPage() {
+  return render(
+    <SnackbarProvider>
+      <LeaveListPage />
+    </SnackbarProvider>,
+  );
+}
+
+describe('LeaveListPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    canEdit.mockReturnValue(true);
+    vi.mocked(leaveRequestApi.list).mockResolvedValue(page([leave()]));
+  });
+
+  it('asks only for pending requests until told otherwise', async () => {
+    // Varsayilan gorunum "karar bekleyenler": sonuclanmis kayitlar arasinda
+    // is bulmak, listenin isini kullaniciya yaptirmak olurdu.
+    renderPage();
+
+    await screen.findByText('Ada Lovelace');
+    expect(leaveRequestApi.list).toHaveBeenCalledWith(
+      expect.objectContaining({ status: ['PENDING'] }),
+    );
+  });
+
+  it('counts the last day as part of the leave', async () => {
+    // 10-15 Mart alti gundur. Bu hesap SUNUCUDA yapiliyor; arayuz tekrar
+    // hesaplasaydi ayni +1 iki yerde yasar ve biri geride kalirdi.
+    renderPage();
+
+    const row = (await screen.findByText('Ada Lovelace')).closest('tr') as HTMLElement;
+    expect(within(row).getByText('6')).toBeInTheDocument();
+  });
+
+  it('sends the decision and reloads the list', async () => {
+    vi.mocked(leaveRequestApi.decide).mockResolvedValue(leave({ status: 'APPROVED' }));
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Approve' }));
+
+    expect(leaveRequestApi.decide).toHaveBeenCalledWith(1, 'APPROVED');
+    // Liste yeniden okunur: karar sonrasi ekranda eski durum kalsaydi
+    // kullanici islemin gecmedigini sanirdi.
+    await waitFor(() => expect(leaveRequestApi.list).toHaveBeenCalledTimes(2));
+  });
+
+  it('locks only the row being decided, not the whole table', async () => {
+    // Global bir mesgul bayragi butun satirlari kilitlerdi; projede ayni
+    // kusur onay penceresinde bir kez olculdu.
+    vi.mocked(leaveRequestApi.list).mockResolvedValue(page([
+      leave({ id: 1 }),
+      leave({ id: 2, employeeFullName: 'Grace Hopper' }),
+    ]));
+    vi.mocked(leaveRequestApi.decide).mockReturnValue(new Promise(() => {}));
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const first = (await screen.findByText('Ada Lovelace')).closest('tr') as HTMLElement;
+    const second = (screen.getByText('Grace Hopper')).closest('tr') as HTMLElement;
+
+    await user.click(within(first).getByRole('button', { name: 'Approve' }));
+
+    expect(within(first).getByRole('button', { name: 'Approve' })).toBeDisabled();
+    expect(within(second).getByRole('button', { name: 'Approve' })).toBeEnabled();
+  });
+
+  it('offers no decision buttons to someone who cannot record leave', async () => {
+    // Arayuzdeki kontrol GUVENLIK degil: sunucu zaten reddeder. Amac,
+    // kacinilmaz olarak 403 alacak bir dugmeyi hic gostermemek.
+    canEdit.mockReturnValue(false);
+
+    renderPage();
+
+    await screen.findByText('Ada Lovelace');
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Record leave' })).not.toBeInTheDocument();
+  });
+
+  it('does not show decision buttons on a request that is already settled', async () => {
+    vi.mocked(leaveRequestApi.list).mockResolvedValue(page([
+      leave({ status: 'APPROVED', decidedBy: 'hr@example.com' }),
+    ]));
+
+    renderPage();
+
+    await screen.findByText('Ada Lovelace');
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    expect(screen.getByText('hr@example.com')).toBeInTheDocument();
+  });
+
+  it('gives an empty pending list a way out', async () => {
+    // Filtreye uyan kayit kalmadiginda cikis yolu olmali; personel listesinde
+    // ayni kusur telefonda olculmustu.
+    vi.mocked(leaveRequestApi.list).mockResolvedValue(page([]));
+
+    renderPage();
+
+    expect(await screen.findByText('Nothing to decide')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show all requests' })).toBeInTheDocument();
+  });
+
+  it('shows the failure instead of an endless skeleton', async () => {
+    vi.mocked(leaveRequestApi.list).mockRejectedValue(new Error('boom'));
+
+    renderPage();
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+});

@@ -4,6 +4,7 @@ import { ProtectedRoute } from './auth/ProtectedRoute';
 import { CapabilityRoute } from './auth/CapabilityRoute';
 import { LoginPage } from './pages/LoginPage';
 import { EmployeeListPage } from './pages/EmployeeListPage';
+import { LeaveListPage } from './pages/LeaveListPage';
 import { EmployeeDetailPage } from './pages/EmployeeDetailPage';
 import { EmployeeFormPage } from './pages/EmployeeFormPage';
 import { UserListPage } from './pages/UserListPage';
@@ -34,6 +35,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/employees" element={<EmployeeListPage />} />
+          <Route path="/leave" element={<LeaveListPage />} />
 
           {/* Detay okumadir: her oturum acmis kullaniciya acik. Duzenleme
               ekrani olmadan USER'in tiklayacagi hicbir sey yoktu. */}

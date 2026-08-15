@@ -24,6 +24,7 @@ import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import ApartmentOutlinedIcon from '@mui/icons-material/ApartmentOutlined';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
@@ -65,6 +66,7 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
     items: [
       { label: 'Overview', to: '/dashboard', icon: InsightsOutlinedIcon, requires: 'viewDashboard' },
       { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon },
+      { label: 'Leave', to: '/leave', icon: EventBusyOutlinedIcon },
       { label: 'Structure', to: '/org-chart', icon: AccountTreeOutlinedIcon, requires: 'viewDashboard' },
       { label: 'Departments', to: '/departments', icon: ApartmentOutlinedIcon, requires: 'editEmployees' },
     ],
