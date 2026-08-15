@@ -173,6 +173,23 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "One of the paging or sorting parameters is not valid");
     }
 
+    // Cakisan izin: kural veritabaninda yasiyor, burada yalnizca kullanicinin
+    // anlayacagi hale ceviriliyor.
+    @ExceptionHandler(OverlappingLeaveException.class)
+    public ProblemDetail handleOverlappingLeave(OverlappingLeaveException ex) {
+        return problem(HttpStatus.CONFLICT, "Overlapping leave", ex.getMessage());
+    }
+
+    @ExceptionHandler(LeaveRuleViolationException.class)
+    public ProblemDetail handleLeaveRule(LeaveRuleViolationException ex) {
+        return problem(HttpStatus.CONFLICT, "Operation not allowed", ex.getMessage());
+    }
+
+    @ExceptionHandler(LeaveRequestNotFoundException.class)
+    public ProblemDetail handleLeaveNotFound(LeaveRequestNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, "Leave request not found", ex.getMessage());
+    }
+
     // Kod tarafindaki kontrol ile kayit arasindaki yaris durumunda veritabani
     // kisiti devreye girer ve bu istisna firlar.
     @ExceptionHandler(DataIntegrityViolationException.class)

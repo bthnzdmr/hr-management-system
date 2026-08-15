@@ -31,5 +31,11 @@ public enum AuditAction {
     DEPARTMENT_CREATED,
 
     /** Departman acildi veya kapatildi. */
-    DEPARTMENT_STATUS_CHANGED
+    DEPARTMENT_STATUS_CHANGED,
+
+    /** Personel adina izin istegi girildi. */
+    LEAVE_REQUESTED,
+
+    /** Izin istegi onaylandi, reddedildi veya geri cekildi. */
+    LEAVE_DECIDED
 }
