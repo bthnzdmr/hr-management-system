@@ -76,7 +76,7 @@ class EmployeeServiceTest {
         return new EmployeeCreateRequest(
                 "Ada", "Lovelace", "ada@example.com", "+90 555 123 45 67",
                 departmentId, managerId, "Software Engineer",
-                LocalDate.of(2024, 1, 15), new BigDecimal("85000.00"));
+                LocalDate.of(2024, 1, 15));
     }
 
     private EmployeeUpdateRequest updateRequest(String email, Long departmentId, Long managerId) {
@@ -146,7 +146,8 @@ class EmployeeServiceTest {
         assertThat(saved.getFirstName()).isEqualTo("Ada");
         assertThat(saved.getEmail()).isEqualTo("ada@example.com");
         assertThat(saved.getPhone()).isEqualTo("+90 555 123 45 67");
-        assertThat(saved.getSalary()).isEqualByComparingTo("85000.00");
+        // Olusturma ucu ucret tasimaz: kayit acan kisi maas atayamaz.
+        assertThat(saved.getSalary()).isNull();
         assertThat(saved.getDepartment()).isSameAs(department);
         assertThat(saved.getManager()).isNull();
 

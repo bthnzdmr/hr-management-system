@@ -29,7 +29,7 @@ class EmployeeCreateRequestTest {
         return new EmployeeCreateRequest(
                 "Ada", "Lovelace", "ada@example.com", "+90 555 123 45 67",
                 1L, null, "Software Engineer",
-                LocalDate.of(2024, 1, 15), new BigDecimal("85000.00"));
+                LocalDate.of(2024, 1, 15));
     }
 
     private Set<String> violatedFields(EmployeeCreateRequest request) {
@@ -53,7 +53,7 @@ class EmployeeCreateRequestTest {
         EmployeeCreateRequest request = new EmployeeCreateRequest(
                 "   ", "Lovelace", "ada@example.com", null,
                 1L, null, "Software Engineer",
-                LocalDate.of(2024, 1, 15), null);
+                LocalDate.of(2024, 1, 15));
 
         assertThat(violatedFields(request)).contains("firstName");
     }
@@ -64,7 +64,7 @@ class EmployeeCreateRequestTest {
         EmployeeCreateRequest request = new EmployeeCreateRequest(
                 "Ada", "Lovelace", "not-an-email", null,
                 1L, null, "Software Engineer",
-                LocalDate.of(2024, 1, 15), null);
+                LocalDate.of(2024, 1, 15));
 
         assertThat(violatedFields(request)).contains("email");
     }
@@ -75,30 +75,9 @@ class EmployeeCreateRequestTest {
         EmployeeCreateRequest request = new EmployeeCreateRequest(
                 "Ada", "Lovelace", "ada@example.com", null,
                 null, null, "Software Engineer",
-                null, null);
+                null);
 
         assertThat(violatedFields(request)).contains("departmentId", "hireDate");
     }
 
-    @Test
-    @DisplayName("A negative salary is rejected")
-    void rejectsNegativeSalary() {
-        EmployeeCreateRequest request = new EmployeeCreateRequest(
-                "Ada", "Lovelace", "ada@example.com", null,
-                1L, null, "Software Engineer",
-                LocalDate.of(2024, 1, 15), new BigDecimal("-1"));
-
-        assertThat(violatedFields(request)).contains("salary");
-    }
-
-    @Test
-    @DisplayName("A salary exceeding NUMERIC(12,2) is rejected")
-    void rejectsOversizedSalary() {
-        EmployeeCreateRequest request = new EmployeeCreateRequest(
-                "Ada", "Lovelace", "ada@example.com", null,
-                1L, null, "Software Engineer",
-                LocalDate.of(2024, 1, 15), new BigDecimal("99999999999.00"));
-
-        assertThat(violatedFields(request)).contains("salary");
-    }
 }

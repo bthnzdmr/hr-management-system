@@ -167,6 +167,8 @@ services:
       DEMO_HR_PASSWORD: ${DEMO_HR_PASSWORD:-}
       DEMO_SYSADMIN_EMAIL: ${DEMO_SYSADMIN_EMAIL:-}
       DEMO_SYSADMIN_PASSWORD: ${DEMO_SYSADMIN_PASSWORD:-}
+      DEMO_PAYROLL_EMAIL: ${DEMO_PAYROLL_EMAIL:-}
+      DEMO_PAYROLL_PASSWORD: ${DEMO_PAYROLL_PASSWORD:-}
       # Gelistirme/tanitim verisi. Varsayilan kapali.
       DEMO_DATA: ${DEMO_DATA:-false}
       # full profilinde Notification Service de calisiyor ve bu hesapla giris

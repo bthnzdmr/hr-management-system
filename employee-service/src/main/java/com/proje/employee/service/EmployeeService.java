@@ -138,7 +138,6 @@ public class EmployeeService {
                 request.hireDate());
 
         employee.setPhone(request.phone());
-        employee.setSalary(request.salary());
 
         // Guncelleme ile AYNI yol kullanilir. Ayri bir arama yazildiginda
         // "pasif kisi yonetici olamaz" kurali yalnizca guncellemede geceriydi;

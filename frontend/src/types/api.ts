@@ -7,13 +7,16 @@
  * SERVICE bir makine kimligidir (Notification Service); arayuzde secilebilir
  * olmasi gerekmez ama sunucudan gelebilir, bu yuzden tipte yer alir.
  */
-export type Role = 'EMPLOYEE' | 'MANAGER' | 'HR_SPECIALIST' | 'SYSTEM_ADMIN' | 'SERVICE';
+export type Role =
+  | 'EMPLOYEE' | 'MANAGER' | 'HR_SPECIALIST' | 'PAYROLL_SPECIALIST'
+  | 'SYSTEM_ADMIN' | 'SERVICE';
 
 /** Insan tarafindan secilebilen roller; SERVICE listede yer almaz. */
 export const ASSIGNABLE_ROLES: Role[] = [
   'EMPLOYEE',
   'MANAGER',
   'HR_SPECIALIST',
+  'PAYROLL_SPECIALIST',
   'SYSTEM_ADMIN',
 ];
 
@@ -21,6 +24,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   EMPLOYEE: 'Employee',
   MANAGER: 'Manager',
   HR_SPECIALIST: 'HR specialist',
+  PAYROLL_SPECIALIST: 'Payroll specialist',
   SYSTEM_ADMIN: 'System administrator',
   SERVICE: 'Service account',
 };
@@ -28,7 +32,8 @@ export const ROLE_LABELS: Record<Role, string> = {
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   EMPLOYEE: 'Sees only their own record',
   MANAGER: 'Sees their own record and their direct reports',
-  HR_SPECIALIST: 'Sees and edits everyone, including salaries',
+  HR_SPECIALIST: 'Sees and edits everyone, but cannot touch pay',
+  PAYROLL_SPECIALIST: 'Reads and sets pay, but cannot create employee records',
   SYSTEM_ADMIN: 'Manages accounts and access; cannot edit HR data or see salaries',
   SERVICE: 'Machine identity used by the notification service',
 };
@@ -129,16 +134,13 @@ export interface EmployeeCreateRequest {
   managerId: number | null;
   jobTitle: string;
   hireDate: string;
-  salary: string | null;
 }
 
-/**
- * Maas BILEREK yok.
- *
- * Genel guncelleme maasi tasisaydi, onu okuyamayan bu arayuz her kayitta null
- * gonderip silerdi -- gercekten yasanan bir hataydi. Maas kendi ucuyle yonetilir.
- */
-export type EmployeeUpdateRequest = Omit<EmployeeCreateRequest, 'salary'>;
+/** Guncelleme olusturmayla ayni sekli tasir; maas ikisinde de yok. */
+export type EmployeeUpdateRequest = EmployeeCreateRequest;
+
+/** Form durumu: ekranda maas alani da var ama istege konmaz. */
+export type EmployeeFormValues = EmployeeCreateRequest & { salary: string | null };
 
 export interface SalaryResponse {
   employeeId: number;

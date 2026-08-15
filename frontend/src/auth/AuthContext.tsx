@@ -148,9 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasRole,
         canEditEmployees: hasRole('HR_SPECIALIST'),
         canManageAccounts: hasRole('SYSTEM_ADMIN'),
-        // Maas ve personel duzenleme ayni role ait; ayri alanlar olmasi
-        // ilerde birinin degismesini kolaylastirir.
-        canSeeSalaries: hasRole('HR_SPECIALIST'),
+        // Ucret ayri bir role gecti: ayni kisinin hem kayit acip hem maas
+        // atamasi, sahte personel olusturmanin klasik yolu.
+        canSeeSalaries: hasRole('PAYROLL_SPECIALIST'),
         // Toplu veri bireysel veriden farklidir: tek tek goremedigi kisilerin
         // toplamini da gormemeli. Kucuk bir grupta toplam, bireyi ele verir.
         canViewDashboard: hasRole('HR_SPECIALIST') || hasRole('SYSTEM_ADMIN'),

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode, SyntheticEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import {
   Alert, Box, Button, CircularProgress, Divider, Grid, MenuItem, Paper, Stack, TextField,
   Typography,
@@ -13,9 +14,9 @@ import { EmployeePicker } from '../components/EmployeePicker';
 import type { EmployeeOption } from '../components/EmployeePicker';
 import { PageHeader } from '../components/PageHeader';
 import { useSnackbar } from '../components/SnackbarProvider';
-import type { Department, EmployeeCreateRequest } from '../types/api';
+import type { Department, EmployeeFormValues } from '../types/api';
 
-const EMPTY_FORM: EmployeeCreateRequest = {
+const EMPTY_FORM: EmployeeFormValues = {
   firstName: '',
   lastName: '',
   email: '',
@@ -51,11 +52,12 @@ export function EmployeeFormPage() {
   const { notify } = useSnackbar();
   const isEdit = Boolean(id);
 
-  const [form, setForm] = useState<EmployeeCreateRequest>(EMPTY_FORM);
+  const [form, setForm] = useState<EmployeeFormValues>(EMPTY_FORM);
   const [manager, setManager] = useState<EmployeeOption | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   // Maas ayri uca yazildigi icin degisip degismedigini bilmemiz gerekiyor:
   // degismediyse gereksiz bir istek ve gereksiz bir olay uretmeyiz.
+  const { canSeeSalaries } = useAuth();
   const [initialSalary, setInitialSalary] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -112,9 +114,9 @@ export function EmployeeFormPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const update = <K extends keyof EmployeeCreateRequest>(
+  const update = <K extends keyof EmployeeFormValues>(
     field: K,
-    value: EmployeeCreateRequest[K],
+    value: EmployeeFormValues[K],
   ) => setForm((current) => ({ ...current, [field]: value }));
 
   const handleSubmit = async (event: SyntheticEvent) => {
@@ -146,7 +148,9 @@ export function EmployeeFormPage() {
           await employeeApi.updateSalary(Number(id), { salary: Number(salary) });
         }
       } else {
-        await employeeApi.create(payload);
+        // Maas olusturma isteginde YOK: kayit acan kisi ucret atayamaz.
+        const { salary: _unused, ...employeeFields } = payload;
+        await employeeApi.create(employeeFields);
       }
       notify(isEdit ? 'Employee updated' : 'Employee created');
       navigate('/employees');
@@ -269,6 +273,7 @@ export function EmployeeFormPage() {
           </Paper>
 
           <Paper sx={{ p: 3 }}>
+            {isEdit && canSeeSalaries && (
             <Section
               title="Compensation"
               description="Stored separately and never included in notification emails."
@@ -278,11 +283,12 @@ export function EmployeeFormPage() {
                   <TextField
                     label="Salary" type="number" value={form.salary ?? ''} fullWidth
                     onChange={(e) => update('salary', e.target.value || null)}
-                    helperText={isEdit ? 'Saved through its own endpoint' : 'Optional'}
+                    helperText="Saved through its own endpoint"
                   />
                 </Grid>
               </Grid>
             </Section>
+            )}
           </Paper>
 
           {/* Dar ekranda alt alta ve ters sirada: birincil eylem parmaga en

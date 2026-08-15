@@ -19,6 +19,10 @@ vi.mock('../api/employees', () => ({
   },
 }));
 
+vi.mock('../auth/AuthContext', () => ({
+  useAuth: () => ({ canSeeSalaries: true }),
+}));
+
 vi.mock('../api/departments', () => ({
   departmentApi: { list: vi.fn() },
 }));

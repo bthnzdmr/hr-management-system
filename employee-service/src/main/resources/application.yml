@@ -117,6 +117,9 @@ app:
     sysadmin:
       email: ${DEMO_SYSADMIN_EMAIL:}
       password: ${DEMO_SYSADMIN_PASSWORD:}
+    payroll:
+      email: ${DEMO_PAYROLL_EMAIL:}
+      password: ${DEMO_PAYROLL_PASSWORD:}
 
   # Notification Service'in kullandigi okuma yetkili servis hesabi.
   service-account:

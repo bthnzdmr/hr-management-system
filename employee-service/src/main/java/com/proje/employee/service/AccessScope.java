@@ -26,6 +26,7 @@ public record AccessScope(Kind kind, Long employeeId) {
 
     public static AccessScope forUser(User user) {
         if (user.hasRole(Role.HR_SPECIALIST)
+                || user.hasRole(Role.PAYROLL_SPECIALIST)
                 || user.hasRole(Role.SYSTEM_ADMIN)
                 || user.hasRole(Role.SERVICE)) {
             return new AccessScope(Kind.ALL, null);

@@ -1,13 +1,10 @@
 package com.proje.employee.dto;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record EmployeeCreateRequest(
@@ -39,13 +36,9 @@ public record EmployeeCreateRequest(
 
         // Gelecek tarih kisitlanmadi: sozlesmesi imzalanmis, ileride baslayacak
         // personel kaydi acmak gercek bir ihtiyactir.
+        // Maas BU ISTEKTE YOK: kayit acan kisinin ucret atamasi, sahte personel
+        // olusturmanin klasik yolu. Guncelleme istegi de ayni sebeple tasimiyor.
         @NotNull(message = "Hire date is required")
-        LocalDate hireDate,
-
-        // @DecimalMin, @PositiveOrZero ile ayni kurali ifade eder ama OpenAPI
-        // semasina da yansir; @PositiveOrZero yansimiyor.
-        @DecimalMin(value = "0.00", message = "Salary must not be negative")
-        @Digits(integer = 10, fraction = 2, message = "Salary must have at most 10 integer and 2 fraction digits")
-        BigDecimal salary
+        LocalDate hireDate
 ) {
 }

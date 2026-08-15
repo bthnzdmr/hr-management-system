@@ -15,8 +15,14 @@ public enum Role {
     /** Kendi kaydini ve dogrudan astlarini gorur. */
     MANAGER,
 
-    /** Tum personeli gorur ve duzenler; maasa erisebilen tek insan rolu. */
+    /** Tum personeli gorur ve duzenler; ucrete DOKUNAMAZ. */
     HR_SPECIALIST,
+
+    /**
+     * Ucret bilgisini okur ve yazar. Personel kaydi ACAMAZ: ayni kisinin hem
+     * kayit acip hem ucret atamasi, sahte personel olusturmanin klasik yolu.
+     */
+    PAYROLL_SPECIALIST,
 
     /**
      * Hesaplari ve erisimi yonetir. Personel verisini DUZENLEYEMEZ ve maasi

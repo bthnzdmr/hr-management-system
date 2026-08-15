@@ -69,7 +69,7 @@ class EmployeeControllerTest {
         return new EmployeeCreateRequest(
                 "Ada", "Lovelace", "ada@example.com", null,
                 1L, null, "Software Engineer",
-                LocalDate.of(2024, 1, 15), new BigDecimal("85000.00"));
+                LocalDate.of(2024, 1, 15));
     }
 
     @Test
@@ -137,7 +137,7 @@ class EmployeeControllerTest {
         EmployeeCreateRequest invalid = new EmployeeCreateRequest(
                 "   ", "", "not-an-email", null,
                 null, null, "Engineer",
-                LocalDate.of(2024, 1, 15), new BigDecimal("-5"));
+                LocalDate.of(2024, 1, 15));
 
         mockMvc.perform(post("/api/employees")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -146,7 +146,7 @@ class EmployeeControllerTest {
                 .andExpect(jsonPath("$.title").value("Validation failed"))
                 .andExpect(jsonPath("$.errors[*].field")
                         .value(org.hamcrest.Matchers.hasItems(
-                                "firstName", "lastName", "email", "departmentId", "salary")));
+                                "firstName", "lastName", "email", "departmentId")));
     }
 
     @Test
@@ -284,9 +284,9 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "HR_SPECIALIST")
-    @DisplayName("ADMIN role reads the salary through its own endpoint")
-    void adminRoleReadsSalary() throws Exception {
+    @WithMockUser(roles = "PAYROLL_SPECIALIST")
+    @DisplayName("payroll specialist reads the salary through its own endpoint")
+    void payrollSpecialistReadsSalary() throws Exception {
         when(employeeService.getSalary(eq(1L), any()))
                 .thenReturn(new SalaryResponse(1L, new BigDecimal("95000.00")));
 
@@ -297,7 +297,7 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "HR_SPECIALIST")
+    @WithMockUser(roles = "PAYROLL_SPECIALIST")
     @DisplayName("Rejects a salary update with a missing amount")
     void rejectsSalaryUpdateWithoutAmount() throws Exception {
         mockMvc.perform(put("/api/employees/1/salary")
@@ -317,6 +317,24 @@ class EmployeeControllerTest {
                         .content("{\"salary\":1.00}"))
                 .andExpect(status().isForbidden());
 
+        verify(employeeService, never()).updateSalary(any(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "HR_SPECIALIST")
+    @DisplayName("HR cannot touch a salary, because it creates the employee record")
+    void hrCannotTouchSalary() throws Exception {
+        // Ayni rolun hem kayit acip hem ucret atamasi, sahte personel
+        // olusturmanin klasik yolu (SAP gorevler ayriligi katalogu, HCM-01).
+        mockMvc.perform(get("/api/employees/1/salary"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(put("/api/employees/1/salary")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"salary\": 1}"))
+                .andExpect(status().isForbidden());
+
+        verify(employeeService, never()).getSalary(any(), any());
         verify(employeeService, never()).updateSalary(any(), any());
     }
 }

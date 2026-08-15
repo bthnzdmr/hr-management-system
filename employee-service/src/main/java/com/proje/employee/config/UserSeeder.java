@@ -62,7 +62,9 @@ public class UserSeeder {
                                            @Value("${app.demo.hr.email:}") String hrEmail,
                                            @Value("${app.demo.hr.password:}") String hrPassword,
                                            @Value("${app.demo.sysadmin.email:}") String adminEmail,
-                                           @Value("${app.demo.sysadmin.password:}") String adminPassword) {
+                                           @Value("${app.demo.sysadmin.password:}") String adminPassword,
+                                           @Value("${app.demo.payroll.email:}") String payrollEmail,
+                                           @Value("${app.demo.payroll.password:}") String payrollPassword) {
 
         return args -> {
             seed(userRepository, passwordEncoder, managerEmail, managerPassword,
@@ -76,6 +78,10 @@ public class UserSeeder {
             seed(userRepository, passwordEncoder, adminEmail, adminPassword,
                     User.rolesOf(Role.SYSTEM_ADMIN),
                     "System admin demo account", "DEMO_SYSADMIN_EMAIL / DEMO_SYSADMIN_PASSWORD");
+
+            seed(userRepository, passwordEncoder, payrollEmail, payrollPassword,
+                    User.rolesOf(Role.PAYROLL_SPECIALIST),
+                    "Payroll demo account", "DEMO_PAYROLL_EMAIL / DEMO_PAYROLL_PASSWORD");
         };
     }
 

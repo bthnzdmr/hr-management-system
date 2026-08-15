@@ -367,8 +367,10 @@ npm run dev
 
 http://localhost:5173 adresinde açılır. Giriş için `.env` dosyasındaki
 `ADMIN_EMAIL` / `ADMIN_PASSWORD` değerleri kullanılır (bu hesap hem `HR_SPECIALIST`
-hem `SYSTEM_ADMIN`). Rol ayrımını görmek için `USER_EMAIL` / `USER_PASSWORD` ile de
-giriş yapılabilir; o hesap yalnızca `EMPLOYEE`'dir.
+hem `SYSTEM_ADMIN`). Rol ayrımını görmek için tek rollü demo hesapları da vardır:
+`USER_*` (`EMPLOYEE`), `DEMO_MANAGER_*`, `DEMO_HR_*`, `DEMO_PAYROLL_*` ve
+`DEMO_SYSADMIN_*`. Hepsi `.env` dosyasındadır ve yalnızca `DEMO_DATA=true` iken
+oluşturulur.
 
 Arayüz Employee Service'e doğrudan gider; API adresi varsayılan olarak
 `http://localhost:8080`'dir ve `VITE_API_URL` ortam değişkeniyle değiştirilebilir.
@@ -451,8 +453,14 @@ Taban adres: `http://localhost:8080`
 | `POST` | `/api/employees` | Yeni kayıt | `HR_SPECIALIST` | `201` + `Location` |
 | `PUT` | `/api/employees/{id}` | Güncelleme | `HR_SPECIALIST` | `200` |
 | `PUT` | `/api/employees/{id}/status` | Pasifleştirme / yeniden aktifleştirme (tekrarı etkisiz). Pasifleştirirken `terminationReason` **zorunlu** | `HR_SPECIALIST` | `200` |
-| `GET` | `/api/employees/{id}/salary` | Maaş bilgisi | `HR_SPECIALIST` | `200` |
-| `PUT` | `/api/employees/{id}/salary` | Maaş güncelleme | `HR_SPECIALIST` | `200` |
+| `GET` | `/api/employees/{id}/salary` | Maaş bilgisi. `PAYROLL_SPECIALIST` herkesinkini, diğerleri **yalnızca kendi** kayıtlarınınkini görür | `PAYROLL_SPECIALIST`, `EMPLOYEE`, `MANAGER` | `200` |
+| `PUT` | `/api/employees/{id}/salary` | Maaş güncelleme | `PAYROLL_SPECIALIST` | `200` |
+| `GET` | `/api/org-chart` | Aktif personelin ağaç yapısı; erişilemeyenler sayılıp bildirilir | `HR_SPECIALIST`, `SYSTEM_ADMIN` | `200` |
+| `GET` | `/api/leave-requests` | Sayfalı izin listesi. `?status=PENDING` | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `200` |
+| `GET` | `/api/leave-requests/{id}` | Tek izin kaydı | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `200` |
+| `POST` | `/api/leave-requests` | Personel adına izin girer; çakışan tarih `409` | `HR_SPECIALIST` | `201` + `Location` |
+| `PUT` | `/api/leave-requests/{id}/decision` | Onay / ret / iptal. Yönetici yalnızca **doğrudan astının**, kendi isteğine **hiç** karar veremez | `MANAGER`, `HR_SPECIALIST` | `200` |
+| `GET` | `/api/audit` | Denetim izi; aktör, eylem, hedef ve tarihe göre süzülür | `SYSTEM_ADMIN` | `200` |
 | `GET` | `/api/departments` | Aktif departmanlar, isme göre sıralı | giriş yapmış | `200` |
 | `GET` | `/api/users` | Hesap listesi (parola özeti **dönmez**) | `SYSTEM_ADMIN` | `200` |
 | `POST` | `/api/users` | Hesap oluştur; `employeeId` ile personele bağlanır | `SYSTEM_ADMIN` | `201` |
@@ -485,11 +493,17 @@ yöneticisi olabilir.
 
 | Rol | Personel okuma | Yazma | Maaş | Hesaplar |
 |---|---|---|---|---|
-| `EMPLOYEE` | yalnızca kendi kaydı | – | – | – |
-| `MANAGER` | kendi kaydı + doğrudan astları | – | – | – |
-| `HR_SPECIALIST` | hepsi | ✅ | ✅ | – |
+| `EMPLOYEE` | yalnızca kendi kaydı | – | yalnızca kendi ücreti | – |
+| `MANAGER` | kendi kaydı + doğrudan astları | – | yalnızca kendi ücreti | – |
+| `HR_SPECIALIST` | hepsi | ✅ | – | – |
+| `PAYROLL_SPECIALIST` | hepsi | – | ✅ okur **ve** yazar | – |
 | `SYSTEM_ADMIN` | rehber (maaşsız) | – | – | ✅ |
 | `SERVICE` | rehber (maaşsız) | – | – | – |
+
+**Neden ücret ayrı bir rolde?** Aynı rol hem personel kaydı açıp hem ücret
+belirleyebilseydi, tek kişi olmayan birini işe alıp ona maaş bağlayabilirdi.
+`HR_SPECIALIST` kaydı açar, `PAYROLL_SPECIALIST` ücreti yazar; ikisi bir kişide
+toplanacaksa bu bilinçli bir karar olmalı ve iki rol birden verilir.
 
 **Neden `SYSTEM_ADMIN` maaşı göremiyor?** Erişimi yöneten kişinin ücret bilgisine
 ihtiyacı yoktur. Rehberi okuyabilir çünkü hesabı personele bağlamak için kimin var
