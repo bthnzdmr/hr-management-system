@@ -9,17 +9,31 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Set;
 
+/**
+ * Hesaplari acar.
+ *
+ * <p><b>Sira onemlidir.</b> {@code ApplicationRunner} bean'lerinin calisma
+ * sirasi TANIMSIZDIR; demo verisi tohumlayicisi hesaplari personele baglamaya
+ * calisirken hesaplar henuz olusmamis olabilir. Olculdu: yonetici hesabi
+ * acildi ama baglanmadi ve MANAGER rolu hicbir sey goremedi. Bu sinif
+ * once calisir.
+ */
 @Configuration
 public class UserSeeder {
+
+    /** Hesaplar personel baglantisindan ONCE acilmali. */
+    static final int SEED_ACCOUNTS_FIRST = 1;
 
     private static final Logger log = LoggerFactory.getLogger(UserSeeder.class);
 
     // Parolalar migration'a veya koda yazilmaz; ortam degiskeninden okunur.
     @Bean
+    @Order(SEED_ACCOUNTS_FIRST)
     ApplicationRunner seedAdmin(UserRepository userRepository,
                                 PasswordEncoder passwordEncoder,
                                 @Value("${app.admin.email:}") String email,
@@ -35,6 +49,7 @@ public class UserSeeder {
 
     // Salt okuyan INSAN hesabi. Rol ayrimini elle denemek icin.
     @Bean
+    @Order(SEED_ACCOUNTS_FIRST)
     ApplicationRunner seedReadOnlyUser(UserRepository userRepository,
                                        PasswordEncoder passwordEncoder,
                                        @Value("${app.user.email:}") String email,
@@ -43,6 +58,47 @@ public class UserSeeder {
         return args -> seed(userRepository, passwordEncoder, email, password,
                 User.rolesOf(Role.EMPLOYEE),
                 "Read-only user account", "USER_EMAIL / USER_PASSWORD");
+    }
+
+    /**
+     * Rol basina birer demo hesabi.
+     *
+     * <p><b>Neden gerekli?</b> Ilk hesap iki rolu birden tasiyor
+     * (HR_SPECIALIST + SYSTEM_ADMIN) ve bu, rol modelinin BUTUN gerekcesini
+     * gorunmez kiliyordu: "erisimi yoneten kisinin ucret bilgisine ihtiyaci
+     * yoktur" ayrimi ancak roller AYRI hesaplarda denendiginde gorulur.
+     *
+     * <p>MANAGER hesabi ise hic yoktu, yani TEAM kapsami -- "kendini ve
+     * DOGRUDAN astlarini gor" -- arayuzden bir kez bile denenmemisti. Oradaki
+     * torun sizintisi bir kez kapatilmisti ve elle dogrulanamiyordu.
+     *
+     * <p>Hesaplar tanimsizsa sessizce atlanir: demo hesaplari zorunlu degildir
+     * ve uretimde tanimlanmamalari beklenir.
+     */
+    @Bean
+    @Order(SEED_ACCOUNTS_FIRST)
+    ApplicationRunner seedRoleDemoAccounts(UserRepository userRepository,
+                                           PasswordEncoder passwordEncoder,
+                                           @Value("${app.demo.manager.email:}") String managerEmail,
+                                           @Value("${app.demo.manager.password:}") String managerPassword,
+                                           @Value("${app.demo.hr.email:}") String hrEmail,
+                                           @Value("${app.demo.hr.password:}") String hrPassword,
+                                           @Value("${app.demo.sysadmin.email:}") String adminEmail,
+                                           @Value("${app.demo.sysadmin.password:}") String adminPassword) {
+
+        return args -> {
+            seed(userRepository, passwordEncoder, managerEmail, managerPassword,
+                    User.rolesOf(Role.MANAGER),
+                    "Manager demo account", "DEMO_MANAGER_EMAIL / DEMO_MANAGER_PASSWORD");
+
+            seed(userRepository, passwordEncoder, hrEmail, hrPassword,
+                    User.rolesOf(Role.HR_SPECIALIST),
+                    "HR specialist demo account", "DEMO_HR_EMAIL / DEMO_HR_PASSWORD");
+
+            seed(userRepository, passwordEncoder, adminEmail, adminPassword,
+                    User.rolesOf(Role.SYSTEM_ADMIN),
+                    "System admin demo account", "DEMO_SYSADMIN_EMAIL / DEMO_SYSADMIN_PASSWORD");
+        };
     }
 
     /**
@@ -55,6 +111,7 @@ public class UserSeeder {
      * silebilirdi. Ikisi de yanlis olurdu.
      */
     @Bean
+    @Order(SEED_ACCOUNTS_FIRST)
     ApplicationRunner seedServiceAccount(UserRepository userRepository,
                                          PasswordEncoder passwordEncoder,
                                          @Value("${app.service-account.email:}") String email,

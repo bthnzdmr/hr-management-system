@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -164,11 +165,14 @@ public class DemoDataSeeder {
                     2021, 10, "119000", "2026-07-15", TerminationReason.RESIGNED));
 
     @Bean
+    // Hesaplari personele baglar; UserSeeder'dan SONRA calismali.
+    @Order(UserSeeder.SEED_ACCOUNTS_FIRST + 1)
     ApplicationRunner seedDemoData(EmployeeRepository employeeRepository,
                                    DepartmentRepository departmentRepository,
                                    UserRepository userRepository,
                                    @Value("${app.demo-data.enabled:false}") boolean enabled,
-                                   @Value("${app.user.email:}") String readOnlyUserEmail) {
+                                   @Value("${app.user.email:}") String readOnlyUserEmail,
+                                   @Value("${app.demo.manager.email:}") String managerEmail) {
 
         return args -> {
             if (!enabled) {
@@ -176,6 +180,7 @@ public class DemoDataSeeder {
             }
             seed(employeeRepository, departmentRepository);
             linkDemoAccounts(employeeRepository, userRepository, readOnlyUserEmail);
+            linkManagerAccount(employeeRepository, userRepository, managerEmail);
         };
     }
 
@@ -205,6 +210,38 @@ public class DemoDataSeeder {
                 account.setEmployee(employee);
                 userRepository.save(account);
                 log.info("Linked demo account {} to employee {}", readOnlyUserEmail, employee.getId());
+            });
+        });
+    }
+
+    /**
+     * Yonetici demo hesabini EKIBI OLAN bir personele baglar.
+     *
+     * Asti olmayan birine baglansaydi TEAM kapsami ile SELF kapsami ekranda
+     * ayni gorunurdu ve "yalnizca DOGRUDAN astlar" kurali denenemezdi -- oysa
+     * orada kapatilmis gercek bir sizinti var: torunlar gorunmemeli.
+     *
+     * Grace Hopper dort dogrudan ast tasiyor ve astlarindan biri (Alan Kay)
+     * kendi ekibine sahip; yani hem "gorunmeli" hem "gorunmemeli" durumu ayni
+     * hesapla denenebiliyor.
+     */
+    @Transactional
+    void linkManagerAccount(EmployeeRepository employeeRepository,
+                            UserRepository userRepository,
+                            String managerEmail) {
+
+        if (managerEmail.isBlank()) {
+            return;
+        }
+
+        userRepository.findByEmail(managerEmail).ifPresent(account -> {
+            if (account.getEmployee() != null) {
+                return;
+            }
+            employeeRepository.findByEmail("grace.hopper@demo.example.com").ifPresent(employee -> {
+                account.setEmployee(employee);
+                userRepository.save(account);
+                log.info("Linked manager account {} to employee {}", managerEmail, employee.getId());
             });
         });
     }

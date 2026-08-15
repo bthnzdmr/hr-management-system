@@ -105,6 +105,19 @@ app:
     email: ${USER_EMAIL:}
     password: ${USER_PASSWORD:}
 
+  # Rol basina birer demo hesabi. Tanimsizsa acilmazlar; uretimde
+  # tanimlanmamalari beklenir.
+  demo:
+    manager:
+      email: ${DEMO_MANAGER_EMAIL:}
+      password: ${DEMO_MANAGER_PASSWORD:}
+    hr:
+      email: ${DEMO_HR_EMAIL:}
+      password: ${DEMO_HR_PASSWORD:}
+    sysadmin:
+      email: ${DEMO_SYSADMIN_EMAIL:}
+      password: ${DEMO_SYSADMIN_PASSWORD:}
+
   # Notification Service'in kullandigi okuma yetkili servis hesabi.
   service-account:
     email: ${SERVICE_ACCOUNT_EMAIL:}

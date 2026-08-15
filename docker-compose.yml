@@ -157,6 +157,16 @@ services:
       # Salt okuyan insan hesabi; ayni sekilde opsiyonel.
       USER_EMAIL: ${USER_EMAIL:-}
       USER_PASSWORD: ${USER_PASSWORD:-}
+      # Rol basina demo hesaplari. Hepsi opsiyonel; verilmezse acilmazlar.
+      # Uygulama ortam degiskenini KENDILIGINDEN gormez -- compose'un onu
+      # acikca gecirmesi gerekir. Bu satirlar olmadan .env'e yazmak hicbir
+      # sey yapmaz ve hesaplar sessizce olusmaz.
+      DEMO_MANAGER_EMAIL: ${DEMO_MANAGER_EMAIL:-}
+      DEMO_MANAGER_PASSWORD: ${DEMO_MANAGER_PASSWORD:-}
+      DEMO_HR_EMAIL: ${DEMO_HR_EMAIL:-}
+      DEMO_HR_PASSWORD: ${DEMO_HR_PASSWORD:-}
+      DEMO_SYSADMIN_EMAIL: ${DEMO_SYSADMIN_EMAIL:-}
+      DEMO_SYSADMIN_PASSWORD: ${DEMO_SYSADMIN_PASSWORD:-}
       # Gelistirme/tanitim verisi. Varsayilan kapali.
       DEMO_DATA: ${DEMO_DATA:-false}
       # full profilinde Notification Service de calisiyor ve bu hesapla giris
