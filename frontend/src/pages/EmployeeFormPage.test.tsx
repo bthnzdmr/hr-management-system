@@ -12,15 +12,9 @@ vi.mock('../api/employees', () => ({
   employeeApi: {
     list: vi.fn(),
     getById: vi.fn(),
-    getSalary: vi.fn(),
     update: vi.fn(),
-    updateSalary: vi.fn(),
     create: vi.fn(),
   },
-}));
-
-vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({ canSeeSalaries: true }),
 }));
 
 vi.mock('../api/departments', () => ({
@@ -69,7 +63,6 @@ describe('EmployeeFormPage', () => {
       { id: 2, name: 'Finance', active: true, activeEmployeeCount: 0 },
     ]);
     vi.mocked(employeeApi.getById).mockResolvedValue(makeEmployee());
-    vi.mocked(employeeApi.getSalary).mockResolvedValue({ employeeId: 5, salary: 95000 });
     vi.mocked(employeeApi.list).mockResolvedValue({
       content: [makeEmployee({ id: 9, firstName: 'Barbara', lastName: 'Liskov' })],
       totalElements: 1, totalPages: 1, number: 0, size: 10,
@@ -135,73 +128,6 @@ describe('EmployeeFormPage', () => {
     const options = await screen.findAllByRole('option');
     expect(options).toHaveLength(1);
     expect(options[0]).toHaveTextContent('Barbara Liskov');
-  });
-
-  it('does not touch the salary endpoint when the salary is unchanged', async () => {
-    // Gereksiz bir yazma, gereksiz bir olay ve gereksiz bir mail demektir.
-    const user = userEvent.setup();
-    renderForm('/employees/5');
-    await screen.findByDisplayValue('Barbara Liskov');
-
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(employeeApi.update).toHaveBeenCalled());
-    expect(employeeApi.updateSalary).not.toHaveBeenCalled();
-  });
-
-  it('writes the salary through its own endpoint when it changes', async () => {
-    const user = userEvent.setup();
-    renderForm('/employees/5');
-    const salary = await screen.findByLabelText('Salary');
-
-    await user.clear(salary);
-    await user.type(salary, '99000');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(employeeApi.updateSalary).toHaveBeenCalledWith(5, { salary: 99000 }));
-  });
-
-  it('refuses to save instead of silently ignoring a cleared salary', async () => {
-    // Olculen kusur: alan bosaltilinca salary null oluyor ve "!== null"
-    // korumasi silme niyetini SESSIZCE yutuyordu -- istek hic gitmiyor,
-    // kullaniciya "Employee updated" deniyordu. Gerceklesmeyen bir islemin
-    // basarili bildirilmesi, en hassas alanda bir dogruluk hatasidir.
-    const user = userEvent.setup();
-    renderForm('/employees/5');
-    const salary = await screen.findByLabelText('Salary');
-
-    await user.clear(salary);
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByText(/Salary cannot be removed here/)).toBeInTheDocument();
-
-    // Hicbir sey yazilmamali: ne genel guncelleme, ne maas ucu.
-    expect(employeeApi.updateSalary).not.toHaveBeenCalled();
-    expect(employeeApi.update).not.toHaveBeenCalled();
-  });
-
-  it('still allows saving a record that never had a salary', async () => {
-    // Maasi HIC OLMAYAN kayitta bos alan gecerlidir; kural yalnizca
-    // "vardi, silindi" durumuna uygulanir.
-    vi.mocked(employeeApi.getSalary).mockResolvedValue({ employeeId: 5, salary: null });
-
-    const user = userEvent.setup();
-    renderForm('/employees/5');
-    await screen.findByLabelText('Salary');
-
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(employeeApi.update).toHaveBeenCalled());
-    expect(employeeApi.updateSalary).not.toHaveBeenCalled();
-  });
-
-  it('opens the form even when the salary cannot be read', async () => {
-    // Maas ikincil bir bilgidir; alinamamasi formu tamamen engellememeli.
-    vi.mocked(employeeApi.getSalary).mockRejectedValue(new Error('forbidden'));
-
-    renderForm('/employees/5');
-
-    expect(await screen.findByDisplayValue('alan@example.com')).toBeInTheDocument();
   });
 
   it('reports the server error instead of navigating away', async () => {

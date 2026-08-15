@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode, SyntheticEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
 import {
   Alert, Box, Button, CircularProgress, Divider, Grid, MenuItem, Paper, Stack, TextField,
   Typography,
@@ -14,9 +13,9 @@ import { EmployeePicker } from '../components/EmployeePicker';
 import type { EmployeeOption } from '../components/EmployeePicker';
 import { PageHeader } from '../components/PageHeader';
 import { useSnackbar } from '../components/SnackbarProvider';
-import type { Department, EmployeeFormValues } from '../types/api';
+import type { Department, EmployeeCreateRequest } from '../types/api';
 
-const EMPTY_FORM: EmployeeFormValues = {
+const EMPTY_FORM: EmployeeCreateRequest = {
   firstName: '',
   lastName: '',
   email: '',
@@ -26,7 +25,6 @@ const EMPTY_FORM: EmployeeFormValues = {
   managerId: null,
   jobTitle: '',
   hireDate: '',
-  salary: null,
 };
 
 function Section({ title, description, children }: {
@@ -52,13 +50,9 @@ export function EmployeeFormPage() {
   const { notify } = useSnackbar();
   const isEdit = Boolean(id);
 
-  const [form, setForm] = useState<EmployeeFormValues>(EMPTY_FORM);
+  const [form, setForm] = useState<EmployeeCreateRequest>(EMPTY_FORM);
   const [manager, setManager] = useState<EmployeeOption | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
-  // Maas ayri uca yazildigi icin degisip degismedigini bilmemiz gerekiyor:
-  // degismediyse gereksiz bir istek ve gereksiz bir olay uretmeyiz.
-  const { canSeeSalaries } = useAuth();
-  const [initialSalary, setInitialSalary] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,19 +71,10 @@ export function EmployeeFormPage() {
   useEffect(() => {
     if (!id) return;
 
-    // Maas ayri uctan gelir; genel personel cevabinda yer almaz.
-    // Maas cagrisi basarisiz olursa form YINE acilir: ikincil bir bilgi
-    // yuzunden birincil isi engellemek, projenin kendi ilkesine aykiri olurdu.
-    Promise.all([
-      employeeApi.getById(Number(id)),
-      employeeApi.getSalary(Number(id)).catch(() => null),
-    ])
-      .then(([employee, salary]) => {
-        // Sunucu sayi doner, girdi alani metin tutar. Ikisini AYNI bicime
-        // cevirmek sart: aksi halde "95000" ile 95000 farkli gorunur ve
-        // dokunulmamis maas guncellenmis sayilirdi.
-        const asText = salary?.salary == null ? null : String(salary.salary);
-
+    // Ucret bu formda YOK: personel kaydini acan kisi ucreti belirleyemez.
+    // Ucret kendi ucundan, personel detay ekranindan yazilir.
+    employeeApi.getById(Number(id))
+      .then((employee) => {
         setForm({
           firstName: employee.firstName,
           lastName: employee.lastName,
@@ -99,7 +84,6 @@ export function EmployeeFormPage() {
           managerId: employee.managerId,
           jobTitle: employee.jobTitle,
           hireDate: employee.hireDate,
-          salary: asText,
         });
         // Secim kutusu adi sunucudan gelen cevaptan doldurulur; aksi halde
         // mevcut yonetici alani bos gorunur ve kaydederken sessizce silinirdi.
@@ -108,15 +92,14 @@ export function EmployeeFormPage() {
             ? { id: employee.managerId, label: employee.managerFullName }
             : null,
         );
-        setInitialSalary(asText);
       })
       .catch((err) => setError(errorMessage(err)))
       .finally(() => setLoading(false));
   }, [id]);
 
-  const update = <K extends keyof EmployeeFormValues>(
+  const update = <K extends keyof EmployeeCreateRequest>(
     field: K,
-    value: EmployeeFormValues[K],
+    value: EmployeeCreateRequest[K],
   ) => setForm((current) => ({ ...current, [field]: value }));
 
   const handleSubmit = async (event: SyntheticEvent) => {
@@ -126,31 +109,11 @@ export function EmployeeFormPage() {
 
     const payload = { ...form, managerId: manager?.id ?? null };
 
-    // Maasi TEMIZLEMEK ile maasin HIC OLMAMASI ayni sey degil, ama alan
-    // bosaltilinca ikisi de null oluyordu ve asagidaki "!== null" korumasi
-    // silme niyetini sessizce yutuyordu: istek hic gitmiyor, kullaniciya
-    // "Employee updated" deniyordu. Sunucu maas silmeyi bilerek desteklemiyor,
-    // o yuzden dogru davranis sessizce yutmak degil, acikca reddetmek.
-    if (isEdit && initialSalary !== null && payload.salary === null) {
-      setError('Salary cannot be removed here. Leave the current value or enter a new one.');
-      setSubmitting(false);
-      return;
-    }
-
     try {
       if (isEdit) {
-        // salary bilerek ayriliyor: genel guncelleme onu tasimaz.
-        const { salary, ...employeeFields } = payload;
-        await employeeApi.update(Number(id), employeeFields);
-
-        // Metin karsilastirilir (ikisi de ayni bicimde), sunucuya SAYI gider.
-        if (salary !== null && salary !== initialSalary) {
-          await employeeApi.updateSalary(Number(id), { salary: Number(salary) });
-        }
+        await employeeApi.update(Number(id), payload);
       } else {
-        // Maas olusturma isteginde YOK: kayit acan kisi ucret atayamaz.
-        const { salary: _unused, ...employeeFields } = payload;
-        await employeeApi.create(employeeFields);
+        await employeeApi.create(payload);
       }
       notify(isEdit ? 'Employee updated' : 'Employee created');
       navigate('/employees');
@@ -273,22 +236,6 @@ export function EmployeeFormPage() {
           </Paper>
 
           <Paper sx={{ p: 3 }}>
-            {isEdit && canSeeSalaries && (
-            <Section
-              title="Compensation"
-              description="Stored separately and never included in notification emails."
-            >
-              <Grid container spacing={2.5}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    label="Salary" type="number" value={form.salary ?? ''} fullWidth
-                    onChange={(e) => update('salary', e.target.value || null)}
-                    helperText="Saved through its own endpoint"
-                  />
-                </Grid>
-              </Grid>
-            </Section>
-            )}
           </Paper>
 
           {/* Dar ekranda alt alta ve ters sirada: birincil eylem parmaga en

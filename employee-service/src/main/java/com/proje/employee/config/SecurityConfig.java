@@ -165,8 +165,11 @@ public class SecurityConfig {
                         // gorecegi servis katmaninda belirlenir. Bir kural
                         // "bu satir senin ekibinde mi" diye soramaz; uc bazli
                         // eslesme satiri tanimaz.
+                        // Bordro uzmani da okur: ucretini girecegi kisiyi
+                        // bulamayan bir rol, ucret yetkisini kullanamaz.
                         .requestMatchers(HttpMethod.GET, "/api/employees/**")
-                        .hasAnyRole("EMPLOYEE", "MANAGER", "HR_SPECIALIST", "SYSTEM_ADMIN", "SERVICE")
+                        .hasAnyRole("EMPLOYEE", "MANAGER", "HR_SPECIALIST", "PAYROLL_SPECIALIST",
+                                "SYSTEM_ADMIN", "SERVICE")
                         // Departman REFERANS VERISIDIR ve yazmasi Ik uzmanina aittir.
                         // Bu kurallar olmasaydi uclar "anyRequest().authenticated()"
                         // agina duser ve GIRIS YAPAN HERKES departman acabilirdi --

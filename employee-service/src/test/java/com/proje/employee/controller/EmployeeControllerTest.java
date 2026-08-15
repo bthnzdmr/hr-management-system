@@ -298,6 +298,19 @@ class EmployeeControllerTest {
 
     @Test
     @WithMockUser(roles = "PAYROLL_SPECIALIST")
+    @DisplayName("payroll specialist can browse employees to find whose pay to set")
+    void payrollSpecialistReadsTheDirectory() throws Exception {
+        // AccessScope bu role ALL kapsam veriyordu ama uc kurali onu disarida
+        // birakmisti: ucretini girecegi kisiyi bulamayan bir rol islevsizdir.
+        when(employeeService.getAll(any(), any(), any(), any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+
+        mockMvc.perform(get("/api/employees"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "PAYROLL_SPECIALIST")
     @DisplayName("Rejects a salary update with a missing amount")
     void rejectsSalaryUpdateWithoutAmount() throws Exception {
         mockMvc.perform(put("/api/employees/1/salary")

@@ -12,12 +12,15 @@ import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { InitialsAvatar } from '../components/InitialsAvatar';
 import { UserCreateDialog } from '../components/UserCreateDialog';
+import { SalaryDialog } from '../components/SalaryDialog';
 import { useSnackbar } from '../components/SnackbarProvider';
 import type { Employee } from '../types/api';
 
 interface Loaded {
   employee: Employee;
   directReports: Employee[];
+  /** null: ucret gorulebilir ama girilmemis. undefined: gorme yetkisi yok. */
+  salary: number | null | undefined;
 }
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -34,9 +37,10 @@ function Field({ label, value }: { label: string; value: string }) {
 export function EmployeeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { canEditEmployees, canManageAccounts } = useAuth();
+  const { canEditEmployees, canManageAccounts, canSeeSalaries } = useAuth();
   const { notify } = useSnackbar();
   const [creatingLogin, setCreatingLogin] = useState(false);
+  const [editingSalary, setEditingSalary] = useState(false);
 
   const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,9 +59,18 @@ export function EmployeeDetailPage() {
     setData(null);
     setError(null);
 
-    Promise.all([employeeApi.getById(employeeId), employeeApi.getDirectReports(employeeId)])
-      .then(([employee, directReports]) => {
-        if (active) setData({ employee, directReports });
+    // Ucreti kimin gorebilecegine SUNUCU karar verir: bordro uzmani herkesin,
+    // digerleri yalnizca kendi kaydinin ucretini okur. Ayni kurali burada
+    // tekrar yazmak icin kullanicinin kendi personel kimligi gerekirdi ve
+    // token onu tasimiyor; tekrarlanan kural zamanla sunucudan ayrilirdi.
+    // Bu yuzden soruluyor: cevap gelirse bolum cizilir.
+    Promise.all([
+      employeeApi.getById(employeeId),
+      employeeApi.getDirectReports(employeeId),
+      employeeApi.getSalary(employeeId).then((r) => r.salary).catch(() => undefined),
+    ])
+      .then(([employee, directReports, salary]) => {
+        if (active) setData({ employee, directReports, salary });
       })
       .catch((cause) => {
         if (active) setError(errorMessage(cause));
@@ -89,7 +102,7 @@ export function EmployeeDetailPage() {
     );
   }
 
-  const { employee, directReports } = data;
+  const { employee, directReports, salary } = data;
 
   return (
     <Stack spacing={2.5}>
@@ -193,8 +206,31 @@ export function EmployeeDetailPage() {
               </Grid>
             </Grid>
 
-            {/* Maas bilerek yok: bu ekran her kullaniciya acik ve maas ayri
-                bir uctan, yalnizca ADMIN'e servis ediliyor. */}
+            {salary !== undefined && (
+              <>
+                <Typography variant="subtitle2" sx={{ mt: 3 }} gutterBottom>
+                  Compensation
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+                >
+                  <Field
+                    label="Salary"
+                    value={salary === null ? 'Not set' : salary.toLocaleString('en-US')}
+                  />
+
+                  {canSeeSalaries && (
+                    <Button size="small" variant="outlined" onClick={() => setEditingSalary(true)}>
+                      {salary === null ? 'Set salary' : 'Update'}
+                    </Button>
+                  )}
+                </Stack>
+              </>
+            )}
           </Paper>
         </Grid>
 
@@ -237,6 +273,22 @@ export function EmployeeDetailPage() {
           </Paper>
         </Grid>
       </Grid>
+      {canSeeSalaries && (
+        <SalaryDialog
+          open={editingSalary}
+          employeeId={employee.id}
+          employeeName={`${employee.firstName} ${employee.lastName}`}
+          current={salary ?? null}
+          onClose={() => setEditingSalary(false)}
+          onSaved={(saved) => {
+            setEditingSalary(false);
+            // Sayfa yeniden okunmaz: donen deger zaten sunucunun kaydettigidir.
+            setData((current) => (current === null ? current : { ...current, salary: saved }));
+            notify('Salary updated');
+          }}
+        />
+      )}
+
       <UserCreateDialog
         open={creatingLogin}
         onClose={() => setCreatingLogin(false)}

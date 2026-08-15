@@ -139,8 +139,6 @@ export interface EmployeeCreateRequest {
 /** Guncelleme olusturmayla ayni sekli tasir; maas ikisinde de yok. */
 export type EmployeeUpdateRequest = EmployeeCreateRequest;
 
-/** Form durumu: ekranda maas alani da var ama istege konmaz. */
-export type EmployeeFormValues = EmployeeCreateRequest & { salary: string | null };
 
 export interface SalaryResponse {
   employeeId: number;
