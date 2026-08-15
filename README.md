@@ -140,8 +140,8 @@ Gerekçeleri proje kurallarında kayıtlıdır.
 | Teknoloji              | Ne için kullanılıyor                                    | Durum      |
 | ---------------------- | ------------------------------------------------------- | ---------- |
 | Java 17                | Hedef dil sürümü (derleme JDK 21 ile yapılabilir)       | ✅         |
-| Spring Boot 3.2.5      | Uygulama iskeleti, gömülü sunucu, otomatik yapılandırma | ✅         |
-| Spring Cloud 2023.0.1  | Eureka ve Feign'in geldiği sürüm ailesi                 | ✅         |
+| Spring Boot 3.2.12     | Uygulama iskeleti, gömülü sunucu, otomatik yapılandırma | ✅         |
+| Spring Cloud 2023.0.5  | Eureka ve Feign'in geldiği sürüm ailesi                 | ✅         |
 | Maven 3.9              | Bağımlılık yönetimi ve derleme                          | ✅         |
 | Spring Data JPA        | Veritabanı erişimi, sorgu üretimi                       | ✅         |
 | Flyway                 | Versiyonlu veritabanı şema yönetimi                     | ✅         |
