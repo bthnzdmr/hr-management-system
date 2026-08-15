@@ -20,7 +20,6 @@ public record DashboardResponse(
         List<MonthlyHires> hiresByMonth,
         List<TerminationReasonCount> terminationReasons,
         SpanOfControl spanOfControl,
-        List<ManagerLoad> managerLoad,
         DataQuality dataQuality
 ) {
 
@@ -48,16 +47,6 @@ public record DashboardResponse(
     }
 
     public record SpanOfControl(long managerCount, double averageDirectReports, long largestTeam) {
-    }
-
-    /**
-     * Tek bir yoneticinin tasidigi yuk.
-     *
-     * SpanOfControl ozetin kendisi; bu ise DAGILIMI tasir. Ortalama, "biri 12
-     * tasirken digeri 1 tasiyor" durumunu gizler.
-     */
-    public record ManagerLoad(Long employeeId, String firstName, String lastName,
-                              String departmentName, long directReports) {
     }
 
     public record DataQuality(long activeWithoutManager, long emptyDepartments) {

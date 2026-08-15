@@ -37,7 +37,6 @@ function overview(overrides: Partial<DashboardOverview> = {}): DashboardOverview
       { reason: 'RETIRED', count: 1 },
     ],
     spanOfControl: { managerCount: 12, averageDirectReports: 2.3, largestTeam: 4 },
-    managerLoad: [],
     dataQuality: { activeWithoutManager: 5, emptyDepartments: 1 },
     ...overrides,
   };

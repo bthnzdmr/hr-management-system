@@ -1,13 +1,5 @@
 import { api } from './client';
 
-export interface ManagerLoad {
-  employeeId: number;
-  firstName: string;
-  lastName: string;
-  departmentName: string;
-  directReports: number;
-}
-
 export interface DashboardOverview {
   headcount: {
     active: number;
@@ -30,7 +22,6 @@ export interface DashboardOverview {
    * Yonetici basina yuk. spanOfControl ozetin kendisi; bu DAGILIMI tasir --
    * ortalama, "biri 12 tasirken digeri 1 tasiyor" durumunu gizler.
    */
-  managerLoad: ManagerLoad[];
   dataQuality: {
     activeWithoutManager: number;
     emptyDepartments: number;

@@ -238,43 +238,4 @@ public interface DashboardRepository extends Repository<Employee, Long> {
     /** Agaca girmesi BEKLENEN toplam: farki "ulasilamayan" demektir. */
     @Query(value = "SELECT count(*) FROM employee WHERE is_active", nativeQuery = true)
     long countActive();
-
-    interface ManagerLoad {
-        Long getEmployeeId();
-
-        String getFirstName();
-
-        String getLastName();
-
-        String getDepartmentName();
-
-        long getDirectReports();
-    }
-
-    /**
-     * Yonetici basina dogrudan ast sayisi.
-     *
-     * spanOfControl() ayni veriyi OZETLIYOR (ortalama, en buyuk ekip); bu ise
-     * dagilimin kendisini donduruyor. Ozet, "bir kisi 12 kisi tasirken digeri
-     * 1 tasiyor" durumunu gizler -- ortalama 6.5 gorunur ve ikisi de normal
-     * sanilir.
-     *
-     * INNER JOIN bilerek: asti olmayan personel yonetici degildir ve listede
-     * yeri yoktur. Yalnizca AKTIF olanlar sayilir; ayrilmis bir ast artik
-     * kimseye yuk degildir.
-     */
-    @Query(value = """
-            SELECT m.id            AS employeeId,
-                   m.first_name    AS firstName,
-                   m.last_name     AS lastName,
-                   d.name          AS departmentName,
-                   count(e.id)     AS directReports
-            FROM employee m
-            JOIN department d ON d.id = m.department_id
-            JOIN employee e ON e.manager_id = m.id AND e.is_active
-            WHERE m.is_active
-            GROUP BY m.id, m.first_name, m.last_name, d.name
-            ORDER BY count(e.id) DESC, m.last_name
-            """, nativeQuery = true)
-    List<ManagerLoad> managerLoad();
 }
