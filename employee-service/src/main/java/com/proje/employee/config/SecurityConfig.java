@@ -168,6 +168,22 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.GET, "/api/departments").authenticated()
 
+                        // Izin kayitlarini Ik girer ve sonuclandirir. Yazma
+                        // uclari acikca yazilmali: yazilmasaydi guvenlik agina
+                        // duser ve giris yapan herkes baskasi adina izin
+                        // girebilirdi -- departman uclarindaki dersin aynisi.
+                        .requestMatchers(HttpMethod.POST, "/api/leave-requests/**")
+                        .hasRole("HR_SPECIALIST")
+                        .requestMatchers(HttpMethod.PUT, "/api/leave-requests/**")
+                        .hasRole("HR_SPECIALIST")
+
+                        // Okuma giris yapan herkese acik; HANGI SATIRLARI
+                        // gorecegini AccessScope belirler. SYSTEM_ADMIN burada
+                        // YOK: izin is verisidir, kimlik verisi degil -- rol
+                        // modelinin butun gerekcesi buydu.
+                        .requestMatchers(HttpMethod.GET, "/api/leave-requests/**")
+                        .hasAnyRole("EMPLOYEE", "MANAGER", "HR_SPECIALIST")
+
                         // Kural yazilmayan her sey reddedilir.
                         .anyRequest().authenticated())
 
