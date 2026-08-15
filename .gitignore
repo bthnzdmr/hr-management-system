@@ -37,6 +37,9 @@ application-local.yml
 # gercek degerleri icermez. ! isareti "bunu yok sayma" demektir.
 !.env.example
 
+# Uctan uca yiginin adi ve portlari; sir icermez ve README ona atif yapiyor.
+!.env.e2e
+
 # ---------- Gelistirme araci yapilandirmasi (kisisel) ----------
 # .claude/ makineye ozel mutlak yollar icerir.
 # CLAUDE.md proje konvansiyonlarini tutar ancak depoya dahil edilmiyor;

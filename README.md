@@ -353,7 +353,7 @@ Personelin yöneticisi varsa mail ona da CC'lenir.
 > Konteyner daha önce kurulmuşsa bir kez elle oluşturmak gerekir:
 >
 > ```bash
-> docker exec -e PGPASSWORD=$DB_PASSWORD hr-postgres \
+> docker compose exec postgres \
 >   psql -U $DB_USERNAME -d $POSTGRES_DB -c "CREATE DATABASE notification_db;"
 > ```
 
@@ -415,17 +415,29 @@ geliştirirken profilsiz kullanım daha hızlıdır.
 
 ### Uçtan uca testler ✅
 
-Ayağa kalkmış sisteme dışarıdan istek atan kara kutu testleri:
+Ayağa kalkmış sisteme dışarıdan istek atan kara kutu testleri. Testler kayıt
+**oluşturur** ve silme ucu bilerek yok; bu yüzden kendi yığınlarında koşarlar:
 
 ```bash
+# 1. Tek kullanimlik yigin (gelistirme yigini ayakta kalabilir)
+docker compose --env-file .env --env-file .env.e2e -p hr-e2e --profile full up -d --wait \
+  postgres rabbitmq mailhog eureka-server employee-service notification-service
+
+# 2. Testler
 cd e2e
-mvn test
+E2E_API_URL=http://localhost:58080 E2E_MAILHOG_URL=http://localhost:58025 mvn test
+
+# 3. Yigini veritabaniyla birlikte sil
+docker compose -p hr-e2e down -v
 ```
 
 Zincirin tamamını doğrular: giriş → personel oluşturma → outbox → kuyruk →
 tüketici → MailHog'a düşen mail. Ayrı bir projede durur ve servislerin kendi
 test koşusuna karışmaz; sistem kapalıyken ne yapılması gerektiğini söyleyerek
 başarısız olur.
+
+Portlar ve konteyner adları [.env.e2e](.env.e2e) dosyasındadır. Arayüz
+başlatılmaz: bu testler tarayıcı değil HTTP kullanır.
 
 ### Durdurma
 

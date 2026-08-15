@@ -35,14 +35,17 @@ class SystemEndToEndTest {
 
         // Baglanti hic kurulamazsa istisna buradan gecer; ham hatayi yukari
         // birakmak yerine ne yapilmasi gerektigini soyluyoruz.
+        // Olcut "actuator 200" OLAMAZ: yonetim portu bilerek disari
+        // yayimlanmiyor. Kara kutunun gorebilecegi sinyal, API'nin HTTP cevabi
+        // vermesidir; kimlik dogrulamasi devrede oldugu icin bu 401'dir.
         int status;
         try {
-            status = new SystemClient().get(SystemClient.API_URL + "/actuator/health", null).status();
+            status = new SystemClient().get(SystemClient.API_URL + "/api/employees", null).status();
         } catch (RuntimeException e) {
             throw systemNotRunning(e);
         }
 
-        if (status != 200) {
+        if (status != 401) {
             throw systemNotRunning(null);
         }
     }
