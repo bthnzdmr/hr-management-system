@@ -83,11 +83,11 @@ export function OrgChartPage() {
   return (
     <Stack spacing={2.5}>
       <PageHeader
-        eyebrow="Directory"
-        title="Org chart"
+        eyebrow="Structure"
+        title="Organisation map"
         description={chart
-          ? `${chart.placed} ${chart.placed === 1 ? 'person' : 'people'} — a circle inside another means that person reports to them`
-          : 'Reporting lines across the organisation'}
+          ? `${chart.placed} ${chart.placed === 1 ? 'person' : 'people'}, laid out from the centre outwards — each ring is a level of management`
+          : 'How the organisation is put together'}
       />
 
       {/* Ulasilamayan kisiler UYARI degil BILGI olarak gosterilir.

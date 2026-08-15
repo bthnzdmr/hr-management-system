@@ -512,11 +512,19 @@ export function OrgOutline({ nodes }: { nodes: OrgNode[] }) {
   return (
     <Box
       sx={{
+        // MUI'nin olcu kisayolunda 1'den KUCUK VE ESIT sayilar YUZDEDIR:
+        // `width: 1` bir piksel degil %100 demektir. Anahat bu yuzden tam
+        // ekran boyutunda, `nowrap` icerigiyle duruyordu ve sayfayi yatayda
+        // tasiriyordu. Olcu birimi acikca yazilmali.
         position: 'absolute',
-        width: 1,
-        height: 1,
+        width: '1px',
+        height: '1px',
+        margin: '-1px',
+        padding: 0,
+        border: 0,
         overflow: 'hidden',
-        clip: 'rect(0 0 0 0)',
+        // `clip` kullanimdan kalkti; `clip-path` guncel karsiligi.
+        clipPath: 'inset(50%)',
         whiteSpace: 'nowrap',
       }}
     >

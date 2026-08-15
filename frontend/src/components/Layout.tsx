@@ -65,7 +65,7 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
     items: [
       { label: 'Overview', to: '/dashboard', icon: InsightsOutlinedIcon, requires: 'viewDashboard' },
       { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon },
-      { label: 'Org chart', to: '/org-chart', icon: AccountTreeOutlinedIcon, requires: 'viewDashboard' },
+      { label: 'Structure', to: '/org-chart', icon: AccountTreeOutlinedIcon, requires: 'viewDashboard' },
       { label: 'Departments', to: '/departments', icon: ApartmentOutlinedIcon, requires: 'editEmployees' },
     ],
   },
