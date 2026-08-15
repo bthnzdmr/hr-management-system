@@ -135,6 +135,9 @@ public class SecurityConfig {
                         // Metot belirtilmez: HEAD dahil her sey kapsanmali.
                         .requestMatchers("/api/users/**").hasRole("SYSTEM_ADMIN")
 
+                        // Okumak risk degil, silmek risktir; silme ucu yok.
+                        .requestMatchers(HttpMethod.GET, "/api/audit/**").hasRole("SYSTEM_ADMIN")
+
                         // Maas kurali GENEL okuma kuralindan ONCE gelmek zorunda:
                         // Spring Security ilk eslesen kurali uygular. Sonra yazilsaydi
                         // "/api/employees/**" once eslesir ve maas herkese acik kalirdi.

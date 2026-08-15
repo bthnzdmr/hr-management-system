@@ -61,3 +61,13 @@ logs/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Arastirma ve gecici indirmeler.
+# Proje koku bir kez bunlarla doldu (denetim standartlari, mevzuat metinleri,
+# gecici ciktilar) ve hicbiri .gitignore'da olmadigi icin commit'e sizabilirdi.
+*.tmp
+/sox*
+/as[0-9]*.html
+/as[0-9]*.txt
+/cfr*
+/coso_*

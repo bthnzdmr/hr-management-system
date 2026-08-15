@@ -54,7 +54,7 @@ public class LeaveRequestService {
      * dislama kisiti verir; buradaki is yalnizca o teknik istisnayi
      * kullanicinin anlayacagi bir hataya cevirmek.
      */
-    @Auditable(action = AuditAction.LEAVE_REQUESTED, targetType = "LeaveRequest")
+    @Auditable(action = AuditAction.LEAVE_REQUESTED, targetType = "LEAVE_REQUEST")
     @Transactional
     public LeaveRequestResponse create(LeaveRequestCreateRequest request, User author) {
         Employee employee = employees.findById(request.employeeId())
@@ -153,7 +153,8 @@ public class LeaveRequestService {
         return LeaveRequestResponse.from(leave);
     }
 
-    @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LeaveRequest")
+    @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
+            includeArguments = false)
     @Transactional
     public LeaveRequestResponse approve(Long id, User decider) {
         LeaveRequest leave = load(id);
@@ -163,7 +164,8 @@ public class LeaveRequestService {
         return LeaveRequestResponse.from(leave);
     }
 
-    @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LeaveRequest")
+    @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
+            includeArguments = false)
     @Transactional
     public LeaveRequestResponse reject(Long id, String note, User decider) {
         LeaveRequest leave = load(id);
@@ -173,7 +175,8 @@ public class LeaveRequestService {
         return LeaveRequestResponse.from(leave);
     }
 
-    @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LeaveRequest")
+    @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
+            includeArguments = false)
     @Transactional
     public LeaveRequestResponse cancel(Long id) {
         LeaveRequest leave = load(id);
