@@ -14,15 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Set;
 
-/**
- * Hesaplari acar.
- *
- * <p><b>Sira onemlidir.</b> {@code ApplicationRunner} bean'lerinin calisma
- * sirasi TANIMSIZDIR; demo verisi tohumlayicisi hesaplari personele baglamaya
- * calisirken hesaplar henuz olusmamis olabilir. Olculdu: yonetici hesabi
- * acildi ama baglanmadi ve MANAGER rolu hicbir sey goremedi. Bu sinif
- * once calisir.
- */
+/** Hesaplari acar. */
 @Configuration
 public class UserSeeder {
 
@@ -60,21 +52,7 @@ public class UserSeeder {
                 "Read-only user account", "USER_EMAIL / USER_PASSWORD");
     }
 
-    /**
-     * Rol basina birer demo hesabi.
-     *
-     * <p><b>Neden gerekli?</b> Ilk hesap iki rolu birden tasiyor
-     * (HR_SPECIALIST + SYSTEM_ADMIN) ve bu, rol modelinin BUTUN gerekcesini
-     * gorunmez kiliyordu: "erisimi yoneten kisinin ucret bilgisine ihtiyaci
-     * yoktur" ayrimi ancak roller AYRI hesaplarda denendiginde gorulur.
-     *
-     * <p>MANAGER hesabi ise hic yoktu, yani TEAM kapsami -- "kendini ve
-     * DOGRUDAN astlarini gor" -- arayuzden bir kez bile denenmemisti. Oradaki
-     * torun sizintisi bir kez kapatilmisti ve elle dogrulanamiyordu.
-     *
-     * <p>Hesaplar tanimsizsa sessizce atlanir: demo hesaplari zorunlu degildir
-     * ve uretimde tanimlanmamalari beklenir.
-     */
+    /** Rol basina birer demo hesabi. */
     @Bean
     @Order(SEED_ACCOUNTS_FIRST)
     ApplicationRunner seedRoleDemoAccounts(UserRepository userRepository,
@@ -101,15 +79,7 @@ public class UserSeeder {
         };
     }
 
-    /**
-     * Notification Service bu hesapla giris yapar.
-     *
-     * Rolu SERVICE: bildirimi hazirlarken personelin yoneticisini sormasi
-     * gerekiyor, yani rehberi okumali -- ama baska hicbir seye ihtiyaci yok.
-     * EMPLOYEE verilseydi yalnizca "kendi" kaydini gorurdu ve personel kaydi
-     * olmadigi icin hicbir sey goremezdi; HR_SPECIALIST verilseydi personel
-     * silebilirdi. Ikisi de yanlis olurdu.
-     */
+    /** Notification Service bu hesapla giris yapar. */
     @Bean
     @Order(SEED_ACCOUNTS_FIRST)
     ApplicationRunner seedServiceAccount(UserRepository userRepository,
@@ -125,18 +95,7 @@ public class UserSeeder {
         };
     }
 
-    /**
-     * Servis hesabinin rolunu her acilista dogrular.
-     *
-     * Makine kimliginin rolu VERI degil YAPILANDIRMADIR: hangi role sahip
-     * olacagi kodda yazar, kimse arayuzden degistirmemelidir. Parola ise
-     * korunur -- o gercekten bir sirdir.
-     *
-     * Somut sebep: roller bolundugunde bu hesap migration'da EMPLOYEE'ye
-     * dustu ve tohumlayici var olan hesabi atladigi icin rehberi okuyamaz
-     * hale geldi. Bildirim maili yine gider ama yonetici CC'si SESSIZCE
-     * calismazdi -- fark edilmesi zor bir bozulma.
-     */
+    /** Servis hesabinin rolunu her acilista dogrular. */
     private void reconcileServiceRoles(UserRepository userRepository, String email) {
         if (email.isBlank()) {
             return;

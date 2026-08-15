@@ -7,18 +7,8 @@ import com.proje.employee.entity.LeaveType;
 import java.time.Instant;
 import java.time.LocalDate;
 
-/**
- * Izin istegi cevabi.
- *
- * <p>Personelin ADI dahil edilir cunku listede kimin izni oldugu gorunmeli;
- * arayuz her satir icin ayrica personel cekseydi sayfa basina bir istek yerine
- * N+1 istek olurdu. Sorgu tarafinda JOIN FETCH ile tek sorguda getiriliyor.
- *
- * <p>Ucret yok, iletisim yok: izin ekraninin bunlara ihtiyaci olmadigi gibi,
- * bu uc daha genis bir kitleye acik.
- *
+/** Izin istegi cevabi. */
  * @param endDate son gun DAHILDIR
- */
 public record LeaveRequestResponse(
         Long id,
         Long employeeId,

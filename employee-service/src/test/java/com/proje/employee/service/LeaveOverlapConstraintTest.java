@@ -26,14 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
-/**
- * Cakisma kisitinin GERCEK veritabaninda ne firlattigi.
- *
- * <p>Servis, ihlali kisitin ADINA bakarak taniyor. Bu bir VARSAYIMDIR: Hibernate
- * dislama kisiti (SQLState 23P01) icin constraint adini dolduruyor mu? Taklit
- * edilmis bir repository bu soruyu asla cevaplayamaz -- ancak gercek surucu ve
- * gercek kisit calistirilinca gorulur.
- */
+/** Cakisma kisitinin GERCEK veritabaninda ne firlattigi. */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class LeaveOverlapConstraintTest {
@@ -82,9 +75,6 @@ class LeaveOverlapConstraintTest {
     void exposesTheExclusionSqlState() {
         // OLCULDU VE CURUTULDU: once Hibernate'in getConstraintName() degeri
         // okunuyordu, dislama kisiti icin NULL donuyor. Tanima ona dayansaydi
-        // hic calismaz ve kullanici genel "veri cakismasi" mesajini gorurdu.
-        //
-        // Dogru olcut JDBC'nin SQLState'i: 23P01 = exclusion_violation.
         leaveRequests.saveAndFlush(leave(LocalDate.of(2030, 5, 1), LocalDate.of(2030, 5, 5)));
 
         Throwable thrown = catchThrowable(() ->

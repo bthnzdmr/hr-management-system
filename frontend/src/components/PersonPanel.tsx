@@ -18,21 +18,7 @@ interface Props {
 /** Ray cizgisinin sol kenardan uzakligi (px). Nokta bunun uzerinde ortalanir. */
 const RAIL = 7;
 
-/**
- * Secilen kisinin ayrintisi.
- *
- * <p><b>Neden yeni bir istek atilmiyor?</b> Sema zaten ad, unvan, departman ve
- * butun raporlama agacini tasiyor. Her secimde `GET /api/employees/{id}`
- * cagirmak yeni bir yaris durumu acardi: yavas donen bir cevap, kullanici
- * baskasini sectikten SONRA gelip yanlis kisinin bilgisini yazabilirdi --
- * projede bu hata bir kez yasandi. Semada olmayan alanlar icin tam kayda
- * baglanti veriliyor.
- *
- * <p><b>Neden dikey bir ray?</b> Panel once duz bir baglanti listesiydi ve
- * hiyerarsi hic gorunmuyordu -- "kim kimin ustunde" ancak sira takip edilerek
- * cikiyordu. Ray, cizimdeki AYNI bilgiyi metin olarak veriyor: tepeden asagi
- * inen tek bir cizgi, seçili kisi uzerinde duruyor ve ekibi ondan dallaniyor.
- */
+/** Secilen kisinin ayrintisi. */
 export function PersonPanel({ person, chain, color, onSelect }: Props) {
   if (!person) {
     return (
@@ -182,14 +168,7 @@ function Label({ children }: { children: string }) {
   );
 }
 
-/**
- * Dikey baglanti cizgisi; noktalar bunun uzerinde durur.
- *
- * <p><code>&lt;ol&gt;</code> cunku zincir SIRALIDIR: tepeden asagi okunur ve
- * sira bilginin kendisidir. <code>role="tree"</code> KULLANILMAZ -- o rol
- * gezinme sozlesmesidir (ok tuslari, Home/End, yazarak arama) ve uygulamadan
- * ilan etmek, hic isaretlememekten kotudur.
- */
+/** Dikey baglanti cizgisi; noktalar bunun uzerinde durur. */
 function Rail({ children, dense, label }: { children: ReactNode; dense?: boolean; label?: string }) {
   return (
     <Stack

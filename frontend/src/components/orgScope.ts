@@ -18,18 +18,7 @@ export function departmentsOf(roots: OrgNode[]): Department[] {
     .sort((a, b) => b.headcount - a.headcount || a.name.localeCompare(b.name));
 }
 
-/**
- * Bir departmanin kendi agaci.
- *
- * <p>Departman <b>baskani</b>, o departmanda olup yoneticisi ayni departmanda
- * OLMAYAN kisidir -- yani zincir yukari dogru departmandan cikiyorsa orasi
- * tepedir. Sabit bir "baskan" alani saklamiyoruz; bu bilgi zaten raporlama
- * cizgisinde duruyor ve ikinci bir yerde tutmak ikisinin birbirinden
- * ayrilmasi demek olurdu.
- *
- * <p>Birden fazla baskan cikabilir: ayni departmanda birbirine baglanmayan iki
- * ekip olmasi mumkundur. Bu bir veri hatasi degildir, o yuzden liste dondurulur.
- */
+/** Bir departmanin kendi agaci. */
 export function scopeToDepartment(roots: OrgNode[], department: string): OrgNode[] {
   const heads: OrgNode[] = [];
 
@@ -83,37 +72,7 @@ export function initials(node: OrgNode) {
   return `${node.firstName.charAt(0)}${node.lastName.charAt(0)}`.toUpperCase();
 }
 
-/**
- * Departman renkleri.
- *
- * <p><b>Onceki set olculdu ve yetersizdi.</b> Tonlar avatar ailesinden
- * aliniyordu ve hepsi ayni doygunluk/aciklik bandindaydi; en yakin iki renk
- * arasindaki algisal fark <b>dE2000 = 6,3</b> idi. Fark edilebilirlik esigi
- * 2,3, kategorik paletlerde 20+ hedeflenir. Daha kotusu: protanopide fark
- * <b>1,4</b>'e dusuyordu, yani renk hicbir sey soylemiyordu.
- *
- * <p>Yeni set <b>Okabe-Ito</b> hue'larindan turetildi -- o palet zaten renk
- * korlugune dayanikli olmak ICIN tasarlanmistir. Her hue tema zeminine gore
- * acilip koyulastirildi ve secim rastgele degil, su kisitlar altinda
- * <b>aramayla</b> yapildi: uzerindeki metin >= 4,5:1, yuzeye karsi 3,2-8,5:1
- * (yani hicbiri leke gibi durmasin) ve algisal ayrim en buyuk olsun.
- *
- * <p>Olculen sonuc:
- *
- * <table>
- *   <tr><th></th><th>onceki</th><th>simdi</th></tr>
- *   <tr><td>en dusuk dE2000 (koyu)</td><td>6,3</td><td><b>26,2</b></td></tr>
- *   <tr><td>renk korlugunde (koyu)</td><td>1,4</td><td><b>12,8</b></td></tr>
- *   <tr><td>en dusuk dE2000 (acik)</td><td>8,0</td><td><b>31,6</b></td></tr>
- *   <tr><td>renk korlugunde (acik)</td><td>3,2</td><td><b>12,6</b></td></tr>
- * </table>
- *
- * <p><b>Neden bes renk?</b> Alti hue ile ayni kisitlar altinda ayrim 17,3'e ve
- * renk korlugunde 8,2'ye dusuyor -- yani altinci rengi eklemek digerlerini de
- * bozar. Bes bu kisitlarin TAVANIDIR. Daha fazla departman olursa fazlasi
- * notr alir: yalan soyleyen bir renk, renksizlikten kotudur. Raf ve panel adi
- * zaten yaziyor.
- */
+/** Departman renkleri. */
 export interface Swatch {
   fill: string;
   /** Uzerine yazilan metin; renge gore secilir, temaya gore degil. */
@@ -143,13 +102,7 @@ const NEUTRAL: Record<'light' | 'dark', Swatch> = {
   dark: { fill: '#8A94A3', ink: '#141A22' },
 };
 
-/**
- * Departman -> renk eslemesi.
- *
- * <p><b>Ilk deneme ad HASH'iydi ve olculunce cop cikti:</b> bes departmanin
- * ucu ayni renge dusuyordu. Cakisan renk, rengin AYIRT ETME isini tamamen
- * bitirir. Simdi renk ALFABETIK siradaki indekse gore veriliyor.
- */
+/** Departman -> renk eslemesi. */
 export function departmentColors(names: string[], mode: 'light' | 'dark') {
   const set = DEPARTMENT_SWATCHES[mode];
 

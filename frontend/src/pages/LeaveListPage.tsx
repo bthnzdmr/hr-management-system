@@ -49,13 +49,7 @@ export function LeaveListPage() {
   /** Karar bekleyen SATIR; global bir bayrak butun satirlari kilitlerdi. */
   const [deciding, setDeciding] = useState<number | null>(null);
 
-  /**
-   * Her istege bir sira numarasi.
-   *
-   * Yavas donen eski bir cevap, kullanici filtreyi degistirdikten SONRA gelip
-   * satirlarin uzerine yazabilirdi: tabloda eski veri, filtrede yeni secim.
-   * Projede ayni hata iki kez olculdu; koruma bastan kuruluyor.
-   */
+  /** Her istege bir sira numarasi. */
   const requestId = useRef(0);
 
   const load = useCallback(async () => {

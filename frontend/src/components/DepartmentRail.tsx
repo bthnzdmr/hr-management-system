@@ -11,13 +11,7 @@ interface Props {
   total: number;
 }
 
-/**
- * Departman secimi.
- *
- * <p>Acilir liste yerine hepsi bir arada duruyor: secenek sayisi az ve sabit,
- * ve yanlarindaki kadro sayisi tek bakista karsilastirilabiliyor. Acilir liste
- * bu karsilastirmayi bir tiklamanin arkasina saklardi.
- */
+/** Departman secimi. */
 export function DepartmentRail({ departments, colors, selected, onSelect, total }: Props) {
   const largest = Math.max(...departments.map((d) => d.headcount), 1);
 

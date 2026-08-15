@@ -20,18 +20,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Gelistirme ve tanitim icin gercekci bir organizasyon uretir.
- *
- * FLYWAY MIGRATION'INA YAZILMAZ: migration her ortamda calisir ve demo veri
- * uretime gitmemelidir. Sema degisikligi ile ornek veri farkli seylerdir;
- * birincisi kodun parcasi, ikincisi bir kolayliktir.
- *
- * OLAY YAYINLAMAZ. Bu bir is islemi degil, veri hazirlamadir; yayinlasaydi
- * kirktan fazla "hos geldin" maili giderdi.
- *
- * Acmak icin: DEMO_DATA=true
- */
+/** Gelistirme ve tanitim icin gercekci bir organizasyon uretir. */
 @Configuration
 public class DemoDataSeeder {
 
@@ -39,13 +28,6 @@ public class DemoDataSeeder {
 
     // Tohumun daha once atildigini LISTENIN SON kaydina bakarak anlariz.
     //
-    // Ayri bir "isaretci" kayit yazmak daha basit gorunurdu ama o kayit
-    // personel listesinde ve devir orani sorgusunda gorunurdu -- olculdu:
-    // sahte bir "2019'da ayrildi" satiri uretiyordu. Sayiya bakmak da yanlis
-    // olurdu: baska yollarla eklenen kayitlar sayiyi sisirir.
-    //
-    // SON kayda bakilir, ilkine degil: yarida kesilen bir tohumlama
-    // "tamamlandi" gorunmemeli.
 
     private record Seed(String first, String last, String title, String department,
                         int hireYear, int hireMonth, String managerEmail,
@@ -68,11 +50,7 @@ public class DemoDataSeeder {
         }
     }
 
-    /**
-     * Ozellikle cesitli: bes departman, alti yila yayilmis ise giris tarihleri,
-     * uc seviyeli bir hiyerarsi ve birkac ayrilmis personel. Hepsi ayni
-     * departmanda ve ayni yilda olsaydi panel tek cubuk gosterirdi.
-     */
+    /** Ozellikle cesitli: */
     private static final List<Seed> PEOPLE = List.of(
             // --- Yonetim ---
             Seed.active("Barbara", "Liskov", "Chief Technology Officer", "Software Development",
@@ -184,13 +162,7 @@ public class DemoDataSeeder {
         };
     }
 
-    /**
-     * Salt okuyan demo hesabini gercek bir personele baglar.
-     *
-     * Baglanmadigi surece EMPLOYEE rolu HICBIR SEY goremez: hangi kaydin
-     * "kendi" oldugu bilinemez. Satir bazli kapsam kurulmustu ama demo veride
-     * denenemiyordu -- olculdu: personele bagli hesap sayisi sifirdi.
-     */
+    /** Salt okuyan demo hesabini gercek bir personele baglar. */
     @Transactional
     void linkDemoAccounts(EmployeeRepository employeeRepository,
                           UserRepository userRepository,
@@ -214,17 +186,7 @@ public class DemoDataSeeder {
         });
     }
 
-    /**
-     * Yonetici demo hesabini EKIBI OLAN bir personele baglar.
-     *
-     * Asti olmayan birine baglansaydi TEAM kapsami ile SELF kapsami ekranda
-     * ayni gorunurdu ve "yalnizca DOGRUDAN astlar" kurali denenemezdi -- oysa
-     * orada kapatilmis gercek bir sizinti var: torunlar gorunmemeli.
-     *
-     * Grace Hopper dort dogrudan ast tasiyor ve astlarindan biri (Alan Kay)
-     * kendi ekibine sahip; yani hem "gorunmeli" hem "gorunmemeli" durumu ayni
-     * hesapla denenebiliyor.
-     */
+    /** Yonetici demo hesabini EKIBI OLAN bir personele baglar. */
     @Transactional
     void linkManagerAccount(EmployeeRepository employeeRepository,
                             UserRepository userRepository,
@@ -294,10 +256,6 @@ public class DemoDataSeeder {
 
             // save() ACIKCA cagrilir. EmployeeService'te setter yeterlidir
             // cunku orada metot gercekten @Transactional bir proxy uzerinden
-            // cagriliyor ve kirli kontrol (dirty checking) devreye giriyor.
-            // Burada oyle degil: cagri kendi sinifi icinden geliyor, proxy
-            // atlaniyor ve aktif transaction yok. Olculdu -- save'siz halde
-            // 36 kaydin HICBIRINDE yonetici yazilmadi.
             employeeRepository.save(employee);
         }
 

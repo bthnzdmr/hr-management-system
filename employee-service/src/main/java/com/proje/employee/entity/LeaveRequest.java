@@ -17,20 +17,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
 
-/**
- * Bir personelin izin istegi.
- *
- * <p><b>Tarih araligi neden iki kolon?</b> Cakisma kisiti bir ARALIK ister ama
- * Hibernate'in <code>daterange</code> diye bir tipi yoktur. Tabloda
- * <code>span</code> adinda bir aralik kolonu var ve o iki tarihten OTOMATIK
- * turetiliyor; bu sinif onu hic gormez. Ikisi arasinda tutarsizlik olusmasi
- * yapisal olarak imkansiz, cunku span'i kimse yazmaz.
- *
- * <p><b>Cakisma kontrolu burada YOK ve olmamali.</b> "Once oku, cakisiyor mu
- * bak, sonra yaz" klasik bir check-then-act olurdu: iki eszamanli istek de
- * "cakisma yok" gorur ve ikisi de yazardi. Garantiyi veritabanindaki
- * <code>ex_leave_no_overlap</code> kisiti verir.
- */
+/** Bir personelin izin istegi. */
 @Entity
 @Table(name = "leave_request")
 public class LeaveRequest {
@@ -43,13 +30,7 @@ public class LeaveRequest {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
-    /**
-     * Kaydi GIREN hesap; iznin sahibiyle ayni olmak zorunda degil.
-     *
-     * Su an izinleri Ik giriyor ama iki alanin bastan ayri tutulmasi, ileride
-     * personelin kendi istegini acmasi icin sema degisikligi gerektirmemesini
-     * saglar.
-     */
+    /** Kaydi GIREN hesap; iznin sahibiyle ayni olmak zorunda degil. */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
@@ -110,18 +91,7 @@ public class LeaveRequest {
         this.updatedAt = Instant.now();
     }
 
-    /**
-     * Isteği onaylar.
-     *
-     * <p><b>Neden <code>setStatus</code> yok?</b> Bir setter birakmak, durumu
-     * APPROVED yapip karar bilgisini yazmamayi mumkun kilardi -- ve bu ikisi
-     * ayri yazildigi surece arada gecersiz bir an olusur. Ayni ders
-     * <code>Employee.setActive</code> kaldirilirken ogrenilmisti:
-     * <b>gecersiz ara duruma girmek yapisal olarak imkansiz olmali.</b>
-     *
-     * <p>Nihai bir istegi tekrar karara baglamak reddedilir: onaylanmis izni
-     * reddetmek, denetim izinde "ne zaman ve kim" bilgisini ezerdi.
-     */
+    /** Isteği onaylar. */
     public void approve(User decider) {
         requirePending();
         this.status = LeaveStatus.APPROVED;

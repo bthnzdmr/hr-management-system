@@ -104,14 +104,7 @@ public class LeaveRequestController {
         };
     }
 
-    /**
-     * Istegi yapan hesap.
-     *
-     * <p>Jwt filtresi principal olarak duz bir metin (e-posta) koyuyor;
-     * {@code @AuthenticationPrincipal UserDetails} istemek uretimde null
-     * dondurup 500 uretmisti. {@code java.security.Principal} her iki kurulumda
-     * da calisir.
-     */
+    /** Istegi yapan hesap. */
     private User currentUser(Principal caller) {
         return userRepository.findByEmail(caller.getName())
                 .orElseThrow(() -> new StaleCredentialsException(caller.getName()));

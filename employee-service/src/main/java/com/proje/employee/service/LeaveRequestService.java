@@ -45,15 +45,7 @@ public class LeaveRequestService {
         this.employees = employees;
     }
 
-    /**
-     * Yeni izin istegi.
-     *
-     * <p><b>Cakisma kontrolu burada YOK ve olmamali.</b> "Once oku, kesisiyor
-     * mu bak, sonra yaz" klasik check-then-act olurdu: iki eszamanli istek de
-     * "cakisma yok" gorur ve ikisi de yazardi. Garantiyi veritabanindaki
-     * dislama kisiti verir; buradaki is yalnizca o teknik istisnayi
-     * kullanicinin anlayacagi bir hataya cevirmek.
-     */
+    /** Yeni izin istegi. */
     @Auditable(action = AuditAction.LEAVE_REQUESTED, targetType = "LEAVE_REQUEST")
     @Transactional
     public LeaveRequestResponse create(LeaveRequestCreateRequest request, User author) {
@@ -74,15 +66,7 @@ public class LeaveRequestService {
         return LeaveRequestResponse.from(persist(leave, employee));
     }
 
-    /**
-     * Kaydi yazip veritabanina ANINDA gonderir.
-     *
-     * <p><code>save()</code> yazmayi yalnizca kuyruga alir; gercek INSERT commit
-     * aninda -- yani bu metot dondukten SONRA -- calisir ve o noktada istisnayi
-     * yakalayacak bir yer kalmaz. Dislama kisitini burada gorebilmek icin flush
-     * sart. Ayni ders tuketici tarafinda <code>saveAndFlush</code>'a gecerken
-     * ogrenilmisti.
-     */
+    /** Kaydi yazip veritabanina ANINDA gonderir. */
     private LeaveRequest persist(LeaveRequest leave, Employee employee) {
         try {
             return leaveRequests.saveAndFlush(leave);
@@ -96,26 +80,7 @@ public class LeaveRequestService {
         }
     }
 
-    /**
-     * Ihlal edilen kisit cakisma kisiti mi?
-     *
-     * <p>Ayni istisna tipi baska sebeplerle de gelir (olmayan bir personel
-     * kimligi, olmayan bir kullanici). Hepsini "tarihler cakisiyor" diye
-     * sunmak YANLIS bilgi vermek olurdu; bu yuzden ihlalin KIMLIGINE bakilir
-     * ve taninmayan ihlal oldugu gibi yukari birakilir.
-     *
-     * <p><b>Olculdu ve ilk yaklasim curutuldu.</b> Once Hibernate'in
-     * {@code ConstraintViolationException.getConstraintName()} degeri
-     * okunuyordu; gercek veritabanina karsi kosturulunca dislama kisiti icin
-     * <b>null</b> dondugu goruldu. Yani tanima hic calismayacak ve kullanici
-     * genel "veri cakismasi" mesajini gorecekti.
-     *
-     * <p>Dogru olcut JDBC'nin standart SQLState'i: <b>23P01</b> tam olarak
-     * "exclusion_violation" demektir. Kisit ADI da ayrica aranir cunku ileride
-     * ikinci bir dislama kisiti eklenirse SQLState tek basina ayirt etmez.
-     * Ad, mesaj cevrilse bile degismez -- surucu mesajlari yerellestirir ama
-     * nesne adlarini cevirmez.
-     */
+    /** Ihlal edilen kisit cakisma kisiti mi? Ayni istisna tipi baska sebeplerle de gelir (olmayan bir personel kimligi, olmayan bir kullanici). */
     private boolean isOverlap(DataIntegrityViolationException ex) {
         for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
             if (cause instanceof SQLException sql
@@ -191,14 +156,7 @@ public class LeaveRequestService {
                 .orElseThrow(() -> new LeaveRequestNotFoundException(id));
     }
 
-    /**
-     * Nihai bir istegi tekrar karara baglamak reddedilir.
-     *
-     * Entity de ayni kurali tasiyor ama oradaki istisna teknik bir
-     * <code>IllegalStateException</code>; buradaki, kullaniciya 409 olarak
-     * donen anlamli hali. Kural entity'de kaliyor cunku gecersiz duruma
-     * girmeyi YAPISAL olarak engelleyen sey odur.
-     */
+    /** Nihai bir istegi tekrar karara baglamak reddedilir. */
     private void requirePending(LeaveRequest leave) {
         if (!leave.isPending()) {
             throw new LeaveRuleViolationException(
@@ -225,12 +183,7 @@ public class LeaveRequestService {
                 && scope.employeeId().equals(owner.getManager().getId());
     }
 
-    /**
-     * Kapsamin gorebilecegi personel kimlikleri.
-     *
-     * <code>null</code> "filtre yok" demektir; sinirsiz kapsamda sorguya hic
-     * kosul eklenmez.
-     */
+    /** Kapsamin gorebilecegi personel kimlikleri. */
     private Collection<Long> visibleEmployees(AccessScope scope) {
         if (scope.isUnrestricted()) {
             return null;

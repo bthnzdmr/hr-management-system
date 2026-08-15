@@ -54,12 +54,7 @@ export function OrgChartPage() {
     return department === null ? chart.roots : scopeToDepartment(chart.roots, department);
   }, [chart, department]);
 
-  /**
-   * Secim aç/kapa calisir.
-   *
-   * Secili bir kisiye tekrar tiklamak onu birakmiyordu; sema o kisinin uzerinde
-   * KILITLI kalmis gibi duruyordu. Bir secimin geri alinabilir olmasi gerekir.
-   */
+  /** Secim aç/kapa calisir. */
   const toggleSelect = (person: OrgNode) => {
     setSelected((current) => (current?.id === person.id ? null : person));
   };

@@ -7,16 +7,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
-/**
- * Yeni izin istegi.
- *
- * <p>Izni GIREN kisi govdede yer almaz: kimlik jetondan okunur. Istemciden
- * gelen bir "ben kimim" alanina guvenmek, herkesin baskasi adina kayit
- * girebilmesi demekti.
- *
- * <p>Cakisma kontrolu de burada YOK: o kural veritabaninda yasiyor. Buradaki
- * dogrulama yalnizca istegin KENDI ICINDE tutarli olmasini sorar.
- */
+/** Yeni izin istegi. */
 public record LeaveRequestCreateRequest(
 
         @NotNull(message = "Employee is required")
@@ -35,13 +26,7 @@ public record LeaveRequestCreateRequest(
         String note
 ) {
 
-    /**
-     * Bitis, baslangictan once olamaz; tek gunluk izin gecerlidir.
-     *
-     * Kural veritabaninda da yazili ama oradaki hata mesaji ("range lower bound
-     * must be less than or equal to...") kullaniciya gosterilemez. Burasi ayni
-     * kurali ANLASILIR bir 400 olarak doner; veritabani ise son sozu soyler.
-     */
+    /** Bitis, baslangictan once olamaz; tek gunluk izin gecerlidir. */
     @AssertTrue(message = "End date cannot be before the start date")
     public boolean isDateRangeValid() {
         return startDate == null || endDate == null || !endDate.isBefore(startDate);

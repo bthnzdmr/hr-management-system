@@ -7,26 +7,10 @@ const RING = 186;
 /** Iki komsu dugum arasinda birakilan en kucuk aciklik. */
 const NODE_GAP = 12;
 
-/**
- * En dis halkanin disinda birakilan bosluk.
- *
- * Isimler artik her dugumde durmadigi icin bu pay kucultuldu: tuval kuculdukce
- * ayni ekran genisliginde her sey BUYUK gorunur.
- */
+/** En dis halkanin disinda birakilan bosluk. */
 const LABEL_SPACE = 92;
 
-/**
- * Yaprak dairenin yaricapi; buyukler bunun uzerine biner.
- *
- * <p><b>Olculdu:</b> onceki degerler (11 / 36) tuvale gore cok kucuktu.
- * 1784 birimlik bir tuval 640 px'e sigdiginda her sey %36'ya iniyordu: yaprak
- * dairesi ekranda <b>11,5 px</b>, bas harfler <b>4 px</b>, isim <b>4,1 px</b>.
- * Yani sema teknik olarak dogruydu ama fiilen okunmuyordu.
- *
- * <p>Yeni degerlerle ayni veride yaprak capi 29-40 px, bas harfler 10-14 px ve
- * sifir cakisma. Olculerin tuvale GORE secilmesi gerektigi dersi buradan cikti:
- * SVG kullanici birimi mutlak bir olcu degildir.
- */
+/** Yaprak dairenin yaricapi; buyukler bunun uzerine biner. */
 const BASE_RADIUS = 26;
 
 /** Daire bundan buyuk olmaz; merkez butun tuvali yutmasin. */
@@ -74,25 +58,7 @@ export interface OrgLayout {
   hub: boolean;
 }
 
-/**
- * Organizasyon semasini MERKEZDEN DAGILAN bir agac olarak yerlestirir.
- *
- * <p><b>Neden node-link, ic ice daire degil?</b> Daire paketlemede "icinde
- * olmak" raporlama cizgisidir ve bu dogru bir kodlamadir, ama gozle okunan sey
- * KUMELENMEDIR: kimin kime bagli oldugu ancak sinirlar takip edilerek cikar.
- * Node-link'te bag GORUNUR bir daldir -- iliski cikarim gerektirmez.
- *
- * <p><b>Neden radyal, soldan saga degil?</b> Soldan saga agacta genislik
- * derinlikle, yukseklik yaprak sayisiyla dogrusal buyur ve sema hizla uzun bir
- * seride donusur. Radyal yerlesimde her seviye bir HALKADIR: cevre yaricapla
- * buyudugu icin ayni tuvalde daha cok yaprak sigar ve seviye, merkeze olan
- * uzaklikla dogrudan okunur.
- *
- * <p><b>Neden Reingold-Tilford (`tree`), `cluster` degil?</b> `cluster` butun
- * yapraklari en dis halkaya hizalar; boylece dogrudan yonetici ile en alttaki
- * calisan ayni halkada gorunur ve SEVIYE bilgisi kaybolur. `tree` her dugumu
- * kendi derinliginin halkasina koyar.
- */
+/** Organizasyon semasini MERKEZDEN DAGILAN bir agac olarak yerlestirir. */
 export function layoutTree(roots: OrgNode[]): OrgLayout | null {
   if (roots.length === 0) return null;
 
@@ -187,22 +153,7 @@ export function layoutTree(roots: OrgNode[]): OrgLayout | null {
   };
 }
 
-/**
- * Iki dugumu birlestiren dal.
- *
- * <p>Kontrol noktalarinin ikisi de ebeveyn ile cocugun ORTA YARICAPINDA durur:
- * biri ebeveynin acisinda, digeri cocugun acisinda. Bu, `d3.linkRadial`'in
- * kullandigi geometrinin ta kendisi ve suslemeden ibaret degil:
- *
- * <ul>
- *   <li>Dal her iki ucta da yaricap dogrultusunda cikar/girer, yani halkaya
- *       DIK degen bir bag olur. Duz bir kiris halkayi rastgele bir acida
- *       keser ve gorsel gurultu okunur.</li>
- *   <li>Acisal gecis, iki halka arasindaki BOS bantta yapilir. Duz kiris ise
- *       ebeveynin kendi halkasinin icinden gecer -- tam da kardes alt
- *       agaclarin durdugu yerden.</li>
- * </ul>
- */
+/** Iki dugumu birlestiren dal. */
 function branchPath(
   from: { angle: number; radius: number },
   to: { angle: number; radius: number },
@@ -261,18 +212,7 @@ function subtreeTotals(root: OrgNode): Map<number, number> {
   return totals;
 }
 
-/**
- * Halkalar arasi mesafe.
- *
- * <p>Sabit bir deger kalabalik bir ekipte HER ZAMAN kirilir: bir halkaya kac
- * kisi dusecegi veriye baglidir, koda degil. Bir halkada n dugum varsa ve her
- * biri r yaricapindaysa, cevrenin en az <code>n * (2r + bosluk)</code> olmasi
- * gerekir; bu da o halkanin yaricapina bir alt sinir koyar.
- *
- * <p>25 kisilik bir ekip once dairelerin buyutulmesiyle cakismisti ve testi
- * kirdi. Cozum daireleri kucultmek degil, halkayi ACMAKTIR -- kucultmek butun
- * semayi tekrar okunmaz yapardi.
- */
+/** Halkalar arasi mesafe. */
 function ringSpacing(
   root: { descendants: () => { depth: number; data: OrgNode }[] },
   totals: Map<number, number>,

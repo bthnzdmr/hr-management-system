@@ -13,18 +13,7 @@ import java.util.Optional;
 
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
 
-    /**
-     * Listeleme sorgusu.
-     *
-     * <p>`LEFT JOIN FETCH` sart: cevapta personelin ADI geciyor ve tembel vekilde
-     * ad okumak vekili baslatir. Fetch olmasaydi sayfadaki her satir icin ayri
-     * bir SELECT atilirdi -- personel listesinde bir kez olculup kapatilan N+1'in
-     * aynisi. `decidedBy` icin de ayni sebeple; LEFT cunku bekleyen isteklerde
-     * karar veren yoktur ve INNER olsaydi onlar listeden tamamen duserdi.
-     *
-     * <p>Kapsam sorgunun ICINDE uygulanir, cekildikten sonra Java'da suzulerek
-     * degil: suzme sonradan yapilsaydi sayfalama yalan soylerdi.
-     */
+    /** Listeleme sorgusu. */
     @Query(value = """
             SELECT l FROM LeaveRequest l
             LEFT JOIN FETCH l.employee e

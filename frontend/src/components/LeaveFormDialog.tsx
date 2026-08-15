@@ -21,13 +21,7 @@ const TYPES: { value: LeaveType; label: string }[] = [
   { value: 'PARENTAL', label: 'Parental' },
 ];
 
-/**
- * Personel adina izin girme.
- *
- * <p>Bakiye gosterilmiyor ve bilerek: "bu kisinin kac gunu kaldi" ayri bir
- * problem (hak edis, devir, kidem) ve modulun kapsamina alinmadi. Olmayan bir
- * bakiyeyi gostermek, olmayan bir kesinlik uydurmak olurdu.
- */
+/** Personel adina izin girme. */
 export function LeaveFormDialog({ open, onClose, onSaved }: Props) {
   const [employee, setEmployee] = useState<EmployeeOption | null>(null);
   const [type, setType] = useState<LeaveType>('ANNUAL');

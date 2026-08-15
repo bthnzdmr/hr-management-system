@@ -58,8 +58,6 @@ export function OrgBubbleMap({ roots, colors, selectedId, onSelect }: Props) {
 
   // Uzerine gelinen kisinin merkeze kadar olan zinciri. Baglar varsayilan
   // olarak neredeyse gorunmez; yol ancak SORULDUGUNDA beliriyor.
-  // Zincir vurgusu once uzerine GELINENI, o yoksa SECILENI izler: secim
-  // kalicidir, hover gecici bir sorudur.
   const traced = hovered ?? selectedId;
   const lit = new Set(
     traced === null
@@ -69,9 +67,6 @@ export function OrgBubbleMap({ roots, colors, selectedId, onSelect }: Props) {
 
   // Gezinme sirasi cizim sirasidir: merkezden disa, kardesler arka arkaya.
   // Tab sirasina TEK bir dugum girer: secili varsa o, yoksa ilki. Ok tuslari
-  // KALDIRILDI -- klavye kullanicisi cizime girer, Enter ile secer ve gezinmeye
-  // paneldeki isimlerden devam eder. Panel zaten butun zinciri ve ekibi gercek
-  // dugme olarak veriyor, yani ikinci bir gezinme mekanizmasi tekrardi.
   const first = layout.nodes.find((entry) => entry.node !== null)?.node?.id ?? null;
   const tabStop = selectedId ?? first;
 
@@ -194,8 +189,6 @@ export function OrgBubbleMap({ roots, colors, selectedId, onSelect }: Props) {
             fill="none"
             // pathLength cevreyi 100'e normalize eder. Olmasaydi sabit bir
             // dasharray her halkada FARKLI nokta araligi verirdi: dis halka
-            // seyrek, ic halka sik gorunur ve halkalar ayni ailedenmis gibi
-            // okunmazdi.
             pathLength={100}
             strokeDasharray={`0 ${RING_DOT_SPACING}`}
             strokeLinecap="round"
@@ -254,10 +247,6 @@ function Link({ link, largest, lit }: { link: TreeLink; largest: number; lit: Se
         stroke: (t) => (onPath ? t.palette.primary.main : 'currentColor'),
         // Baglar SOLUK ama gorunur. Once %11'e indirilmisti; olculdu ve
         // fazlaydi: gizlenmis bir bag, yapiyi yalnizca uzerine GELEN kullaniciya
-        // verir ve fareyle gelemeyen biri icin hiyerarsi hic okunmaz olur
-        // (WCAG 2.1.1, klavye ile isletilebilirlik). Radyal yerlesimde bag
-        // zaten kismen artiktir -- seviyeyi yaricap, kardesligi aci soyluyor --
-        // bu yuzden %28, d3'un %40 varsayilanindan daha hafif ama yok degil.
         strokeOpacity: onPath ? 1 : (lit.size > 0 ? 0.09 : 0.28),
         strokeWidth: onPath ? width + 1.5 : width,
         strokeLinecap: 'round',
@@ -362,8 +351,6 @@ function Node({
               'aria-posinset': entry.position,
               // Erisilebilir ad kisinin KIMLIGIDIR; ekip buyuklugu <title>'da
               // ve sagdaki panelde duruyor. Ada sayi katmak, secim degistikce
-              // adin da degismesi demekti -- bazi ekran okuyucular guncellenen
-              // adi hic bildirmez.
               'aria-label': `${fullName(node)}, ${node.jobTitle}`,
               // Tab sirasina TEK bir dugum girer; gerisi ok tuslariyla.
               tabIndex: tabStop ? 0 : -1,
@@ -501,21 +488,13 @@ export function useDepartmentColors(names: string[]) {
   return useMemo(() => departmentColors(names, theme.palette.mode), [names, theme.palette.mode]);
 }
 
-/**
- * Cizimin ekran okuyucuya ve Ctrl+F'e verilen karsiligi.
- *
- * <p>Bir SVG cizimi ic ice <code>&lt;ul&gt;</code> kadar dogal okunmaz. Cizim
- * tek basina birakilsaydi agac yapisi yardimci teknolojide tamamen kaybolurdu;
- * burada gorunmeyen ama DOM'da GERCEK METIN olan bir liste render edilir.
- */
+/** Cizimin ekran okuyucuya ve Ctrl+F'e verilen karsiligi. */
 export function OrgOutline({ nodes }: { nodes: OrgNode[] }) {
   return (
     <Box
       sx={{
         // MUI'nin olcu kisayolunda 1'den KUCUK VE ESIT sayilar YUZDEDIR:
         // `width: 1` bir piksel degil %100 demektir. Anahat bu yuzden tam
-        // ekran boyutunda, `nowrap` icerigiyle duruyordu ve sayfayi yatayda
-        // tasiriyordu. Olcu birimi acikca yazilmali.
         position: 'absolute',
         width: '1px',
         height: '1px',
