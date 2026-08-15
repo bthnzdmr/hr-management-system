@@ -439,6 +439,21 @@ başarısız olur.
 Portlar ve konteyner adları [.env.e2e](.env.e2e) dosyasındadır. Arayüz
 başlatılmaz: bu testler tarayıcı değil HTTP kullanır.
 
+### Bağımlılık açıkları
+
+```bash
+cd employee-service
+mvn dependency-check:check        # rapor: target/dependency-check-report.html
+```
+
+Yaşam döngüsüne bağlı değildir, yani normal test koşusunu yavaşlatmaz. İlk
+çalıştırma NVD veritabanını indirir (~500 MB) ve **anahtarsız yarım saati
+aşar**; [NVD API anahtarı](https://nvd.nist.gov/developers/request-an-api-key)
+alıp `NVD_API_KEY` olarak tanımlamak bunu ciddi biçimde kısaltır.
+
+Arayüz tarafında karşılığı `npm audit`. CI'da tarama haftalık koşar — bir
+bağımlılığın açığı kodla değil zamanla ortaya çıkar.
+
 ### Durdurma
 
 ```bash
@@ -701,7 +716,7 @@ HR Management System/
 ├── docker-compose.yml          ✅  altyapı + "full" profilinde tüm uygulamalar
 ├── .env.example                ✅  ortam değişkeni şablonu (.env buradan kopyalanır)
 ├── .env.e2e                    ✅  uçtan uca testlerin ayrı yığını (ad ve portlar)
-├── .github/workflows/ci.yml    ✅  backend, frontend, uçtan uca ve imaj işleri
+├── .github/workflows/ci.yml    ✅  backend, frontend, uçtan uca, güvenlik ve imaj işleri
 ├── docker/postgres-init/       ✅  ilk kurulumda çalışan veritabanı betikleri
 ├── README.md                   ✅  bu dosya
 ├── eureka-server/              ✅  servis keşif sunucusu

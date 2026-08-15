@@ -14,6 +14,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Guvenlik taramasi icin: bir bagimliligin acigi kodla degil ZAMANLA cikar.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
 
 # Ayni dal icin yeni bir itme gelirse suren kosuyu iptal et: eskimis bir
 # sonucu beklemek kimseye fayda saglamaz.
@@ -163,6 +167,54 @@ jobs:
         with:
           name: surefire-e2e
           path: e2e/target/surefire-reports/
+
+  # Bagimliliklarin bilinen aciklari. Arayuzde `npm audit` zaten CI disinda
+  # sifir donuyordu; arka ucta boyle bir kapi HIC yoktu.
+  #
+  # Haftada bir kosar, her commit'te degil: bir bagimliligin acigi kodla degil
+  # ZAMANLA ortaya cikar -- dun temiz olan bugun degildir. Ayrica elle de
+  # tetiklenebilir.
+  security:
+    name: Dependency vulnerabilities
+    runs-on: ubuntu-latest
+    # Her push'ta DEGIL: tarama pahalidir ve sonucu koda degil takvime bagli.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [employee-service, notification-service]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # NVD veritabani ~500 MB ve anahtarsiz indirmesi olculdu: ~35 dakika.
+      # Onbellege alinmazsa bu is her kosuda o bedeli oder. Anahtar tanimliysa
+      # guncelleme cok daha hizli; yoksa is yine calisir, sadece yavas.
+      - name: Cache the vulnerability database
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-${{ matrix.service }}-${{ github.run_id }}
+          restore-keys: nvd-
+
+      - name: Scan
+        run: mvn -B dependency-check:check
+        working-directory: ${{ matrix.service }}
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-${{ matrix.service }}
+          path: ${{ matrix.service }}/target/dependency-check-report.html
 
   # Imajlarin GERCEKTEN derlenebildigini dogrular. Testler burada kosmaz
   # (altyapi gerektiriyorlar); bu adim yalnizca "Dockerfile bozulmus mu"

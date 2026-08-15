@@ -23,6 +23,8 @@
     <properties>
         <java.version>17</java.version>
         <spring-cloud.version>2023.0.1</spring-cloud.version>
+        <!-- Guvenlik taramasi eklentisi; parent tarafindan yonetilmiyor. -->
+        <dependency-check.version>12.1.3</dependency-check.version>
     </properties>
 
     <dependencies>
@@ -112,6 +114,30 @@
 
     <build>
         <plugins>
+            <!-- Bagimlilik aciklari. Yasam dongusune BAGLI DEGIL: acikca
+                 cagrilinca calisir (mvn dependency-check:check), boylece gunluk
+                 test kosusu yavaslamaz. Ilk kosu NVD veritabanini indirir.
+                 NVD_API_KEY tanimliysa cok daha hizlidir; anahtarsiz da calisir. -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>${dependency-check.version}</version>
+                <configuration>
+                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                    <!-- Bu projede .NET ve Node yok; arayuz npm audit ile bakiliyor. -->
+                    <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
+                    <nodeAnalyzerEnabled>false</nodeAnalyzerEnabled>
+                    <nodeAuditAnalyzerEnabled>false</nodeAuditAnalyzerEnabled>
+                    <!-- Sonatype OSS Index artik anonim istege 401 donuyor ve
+                         cozumleyici hatasi TARAMAYI DUSURUYORDU. Kapali: veri
+                         kaynagimiz NVD. Hesap alinirsa geri acilabilir. -->
+                    <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
+                    <formats>
+                        <format>HTML</format>
+                        <format>JSON</format>
+                    </formats>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
