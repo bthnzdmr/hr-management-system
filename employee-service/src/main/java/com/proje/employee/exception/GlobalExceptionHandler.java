@@ -63,7 +63,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     // saldirgana gecerli hesaplari kesfetme imkani verir.
     @ExceptionHandler(AuthenticationException.class)
     public ProblemDetail handleAuthentication(AuthenticationException ex) {
-        log.warn("Authentication failed", ex);
+        // Yigin izi YAZILMAZ: yanlis parola beklenen bir istemci durumudur,
+        // sunucu arizasi degil. Izi basmak her denemede yuzlerce satir uretir
+        // ve parola tarayan biri log hacmini kendi silahina cevirir.
+        log.warn("Authentication failed: {}", ex.getMessage());
         return problem(HttpStatus.UNAUTHORIZED, "Authentication failed", "Invalid credentials");
     }
 

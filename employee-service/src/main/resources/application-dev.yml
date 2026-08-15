@@ -11,8 +11,11 @@ spring:
   jpa:
     properties:
       hibernate:
-        # Cok satirli SQL okumayi kolaylastirir; log hacmini de katlar.
-        format_sql: true
+        # Bicimlendirme her ifadeyi ~12 satira yayiyor. OutboxRelay iki saniyede
+        # bir sorgu attigi icin bos bir sistemde dakikada 417 satir olculdu ve
+        # hicbiri gercek bir olay degildi: cikan bir INFO satiri gorunmezdi.
+        # SQL hala tek satir halinde loglaniyor; guzel bicim tek koşuda acilir.
+        format_sql: ${SQL_FORMAT:false}
 
 # Etkilesimli dokumantasyon gelistirmede acik.
 springdoc:
@@ -23,6 +26,9 @@ springdoc:
 
 logging:
   level:
-    # Calisan sorguyu gormek gelistirmede en degerli tek log.
-    org.hibernate.SQL: debug
+    # Calisan sorguyu gormek degerlidir ama SURELI degil: OutboxRelay iki
+    # saniyede bir yokluyor ve olculdugunde bos bir sistem dakikada 417 satir
+    # basiyordu -- hicbiri gercek olay degil. Sorgu incelenecegi zaman acilir:
+    #   SQL_LOG_LEVEL=debug SQL_FORMAT=true docker compose --profile full up -d
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:warn}
     com.proje.employee: debug
