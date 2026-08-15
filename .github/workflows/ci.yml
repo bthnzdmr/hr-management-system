@@ -34,11 +34,15 @@ jobs:
     env:
       # CI'ya ozel, uretimle ilgisiz kimlik bilgileri. Testler bunlari
       # dogrudan okur (test/resources/application.yml varsayilansiz istiyor).
+      #
+      # JWT_SECRET base64 OLMAK ZORUNDA: uygulama sirri cozerek okuyor ve
+      # gecersiz bir deger uygulamayi hic actirmiyor. Onceki deger '-'
+      # iceriyordu; testler kendi sirrini kullandigi icin fark edilmemisti.
       DB_USERNAME: ci
       DB_PASSWORD: ci
       RABBITMQ_USERNAME: ci
       RABBITMQ_PASSWORD: ci
-      JWT_SECRET: ci-only-secret-that-is-long-enough-for-hs384-signing
+      JWT_SECRET: Y2ktb25seS1rZXktbm90LWEtcmVhbC1zZWNyZXQtNDgtYnl0ZXMtcGFkZGluZyEh
       ADMIN_EMAIL: admin@example.com
       ADMIN_PASSWORD: ci-admin-password
       SERVICE_ACCOUNT_EMAIL: notification-service@internal
@@ -103,6 +107,63 @@ jobs:
         run: npm test
         working-directory: frontend
 
+  # Servislerin BIRLIKTE calistigini dogrulayan tek is: giris, personel
+  # olusturma, outbox, kuyruk, tuketici ve MailHog'a dusen mail.
+  #
+  # Bu is eklenene kadar e2e paketi kimse tarafindan kosturulmuyordu ve
+  # ANLASILMADAN kirik kaldi: hazirlik kontrolu actuator'a bakiyordu, oysa
+  # yonetim portu ayri bir porta tasinmisti. 19 test sessizce olmustu.
+  #
+  # Yerelde e2e ayri bir compose projesinde kosar (bkz. .env.e2e), cunku orada
+  # bir gelistirme yigini ayakta ve testler kayit birakiyor. CI'da o ihtiyac
+  # yok: kosucu her seferinde sifirdan basliyor ve .env dosyasi depoda degil.
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+
+    env:
+      DB_USERNAME: ci
+      DB_PASSWORD: ci
+      RABBITMQ_USERNAME: ci
+      RABBITMQ_PASSWORD: ci
+      JWT_SECRET: Y2ktb25seS1rZXktbm90LWEtcmVhbC1zZWNyZXQtNDgtYnl0ZXMtcGFkZGluZyEh
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: ci-admin-password
+      SERVICE_ACCOUNT_EMAIL: notification-service@internal
+      SERVICE_ACCOUNT_PASSWORD: ci-service-password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # Arayuz baslatilmaz: bu testler tarayici degil HTTP kullanir.
+      - name: Start the system
+        run: |
+          docker compose --profile full up -d --wait \
+            postgres rabbitmq mailhog eureka-server employee-service notification-service
+
+      - name: Run end-to-end tests
+        run: mvn -B test
+        working-directory: e2e
+
+      # Kirmizi bir e2e kosusunda sucu servis loglari soyler; testin kendi
+      # ciktisi yalnizca "beklenen 200, gelen 500" der.
+      - name: Dump service logs
+        if: failure()
+        run: docker compose --profile full logs --no-color --tail 200
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-e2e
+          path: e2e/target/surefire-reports/
+
   # Imajlarin GERCEKTEN derlenebildigini dogrular. Testler burada kosmaz
   # (altyapi gerektiriyorlar); bu adim yalnizca "Dockerfile bozulmus mu"
   # sorusunu cevaplar.
@@ -123,7 +184,7 @@ jobs:
           DB_PASSWORD: ci
           RABBITMQ_USERNAME: ci
           RABBITMQ_PASSWORD: ci
-          JWT_SECRET: ci-only-secret-that-is-long-enough-for-hs384-signing
+          JWT_SECRET: Y2ktb25seS1rZXktbm90LWEtcmVhbC1zZWNyZXQtNDgtYnl0ZXMtcGFkZGluZyEh
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASSWORD: ci-admin-password
           SERVICE_ACCOUNT_EMAIL: notification-service@internal
