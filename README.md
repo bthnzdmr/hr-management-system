@@ -2,7 +2,7 @@
 
 > Personel kayıtlarını yöneten bir web uygulaması. Kayıt değiştiğinde bildirim maili, ana uygulamanın içinde değil, **ayrı bir servis** tarafından **mesaj kuyruğu** üzerinden gönderilir.
 
-**Durum:** Sistem uçtan uca çalışıyor. Employee Service (on REST ucu — dokuzu kimlik doğrulaması ister, rol bazlı yetkilendirme, transactional outbox), Notification Service (idempotent tüketici, DLQ, Feign, mail) ve React arayüzü hazır; tamamı tek komutla konteynerlerde ayağa kalkıyor.
+**Durum:** Sistem uçtan uca çalışıyor. Employee Service (26 REST ucu — üçü dışında hepsi kimlik doğrulaması ister, altı rollü yetkilendirme, transactional outbox, denetim izi), Notification Service (idempotent tüketici, DLQ, Feign, mail) ve React arayüzü hazır; tamamı tek komutla konteynerlerde ayağa kalkıyor.
 
 ---
 
@@ -489,10 +489,12 @@ değişiyor — ve `DELETE`'in geri dönüşü yoktur. Pasifleştirme tek yönl�
 kapıydı; aynı uç iki yöne de çalışınca hem doğru fiil kullanılmış oluyor hem de
 işlem geri alınabiliyor.
 
-**Maaş neden ayrı uçta?** Genel personel cevabında dönseydi, `USER` rolündeki
-istemciler — Notification Service dahil — maaşı görürdü. Genel güncellemede yer
+**Maaş neden ayrı uçta?** Genel personel cevabında dönseydi, rehberi okuyan her
+istemci — Notification Service dahil — maaşı görürdü. Genel güncellemede yer
 alsaydı, maaşı okuyamayan bir istemci onu her kayıtta `null` gönderip silerdi.
-Ayrı alt kaynak her iki sorunu da yapısal olarak ortadan kaldırır.
+Ayrı alt kaynak her iki sorunu da yapısal olarak ortadan kaldırır; personel
+oluşturma ve güncelleme istekleri maaş alanını **hiç taşımaz**, dolayısıyla
+kaydı açan kişi ücret belirleyemez.
 
 Departman listesi sayfasızdır: sayısı kurumsal olarak sınırlı bir referans
 verisidir ve seçim kutusunu doldurmak için kullanılır. Büyüyebilen listelerde
@@ -698,6 +700,8 @@ Genel kural: **veriyi üreten, tüketenden önce gelir.**
 HR Management System/
 ├── docker-compose.yml          ✅  altyapı + "full" profilinde tüm uygulamalar
 ├── .env.example                ✅  ortam değişkeni şablonu (.env buradan kopyalanır)
+├── .env.e2e                    ✅  uçtan uca testlerin ayrı yığını (ad ve portlar)
+├── .github/workflows/ci.yml    ✅  backend, frontend, uçtan uca ve imaj işleri
 ├── docker/postgres-init/       ✅  ilk kurulumda çalışan veritabanı betikleri
 ├── README.md                   ✅  bu dosya
 ├── eureka-server/              ✅  servis keşif sunucusu
@@ -718,8 +722,8 @@ HR Management System/
 │       │   ├── exception/      hata sınıfları + merkezî yakalayıcı
 │       │   ├── event/          olay sözleşmesi, outbox yazıcı ve relay
 │       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
-│       ├── main/resources/db/migration/   V1__ V2__ V3__ V4__
-│       └── test/               171 test
+│       ├── main/resources/db/migration/   V1__ ... V12__
+│       └── test/               256 test
 ├── notification-service/       ✅  olayları dinleyip mail gönderen servis
 │   ├── pom.xml
 │   └── src/
@@ -732,7 +736,7 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesinin tüketici tarafı
 │       │   └── config/         kuyruk, DLX ve DLQ tanımları
 │       ├── main/resources/db/migration/   V1__
-│       └── test/               23 test
+│       └── test/               30 test
 └── frontend/                   ✅  React + TypeScript arayüz
     ├── package.json
     └── src/
@@ -743,7 +747,7 @@ HR Management System/
         ├── pages/              Giriş, liste, detay, form, 404 ekranları
         ├── components/         Kabuk, onay penceresi, geri bildirim, hata sınırı
         ├── types/              Backend sözleşmesinin TypeScript karşılığı
-        └── *.test.ts(x)        111 test (Vitest + Testing Library)
+        └── *.test.ts(x)        193 test (Vitest + Testing Library)
 
 e2e/                            ✅  çalışan sisteme dışarıdan bakan testler
 └── src/test/java/com/proje/e2e/    19 test
