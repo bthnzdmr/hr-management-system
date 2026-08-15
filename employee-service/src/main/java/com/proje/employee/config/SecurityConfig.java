@@ -149,7 +149,12 @@ public class SecurityConfig {
                         //
                         // SYSTEM_ADMIN de goremez: erisimi yoneten kisinin ucret
                         // bilgisine ihtiyaci yoktur.
-                        .requestMatchers("/api/employees/*/salary").hasRole("HR_SPECIALIST")
+                        .requestMatchers(HttpMethod.PUT, "/api/employees/*/salary")
+                        .hasRole("HR_SPECIALIST")
+                        // Metotsuz: GET ve HEAD'i birlikte yakalar. Hangi KAYDI
+                        // gorebilecegine servis karar verir; kendi kaydi disinda 404.
+                        .requestMatchers("/api/employees/*/salary")
+                        .hasAnyRole("EMPLOYEE", "MANAGER", "HR_SPECIALIST")
 
                         // Personel verisini yalnizca Ik uzmani degistirir. Durum
                         // degisikligi de buraya girer: PUT /{id}/status bir yazmadir.

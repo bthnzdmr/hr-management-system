@@ -296,7 +296,7 @@ class EmployeeServiceTest {
         ada.setSalary(new BigDecimal("95000.00"));
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
 
-        assertThat(employeeService.getSalary(1L).salary()).isEqualByComparingTo("95000.00");
+        assertThat(employeeService.getSalary(1L, unrestricted()).salary()).isEqualByComparingTo("95000.00");
     }
 
     @Test
@@ -574,5 +574,8 @@ class EmployeeServiceTest {
         ArgumentCaptor<EmployeeEvent> captor = ArgumentCaptor.forClass(EmployeeEvent.class);
         verify(outboxWriter).write(captor.capture());
         return captor.getValue();
+    }
+    private AccessScope unrestricted() {
+        return new AccessScope(AccessScope.Kind.ALL, null);
     }
 }

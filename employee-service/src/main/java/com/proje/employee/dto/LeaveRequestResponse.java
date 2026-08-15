@@ -8,7 +8,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 /** Izin istegi cevabi. */
- * @param endDate son gun DAHILDIR
 public record LeaveRequestResponse(
         Long id,
         Long employeeId,

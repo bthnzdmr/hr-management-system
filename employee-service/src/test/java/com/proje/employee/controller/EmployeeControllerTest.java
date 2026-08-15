@@ -243,22 +243,21 @@ class EmployeeControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "EMPLOYEE")
-    @DisplayName("USER role cannot read a salary even though it may read employees")
-    void userRoleCannotReadSalary() throws Exception {
-        // Bu test kural SIRASINI korur: "/api/employees/*/salary" kurali genel
-        // "/api/employees/**" okuma kuralindan once gelmezse maas USER'a acilir.
-        // Notification Service USER rolundedir; bu kural onu da disarida tutar.
+    @WithMockUser(roles = "SYSTEM_ADMIN")
+    @DisplayName("system admin cannot read a salary even though it may read employees")
+    void systemAdminCannotReadSalary() throws Exception {
+        // Erisimi yoneten kisinin ucret bilgisine ihtiyaci yoktur. Kural SIRASI
+        // da korunur: maas kurali genel okuma kuralindan once gelmezse acilir.
         mockMvc.perform(get("/api/employees/1/salary"))
                 .andExpect(status().isForbidden());
 
-        verify(employeeService, never()).getSalary(any());
+        verify(employeeService, never()).getSalary(any(), any());
     }
 
     @Test
-    @WithMockUser(roles = "EMPLOYEE")
-    @DisplayName("USER role cannot probe a salary with HEAD either")
-    void userRoleCannotProbeSalaryWithHead() throws Exception {
+    @WithMockUser(roles = "SYSTEM_ADMIN")
+    @DisplayName("system admin cannot probe a salary with HEAD either")
+    void systemAdminCannotProbeSalaryWithHead() throws Exception {
         // Olculdu: kural HttpMethod.GET ile yazildiginda HEAD kapsam disinda
         // kaliyor ve 200 donuyordu. Spring Security HEAD'i GET saymaz, ama
         // Spring MVC HEAD istegini @GetMapping metoduna yonlendirir; cevap
@@ -266,14 +265,29 @@ class EmployeeControllerTest {
         mockMvc.perform(head("/api/employees/1/salary"))
                 .andExpect(status().isForbidden());
 
-        verify(employeeService, never()).getSalary(any());
+        verify(employeeService, never()).getSalary(any(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "EMPLOYEE")
+    @DisplayName("an employee may ask for a salary, and the service decides whose")
+    void employeeReachesTheSalaryEndpoint() throws Exception {
+        // Uc seviyesi artik calisani iceri aliyor; HANGI kaydi gorebilecegine
+        // servis karar veriyor. Kendi kaydi disinda 404 doner.
+        when(employeeService.getSalary(eq(1L), any()))
+                .thenReturn(new SalaryResponse(1L, new BigDecimal("95000.00")));
+
+        mockMvc.perform(get("/api/employees/1/salary"))
+                .andExpect(status().isOk());
+
+        verify(employeeService).getSalary(eq(1L), any());
     }
 
     @Test
     @WithMockUser(roles = "HR_SPECIALIST")
     @DisplayName("ADMIN role reads the salary through its own endpoint")
     void adminRoleReadsSalary() throws Exception {
-        when(employeeService.getSalary(1L))
+        when(employeeService.getSalary(eq(1L), any()))
                 .thenReturn(new SalaryResponse(1L, new BigDecimal("95000.00")));
 
         mockMvc.perform(get("/api/employees/1/salary"))

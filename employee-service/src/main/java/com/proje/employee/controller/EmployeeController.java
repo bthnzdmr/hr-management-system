@@ -136,8 +136,8 @@ public class EmployeeController {
     // Maas ayri bir alt kaynaktir: genel personel cevabinda donmez ve genel
     // guncelleme onu tasimaz. Yetki SecurityConfig'te uc bazinda ADMIN'e kisitli.
     @GetMapping("/{id}/salary")
-    public SalaryResponse getSalary(@PathVariable Long id) {
-        return employeeService.getSalary(id);
+    public SalaryResponse getSalary(@PathVariable Long id, Principal caller) {
+        return employeeService.getSalary(id, accessScopeResolver.resolve(caller));
     }
 
     @PutMapping("/{id}/salary")

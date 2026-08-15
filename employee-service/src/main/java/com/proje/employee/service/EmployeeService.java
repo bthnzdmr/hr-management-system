@@ -186,10 +186,16 @@ public class EmployeeService {
      * istemcinin onu yanlislikla silmesi mumkun degildir. Yetki kontrolu uc
      * seviyesindedir (SecurityConfig), bu yuzden servis cagiranin rolunu bilmez.
      */
+    // Sinirsiz kapsam (Ik) herkesinkini gorur; digerleri yalnizca kendi kaydini.
+    // SYSTEM_ADMIN uc seviyesinde zaten disarida.
     @Transactional(readOnly = true)
-    public SalaryResponse getSalary(Long id) {
+    public SalaryResponse getSalary(Long id, AccessScope scope) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException(id));
+
+        if (!scope.isUnrestricted() && !id.equals(scope.employeeId())) {
+            throw new EmployeeNotFoundException(id);
+        }
 
         return new SalaryResponse(employee.getId(), employee.getSalary());
     }
