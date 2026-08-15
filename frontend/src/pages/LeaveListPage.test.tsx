@@ -11,9 +11,10 @@ vi.mock('../api/leaveRequests', () => ({
 }));
 
 const canEdit = vi.fn(() => true);
+const canDecide = vi.fn(() => true);
 
 vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({ canEditEmployees: canEdit() }),
+  useAuth: () => ({ canEditEmployees: canEdit(), canDecideLeave: canDecide() }),
 }));
 
 function leave(overrides: Partial<LeaveRequest> = {}): LeaveRequest {
@@ -56,6 +57,7 @@ describe('LeaveListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     canEdit.mockReturnValue(true);
+    canDecide.mockReturnValue(true);
     vi.mocked(leaveRequestApi.list).mockResolvedValue(page([leave()]));
   });
 
@@ -114,10 +116,23 @@ describe('LeaveListPage', () => {
     expect(within(second).getByRole('button', { name: 'Approve' })).toBeEnabled();
   });
 
-  it('offers no decision buttons to someone who cannot record leave', async () => {
+  it('shows decision buttons to a manager who cannot record leave', async () => {
+    // Yonetici izin GIREMEZ ama karar VEREBILIR; iki yetenek ayri.
+    canEdit.mockReturnValue(false);
+    canDecide.mockReturnValue(true);
+
+    renderPage();
+
+    await screen.findByText('Ada Lovelace');
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Record leave' })).not.toBeInTheDocument();
+  });
+
+  it('offers no decision buttons to someone who can neither record nor decide', async () => {
     // Arayuzdeki kontrol GUVENLIK degil: sunucu zaten reddeder. Amac,
     // kacinilmaz olarak 403 alacak bir dugmeyi hic gostermemek.
     canEdit.mockReturnValue(false);
+    canDecide.mockReturnValue(false);
 
     renderPage();
 

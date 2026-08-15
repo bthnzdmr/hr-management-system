@@ -7,6 +7,7 @@ import com.proje.employee.entity.LeaveStatus;
 import com.proje.employee.entity.User;
 import com.proje.employee.exception.StaleCredentialsException;
 import com.proje.employee.repository.UserRepository;
+import com.proje.employee.service.AccessScope;
 import com.proje.employee.service.AccessScopeResolver;
 import com.proje.employee.service.LeaveRequestService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -95,10 +96,12 @@ public class LeaveRequestController {
                                        @Valid @RequestBody LeaveDecisionRequest request,
                                        Principal caller) {
 
+        AccessScope scope = accessScopeResolver.resolve(caller);
+
         return switch (request.status()) {
-            case APPROVED -> leaveRequestService.approve(id, currentUser(caller));
-            case REJECTED -> leaveRequestService.reject(id, request.note(), currentUser(caller));
-            case CANCELLED -> leaveRequestService.cancel(id);
+            case APPROVED -> leaveRequestService.approve(id, currentUser(caller), scope);
+            case REJECTED -> leaveRequestService.reject(id, request.note(), currentUser(caller), scope);
+            case CANCELLED -> leaveRequestService.cancel(id, scope);
             // PENDING dogrulamada zaten reddedildi; switch'in tam olmasi icin.
             case PENDING -> throw new IllegalStateException("Unreachable: validated by the request");
         };

@@ -28,6 +28,8 @@ interface AuthContextValue {
   canSeeSalaries: boolean;
   /** Toplu veri: kapsami sinirli kullanici gormez. */
   canViewDashboard: boolean;
+  /** Izin isteklerini sonuclandirma. Hangi isteklere, sunucu karar verir. */
+  canDecideLeave: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => void;
 }
@@ -152,6 +154,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Toplu veri bireysel veriden farklidir: tek tek goremedigi kisilerin
         // toplamini da gormemeli. Kucuk bir grupta toplam, bireyi ele verir.
         canViewDashboard: hasRole('HR_SPECIALIST') || hasRole('SYSTEM_ADMIN'),
+        // Yonetici yalnizca dogrudan astlarina, Ik herkese karar verir; bu
+        // ayrimi sunucu yapar. Buradaki bayrak dugmeyi gostermek icin.
+        canDecideLeave: hasRole('HR_SPECIALIST') || hasRole('MANAGER'),
         login,
         logout,
       };

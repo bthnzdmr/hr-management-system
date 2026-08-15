@@ -121,8 +121,9 @@ public class LeaveRequestService {
     @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
             includeArguments = false)
     @Transactional
-    public LeaveRequestResponse approve(Long id, User decider) {
+    public LeaveRequestResponse approve(Long id, User decider, AccessScope scope) {
         LeaveRequest leave = load(id);
+        requireCanDecide(leave, scope);
         requirePending(leave);
         leave.approve(decider);
 
@@ -132,8 +133,9 @@ public class LeaveRequestService {
     @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
             includeArguments = false)
     @Transactional
-    public LeaveRequestResponse reject(Long id, String note, User decider) {
+    public LeaveRequestResponse reject(Long id, String note, User decider, AccessScope scope) {
         LeaveRequest leave = load(id);
+        requireCanDecide(leave, scope);
         requirePending(leave);
         leave.reject(decider, note);
 
@@ -143,8 +145,9 @@ public class LeaveRequestService {
     @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
             includeArguments = false)
     @Transactional
-    public LeaveRequestResponse cancel(Long id) {
+    public LeaveRequestResponse cancel(Long id, AccessScope scope) {
         LeaveRequest leave = load(id);
+        requireCanDecide(leave, scope);
         requirePending(leave);
         leave.cancel();
 
@@ -157,6 +160,30 @@ public class LeaveRequestService {
     }
 
     /** Nihai bir istegi tekrar karara baglamak reddedilir. */
+    // Karar yetkisi: Ik her istegi, yonetici yalnizca DOGRUDAN astlarininkini.
+    // Kendi iznini onaylamak gorevler ayriligina aykiri; kimse kendi rolune
+    // dokunamaz kuralinin ayni ailesinden.
+    private void requireCanDecide(LeaveRequest leave, AccessScope scope) {
+        if (scope.isUnrestricted()) {
+            return;
+        }
+
+        if (!canSee(leave, scope)) {
+            throw new LeaveRequestNotFoundException(leave.getId());
+        }
+
+        Employee owner = leave.getEmployee();
+        boolean ownRequest = owner.getId().equals(scope.employeeId());
+        boolean directReport = owner.getManager() != null
+                && owner.getManager().getId().equals(scope.employeeId());
+
+        if (ownRequest || !directReport) {
+            throw new LeaveRuleViolationException(ownRequest
+                    ? "You cannot decide your own leave"
+                    : "Only this person's manager or HR can decide this request");
+        }
+    }
+
     private void requirePending(LeaveRequest leave) {
         if (!leave.isPending()) {
             throw new LeaveRuleViolationException(

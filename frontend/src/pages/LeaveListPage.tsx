@@ -36,7 +36,7 @@ const FILTERS: { value: 'PENDING' | 'ALL'; label: string }[] = [
 ];
 
 export function LeaveListPage() {
-  const { canEditEmployees } = useAuth();
+  const { canEditEmployees, canDecideLeave } = useAuth();
   const { notify } = useSnackbar();
 
   const [rows, setRows] = useState<LeaveRequest[] | null>(null);
@@ -162,7 +162,7 @@ export function LeaveListPage() {
                       {['Employee', 'Type', 'Dates', 'Days', 'Status', 'Decided by'].map((column) => (
                         <TableCell key={column}>{column}</TableCell>
                       ))}
-                      {canEditEmployees && <TableCell align="right">Actions</TableCell>}
+                      {canDecideLeave && <TableCell align="right">Actions</TableCell>}
                     </TableRow>
                   </TableHead>
 
@@ -190,7 +190,7 @@ export function LeaveListPage() {
                           </Typography>
                         </TableCell>
 
-                        {canEditEmployees && (
+                        {canDecideLeave && (
                           <TableCell align="right">
                             {leave.status === 'PENDING' ? (
                               <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>

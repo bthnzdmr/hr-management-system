@@ -182,8 +182,11 @@ public class SecurityConfig {
                         // girebilirdi -- departman uclarindaki dersin aynisi.
                         .requestMatchers(HttpMethod.POST, "/api/leave-requests/**")
                         .hasRole("HR_SPECIALIST")
+                        // Karari yonetici de verebilir; HANGI istege karar
+                        // verebilecegine servis bakar (yalnizca dogrudan astlari,
+                        // kendi istegi haric).
                         .requestMatchers(HttpMethod.PUT, "/api/leave-requests/**")
-                        .hasRole("HR_SPECIALIST")
+                        .hasAnyRole("MANAGER", "HR_SPECIALIST")
 
                         // Okuma giris yapan herkese acik; HANGI SATIRLARI
                         // gorecegini AccessScope belirler. SYSTEM_ADMIN burada
