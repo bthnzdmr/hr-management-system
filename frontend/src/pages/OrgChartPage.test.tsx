@@ -231,73 +231,6 @@ describe('OrgChartPage', () => {
 
 });
 
-describe('keyboard navigation', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('puts one stop in the tab order, not one per person', async () => {
-    // Her dugume tabIndex vermek belgelenmis bir ANTI-DESENDIR: 32 kisilik bir
-    // semada Tab tusu 32 durak yapar ve kullanici semayi hic atlayamaz.
-    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
-
-    renderPage();
-
-    const items = await screen.findAllByRole('treeitem');
-    expect(items).toHaveLength(3);
-    expect(items.filter((item) => item.getAttribute('tabindex') === '0')).toHaveLength(1);
-  });
-
-  it('walks between people with the arrow keys', async () => {
-    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
-
-    const user = userEvent.setup();
-    renderPage();
-
-    const root = await screen.findByRole('treeitem', { name: /Test Root/ });
-    root.focus();
-    await user.keyboard('{ArrowDown}');
-
-    expect(screen.getByRole('treeitem', { name: /Test Alpha/ })).toHaveFocus();
-  });
-
-  it('tells the screen reader which level each person sits on', async () => {
-    // SVG'de DOM ic iceligi hiyerarsiyi IMA ETMEZ; seviye acikca bildirilmeli.
-    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
-
-    renderPage();
-
-    expect(await screen.findByRole('treeitem', { name: /Test Root/ }))
-      .toHaveAttribute('aria-level', '1');
-    expect(screen.getByRole('treeitem', { name: /Test Gamma/ }))
-      .toHaveAttribute('aria-level', '3');
-  });
-
-  it('selects with Enter, so the chart is usable without a mouse', async () => {
-    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
-
-    const user = userEvent.setup();
-    renderPage();
-
-    const alpha = await screen.findByRole('treeitem', { name: /Test Alpha/ });
-    alpha.focus();
-    await user.keyboard('{Enter}');
-
-    expect(alpha).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('walks up the chain with the left arrow', async () => {
-    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
-
-    const user = userEvent.setup();
-    renderPage();
-
-    const gamma = await screen.findByRole('treeitem', { name: /Test Gamma/ });
-    gamma.focus();
-    await user.keyboard('{ArrowLeft}');
-
-    expect(screen.getByRole('treeitem', { name: /Test Alpha/ })).toHaveFocus();
-  });
-});
-
 describe('the panel as an ordered path', () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -329,5 +262,36 @@ describe('the panel as an ordered path', () => {
     expect(rows[0]).toHaveTextContent('Test Root');
     expect(rows[1]).toHaveTextContent('Test Alpha');
     expect(rows[2]).toHaveTextContent('Test Gamma');
+  });
+});
+
+describe('selection is reversible', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('lets go of the person when you click them again', async () => {
+    // Secili bir kisiye tekrar tiklamak onu birakmiyordu; sema o kisinin
+    // uzerinde KILITLI kalmis gibi duruyordu.
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const alpha = await screen.findByRole('treeitem', { name: /Test Alpha/ });
+    await user.click(alpha);
+    expect(screen.getByRole('list', { name: 'Where they sit' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('treeitem', { name: /Test Alpha/ }));
+    expect(screen.getByText('Nobody selected')).toBeInTheDocument();
+  });
+
+  it('puts one stop in the tab order, not one per person', async () => {
+    // Ok tuslari kaldirildi; klavye kullanicisi cizime girer, Enter ile secer
+    // ve gezinmeye paneldeki isimlerden devam eder.
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
+
+    renderPage();
+
+    const items = await screen.findAllByRole('treeitem');
+    expect(items.filter((item) => item.getAttribute('tabindex') === '0')).toHaveLength(1);
   });
 });

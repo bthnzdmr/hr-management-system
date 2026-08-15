@@ -353,11 +353,29 @@ export function Layout() {
         </Drawer>
       </Box>
 
-      <Box component="main" sx={{ flexGrow: 1, width: { md: `calc(100% - ${DRAWER_WIDTH}px)` } }}>
+      {/* `minWidth: 0` sart.
+
+          Esnek bir ogenin varsayilan `min-width` degeri `auto`'dur ve bu,
+          ogenin ICERIGINDEN daha dar olmayi REDDETMESI demektir. Geni bir
+          tablo veya cizim, kabugu iterek butun sayfayi tasirir ve ekranin
+          altinda yatay bir kaydirma cubugu belirir.
+
+          Daha sinsi olani: tablolar zaten `TableContainer` icinde ve
+          `overflow-x: auto` tasiyor -- ama o kural ancak kapsayici
+          DARALABILIYORSA calisir. Zincirdeki tek bir `min-width: auto`,
+          alttaki butun kaydirma kaplarini islevsiz birakir. */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          minWidth: 0,
+          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+        }}
+      >
         {/* Ust cubuk "fixed" oldugu icin icerigin altina kaymamasi adina
             yuksekligi kadar bosluk birakilir. */}
         <Toolbar />
-        <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1280, mx: 'auto' }}>
+        <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1280, mx: 'auto', minWidth: 0 }}>
           {/* Kokteki sinir kabugu da goturuyor: tek bir sayfadaki render
               hatasi menuyu ve cikis dugmesini de siliyor, tek cikis sayfayi
               yenilemek oluyordu. Buradaki ikinci sinir hatayi SAYFAYA hapseder.

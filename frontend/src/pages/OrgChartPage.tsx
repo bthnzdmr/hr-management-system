@@ -54,6 +54,16 @@ export function OrgChartPage() {
     return department === null ? chart.roots : scopeToDepartment(chart.roots, department);
   }, [chart, department]);
 
+  /**
+   * Secim aç/kapa calisir.
+   *
+   * Secili bir kisiye tekrar tiklamak onu birakmiyordu; sema o kisinin uzerinde
+   * KILITLI kalmis gibi duruyordu. Bir secimin geri alinabilir olmasi gerekir.
+   */
+  const toggleSelect = (person: OrgNode) => {
+    setSelected((current) => (current?.id === person.id ? null : person));
+  };
+
   const selectDepartment = (next: string | null) => {
     setDepartment(next);
     // Baska bir departmanin kisisini secili birakmak anlamsizdir.
@@ -129,9 +139,9 @@ export function OrgChartPage() {
         <Stack
           direction={{ xs: 'column', xl: 'row' }}
           spacing={2.5}
-          sx={{ flexGrow: 1, minWidth: 0, width: '100%', alignItems: 'flex-start' }}
+          sx={{ flexGrow: 1, minWidth: 0, alignItems: 'flex-start', alignSelf: 'stretch' }}
         >
-        <Paper sx={{ p: { xs: 2, md: 3 }, flexGrow: 1, minWidth: 0, width: '100%' }}>
+        <Paper sx={{ p: { xs: 2, md: 3 }, flexGrow: 1, minWidth: 0, alignSelf: 'stretch' }}>
           {!chart && <Skeleton variant="rounded" sx={{ pt: '100%' }} />}
 
           {chart && chart.roots.length === 0 && (
@@ -154,7 +164,7 @@ export function OrgChartPage() {
                     roots={scoped}
                     colors={colors}
                     selectedId={selected?.id ?? null}
-                    onSelect={setSelected}
+                    onSelect={toggleSelect}
                   />
                 </Box>
               </Fade>

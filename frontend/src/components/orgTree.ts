@@ -70,8 +70,8 @@ export interface OrgLayout {
   largest: number;
   /** Tuval kare; merkez tam ortasindadir. */
   size: number;
-  /** Merkezdeki dugum tek bir kisi degilse gosterilecek ad. */
-  hubLabel: string | null;
+  /** Merkez tek bir kisi mi? Degilse orada kurumun isareti durur. */
+  hub: boolean;
 }
 
 /**
@@ -183,7 +183,7 @@ export function layoutTree(roots: OrgNode[]): OrgLayout | null {
     rings: Array.from({ length: depth }, (_, index) => ((index + 1) * radius) / depth),
     largest,
     size: centre * 2,
-    hubLabel: single ? null : 'Organisation',
+    hub: single === null,
   };
 }
 

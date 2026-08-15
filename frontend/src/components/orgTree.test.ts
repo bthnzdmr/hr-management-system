@@ -59,17 +59,17 @@ describe('orgTree', () => {
     // cikan dallar cizilseydi olmayan bir raporlama cizgisi gosterilirdi.
     const layout = layoutTree([node(1, [node(2)]), node(3)]) as OrgLayout;
 
-    expect(layout.hubLabel).toBe('Organisation');
+    expect(layout.hub).toBe(true);
     expect(layout.links).toHaveLength(3);
     expect(layout.links.map((link) => link.id)).toContain('-1-1');
   });
 
-  it('names the centre only when it is not a person', () => {
+  it('marks the centre as the organisation only when it is not a person', () => {
     const single = layoutTree([node(1, [node(2)])]) as OrgLayout;
     const many = layoutTree([node(1), node(2)]) as OrgLayout;
 
-    expect(single.hubLabel).toBeNull();
-    expect(many.hubLabel).toBe('Organisation');
+    expect(single.hub).toBe(false);
+    expect(many.hub).toBe(true);
   });
 
   it('keeps every node inside the canvas', () => {

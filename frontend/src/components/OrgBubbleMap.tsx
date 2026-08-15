@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import type React from 'react';
 import { Box, useMediaQuery, useTheme } from '@mui/material';
 import { layoutTree } from './orgTree';
@@ -45,33 +45,12 @@ const LINK_MAX = 5;
 
 export function OrgBubbleMap({ roots, colors, selectedId, onSelect }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
-  /**
-   * Ok tuslariyla gezilen dugum.
-   *
-   * Her dugume `tabIndex` vermek belgelenmis bir ANTI-DESENDIR: 32 kisilik bir
-   * semada Tab tusu 32 durak yapar ve kullanici semayi atlayamaz. Bilesik bir
-   * bilesende tab sirasina TEK bir eleman girer, icerideki gezinme ok
-   * tuslariyla yapilir.
-   */
-  const [roving, setRoving] = useState<number | null>(null);
-  const canvas = useRef<SVGSVGElement>(null);
-
-  // `tabIndex` degistirmek odagi TASIMAZ: imleci de goturmezsek ok tusuna
-  // basan kullanicinin odagi eski dugumde kalir ve bir sonraki ok tusu yine
-  // oradan hesaplanir.
-  useEffect(() => {
-    if (roving === null) return;
-
-    canvas.current
-      ?.querySelector<SVGGElement>(`[data-node-id="${roving}"]`)
-      ?.focus();
-  }, [roving]);
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
-  // Gradyan kimligi bilesen basina benzersiz olmali; sabit bir id iki sema
+  const theme = useTheme();
+  // Gradyan kimlikleri bilesen basina benzersiz olmali; sabit bir id iki sema
   // yan yana geldiginde catisirdi.
   const glowId = useId();
   const starsId = useId();
-  const theme = useTheme();
 
   const layout = useMemo(() => layoutTree(roots), [roots]);
 
@@ -89,36 +68,12 @@ export function OrgBubbleMap({ roots, colors, selectedId, onSelect }: Props) {
   );
 
   // Gezinme sirasi cizim sirasidir: merkezden disa, kardesler arka arkaya.
-  const order = layout.nodes.filter((entry) => entry.node !== null);
-  const current = order.findIndex((entry) => entry.node?.id === roving);
-  // Hicbiri secilmediyse tab duragi ILK dugumdur; yoksa cizime hic girilemezdi.
-  const tabStop = current === -1 ? order[0]?.node?.id ?? null : roving;
-
-  const move = (from: TreeNode, key: string) => {
-    const index = order.findIndex((entry) => entry.node?.id === from.node?.id);
-
-    const target = (() => {
-      switch (key) {
-        case 'ArrowDown':
-          return order[Math.min(index + 1, order.length - 1)];
-        case 'ArrowUp':
-          return order[Math.max(index - 1, 0)];
-        case 'ArrowRight':
-          // Ic ice yapida saga gitmek ASAGI inmektir: ilk asta gecer.
-          return order.find((entry) => entry.ancestorIds[1] === from.node?.id) ?? from;
-        case 'ArrowLeft':
-          return order.find((entry) => entry.node?.id === from.ancestorIds[1]) ?? from;
-        case 'Home':
-          return order[0];
-        case 'End':
-          return order[order.length - 1];
-        default:
-          return from;
-      }
-    })();
-
-    return target;
-  };
+  // Tab sirasina TEK bir dugum girer: secili varsa o, yoksa ilki. Ok tuslari
+  // KALDIRILDI -- klavye kullanicisi cizime girer, Enter ile secer ve gezinmeye
+  // paneldeki isimlerden devam eder. Panel zaten butun zinciri ve ekibi gercek
+  // dugme olarak veriyor, yani ikinci bir gezinme mekanizmasi tekrardi.
+  const first = layout.nodes.find((entry) => entry.node !== null)?.node?.id ?? null;
+  const tabStop = selectedId ?? first;
 
   const centre = layout.size / 2;
   const still = reduceMotion;
@@ -128,7 +83,6 @@ export function OrgBubbleMap({ roots, colors, selectedId, onSelect }: Props) {
   return (
     <Box
       component="svg"
-      ref={canvas}
       viewBox={`0 0 ${layout.size} ${layout.size}`}
       // role="img" DEGIL: o rol cocuklari presentational yapar ve icindeki
       // dugumler erisilebilirlik agacina hic girmez. Cizim etkilesimli
@@ -265,7 +219,7 @@ export function OrgBubbleMap({ roots, colors, selectedId, onSelect }: Props) {
           <Node
             key={entry.node?.id ?? 'hub'}
             entry={entry}
-            hubLabel={layout.hubLabel}
+            hub={layout.hub}
             colors={colors}
             canvas={layout.size}
             hovered={hovered}
@@ -276,11 +230,6 @@ export function OrgBubbleMap({ roots, colors, selectedId, onSelect }: Props) {
             selected={entry.node?.id === selectedId}
             onHover={setHovered}
             onSelect={onSelect}
-            onMove={(key) => {
-              const target = move(entry, key);
-
-              if (target?.node) setRoving(target.node.id);
-            }}
           />
         ))}
       </Box>
@@ -320,7 +269,7 @@ function Link({ link, largest, lit }: { link: TreeLink; largest: number; lit: Se
 
 interface NodeProps {
   entry: TreeNode;
-  hubLabel: string | null;
+  hub: boolean;
   colors: Map<string, Swatch>;
   /** Tuvalin kenar uzunlugu; etiketi iceride tutmak icin. */
   canvas: number;
@@ -333,17 +282,13 @@ interface NodeProps {
   selected: boolean;
   onHover: (id: number | null) => void;
   onSelect: (node: OrgNode) => void;
-  onMove: (key: string) => void;
 }
 
 const DRIFTS = ['driftA', 'driftB', 'driftC', 'driftD'] as const;
 
-/** Cizimin icinde gezinmeyi ustlenen tuslar. */
-const NAVIGATION_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
-
 function Node({
-  entry, hubLabel, colors, canvas, hovered, lit, reduceMotion, spinBack, tabStop, selected,
-  onHover, onSelect, onMove,
+  entry, hub, colors, canvas, hovered, lit, reduceMotion, spinBack, tabStop, selected,
+  onHover, onSelect,
 }: NodeProps) {
   const theme = useTheme();
   const { node, x, y, r, depth, size, hasChildren } = entry;
@@ -354,7 +299,7 @@ function Node({
   // karsilastirabilmek icin cevresinin gorunur kalmasi gerekir.
   const dimmed = lit.size > 0 && !onPath;
 
-  const label = node ? fullName(node) : hubLabel;
+  const label = node ? fullName(node) : null;
   const swatch = node ? colors.get(node.departmentName) : undefined;
   const fill = swatch?.fill ?? theme.palette.background.paper;
   const ink = swatch?.ink ?? theme.palette.text.primary;
@@ -412,7 +357,6 @@ function Node({
           {...(node
             ? {
               role: 'treeitem',
-              'data-node-id': node.id,
               'aria-level': depth + 1,
               'aria-setsize': entry.siblings,
               'aria-posinset': entry.position,
@@ -429,13 +373,6 @@ function Node({
                   event.preventDefault();
                   onSelect(node);
                   return;
-                }
-
-                if (NAVIGATION_KEYS.includes(event.key)) {
-                  // Ok tuslari sayfayi KAYDIRMAMALI: odak cizimin icindeyken
-                  // gezinme burada olmali.
-                  event.preventDefault();
-                  onMove(event.key);
                 }
               },
             }
@@ -484,7 +421,28 @@ function Node({
           )}
 
           {/* Bas harfler dairenin ICINDE: balon bos bir leke olmaktan cikar. */}
-          {node && r > INITIALS_FIT_ABOVE && (
+          {/* Merkezde kisi yoksa kurumun isareti durur: "Organisation" yazisi
+          uzundu ve tokun disina tasip cizimle yarisiyordu. */}
+      {!node && hub && (
+            <Box
+              component="text"
+              x={x}
+              y={y}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={r * 0.62}
+              sx={{
+                fill: (t) => t.palette.text.primary,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                pointerEvents: 'none',
+              }}
+            >
+              HR
+            </Box>
+          )}
+
+              {node && r > INITIALS_FIT_ABOVE && (
             <Box
               component="text"
               x={x}
