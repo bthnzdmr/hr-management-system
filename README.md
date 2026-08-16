@@ -309,7 +309,9 @@ Açılışta Flyway şemayı oluşturur, yönetici hesabı yoksa oluşturulur ve
 Eureka'ya kaydolur. Doğrulama:
 
 ```bash
-curl http://localhost:8080/actuator/health     # {"status":"UP"}
+# Actuator YONETIM PORTUNDA (9090) ve disari yayimlanmiyor: metrikler uc
+# desenlerini ve hata oranlarini sizdirir. Disaridan bakmak icin:
+docker compose exec employee-service wget -qO- http://127.0.0.1:9090/actuator/health
 ```
 
 Swagger arayüzü: http://localhost:8080/swagger-ui.html
@@ -342,7 +344,7 @@ Servisin dışarıya açılan bir REST API'si yoktur; yalnızca kuyruğu dinler.
 Doğrulama:
 
 ```bash
-curl http://localhost:8081/actuator/health     # {"status":"UP"}
+docker compose exec notification-service wget -qO- http://127.0.0.1:9090/actuator/health
 ```
 
 Bir personel oluşturup http://localhost:8025 adresinde mailin geldiğini görebilirsin.

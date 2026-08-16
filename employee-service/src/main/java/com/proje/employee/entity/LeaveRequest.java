@@ -50,8 +50,13 @@ public class LeaveRequest {
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
+    /** Talebi acan kisinin gerekcesi; karar bunu DEGISTIRMEZ. */
     @Column(name = "note", length = 500)
     private String note;
+
+    /** Karari verenin gerekcesi. Reddetme aciklamasi buraya yazilir. */
+    @Column(name = "decision_note", length = 500)
+    private String decisionNote;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "decided_by")
@@ -99,12 +104,16 @@ public class LeaveRequest {
         this.decidedAt = Instant.now();
     }
 
-    public void reject(User decider, String note) {
+    public void reject(User decider, String decisionNote) {
         requirePending();
         this.status = LeaveStatus.REJECTED;
         this.decidedBy = decider;
         this.decidedAt = Instant.now();
-        this.note = note;
+
+        // Talebin gerekcesi KORUNUR. Once bu alan uzerine yaziliyordu ve
+        // "hastane randevusu" diye girilmis bir talep, reddedildikten sonra
+        // bos kaliyordu -- karar notu verilmemisse tamamen siliniyordu.
+        this.decisionNote = decisionNote;
     }
 
     /** Karara varilmadan geri ceker; karar bilgisi bos kalir. */
@@ -153,6 +162,10 @@ public class LeaveRequest {
 
     public String getNote() {
         return note;
+    }
+
+    public String getDecisionNote() {
+        return decisionNote;
     }
 
     public User getDecidedBy() {

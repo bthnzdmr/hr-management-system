@@ -181,6 +181,14 @@ services:
       # Gercek bir dagitimda false verilir; anahtar burada gorunur olsun diye
       # acikca yazildi.
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      # .env'e yazmak YETMEZ: gecirilmeyen degisken uygulamaya hic ulasmaz
+      # ve ayar sessizce etkisiz kalir. Olculdu -- LOGIN_MAX_ATTEMPTS=3
+      # yazilmasina ragmen sinir 5'te kaliyordu.
+      APP_LOG_LEVEL: ${APP_LOG_LEVEL:-info}
+      SQL_LOG_LEVEL: ${SQL_LOG_LEVEL:-warn}
+      SQL_FORMAT: ${SQL_FORMAT:-false}
+      LOGIN_MAX_ATTEMPTS: ${LOGIN_MAX_ATTEMPTS:-5}
+      LOGIN_BLOCK_DURATION_SECONDS: ${LOGIN_BLOCK_DURATION_SECONDS:-300}
     depends_on:
       postgres:
         condition: service_healthy

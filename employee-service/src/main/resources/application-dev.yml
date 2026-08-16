@@ -17,12 +17,15 @@ spring:
         # SQL hala tek satir halinde loglaniyor; guzel bicim tek koşuda acilir.
         format_sql: ${SQL_FORMAT:false}
 
-# Etkilesimli dokumantasyon gelistirmede acik.
+# Etkilesimli dokumantasyon gelistirmede acik ama KAPATILABILIR olmali.
+# Once sabit "true" yaziliydi ve profil dosyasi ana dosyayi ezdigi icin
+# SWAGGER_ENABLED=false bu yiginda hicbir sey yapmiyordu: kapatma dugmesi
+# vardi, kablosu yoktu.
 springdoc:
   api-docs:
-    enabled: true
+    enabled: ${SWAGGER_ENABLED:true}
   swagger-ui:
-    enabled: true
+    enabled: ${SWAGGER_ENABLED:true}
 
 logging:
   level:
@@ -31,4 +34,4 @@ logging:
     # basiyordu -- hicbiri gercek olay degil. Sorgu incelenecegi zaman acilir:
     #   SQL_LOG_LEVEL=debug SQL_FORMAT=true docker compose --profile full up -d
     org.hibernate.SQL: ${SQL_LOG_LEVEL:warn}
-    com.proje.employee: debug
+    com.proje.employee: ${APP_LOG_LEVEL:debug}

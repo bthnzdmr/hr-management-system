@@ -15,7 +15,11 @@ export interface LeaveRequest {
   endDate: string;
   /** Sunucuda hesaplanir: gun sayisi son gunu de sayar. */
   days: number;
+  /** Talebi acan kisinin gerekcesi; karar bunu DEGISTIRMEZ. */
   note: string | null;
+  /** Karari verenin gerekcesi. Once ikisi tek alandi ve reddetme talebin
+   *  gerekcesini siliyordu. */
+  decisionNote: string | null;
   decidedBy: string | null;
   decidedAt: string | null;
   createdAt: string;

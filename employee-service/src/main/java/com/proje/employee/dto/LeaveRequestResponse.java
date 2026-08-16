@@ -18,6 +18,7 @@ public record LeaveRequestResponse(
         LocalDate endDate,
         long days,
         String note,
+        String decisionNote,
         String decidedBy,
         Instant decidedAt,
         Instant createdAt
@@ -36,6 +37,7 @@ public record LeaveRequestResponse(
                 // yapmasi gerekseydi ayni +1 iki yerde yasardi.
                 java.time.temporal.ChronoUnit.DAYS.between(leave.getStartDate(), leave.getEndDate()) + 1,
                 leave.getNote(),
+                leave.getDecisionNote(),
                 leave.getDecidedBy() == null ? null : leave.getDecidedBy().getEmail(),
                 leave.getDecidedAt(),
                 leave.getCreatedAt());

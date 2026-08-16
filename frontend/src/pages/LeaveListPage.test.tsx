@@ -29,6 +29,7 @@ function leave(overrides: Partial<LeaveRequest> = {}): LeaveRequest {
     endDate: '2031-03-15',
     days: 6,
     note: null,
+    decisionNote: null,
     decidedBy: null,
     decidedAt: null,
     createdAt: '2031-01-01T00:00:00Z',
