@@ -200,6 +200,21 @@ management:
         # Yalnizca gerekenler acilir. "*" yazmak /actuator/env ve /actuator/heapdump
         # gibi ortam degiskenlerini ve bellek dokumunu disariya acardi.
         include: health,info,prometheus
+  metrics:
+    distribution:
+      # Gecikme HISTOGRAMI yayinlanir. Varsayilanda yalnizca _count ve _sum
+      # uretiliyordu; histogram_quantile ise KOVA olmadan calismaz, dolayisiyla
+      # panodaki p99/p50 gostergeleri KALICI OLARAK bos kaliyordu. "Gecikme yok"
+      # ile "gecikme olculmuyor" ayni ekranda ayni goruniyordu -- projede ayni
+      # hata DLQ gostergesinde bir kez yasandi.
+      percentiles-histogram:
+        http.server.requests: true
+      # Kova araligi SINIRLANIR: acik ucta birakilsa yuzlerce kova ve her uc
+      # icin ayri seri olusur. 5 ms - 2 sn bu servisin gercek araligi.
+      minimum-expected-value:
+        http.server.requests: 5ms
+      maximum-expected-value:
+        http.server.requests: 2s
   # /actuator/info'nun ICINI dolduran kaynaklar. build-info hedefi olmadan
   # uc aciktir ama bos doner -- "hangi surum calisiyor" sorusu cevapsiz kalir.
   info:
