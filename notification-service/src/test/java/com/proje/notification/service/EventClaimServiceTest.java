@@ -20,7 +20,9 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -126,6 +128,22 @@ class EventClaimServiceTest {
 
         // Kaybeden taraf maili HENUZ gondermemis olmalidir.
         verify(mailService, never()).send(any(), any());
+    }
+
+    @Test
+    @DisplayName("A mail failure releases the claim so the redelivery can retry")
+    void mailFailureReleasesTheClaim() {
+        written = UUID.randomUUID();
+        doThrow(new IllegalStateException("smtp down")).when(mailService).send(any(), any());
+
+        assertThatThrownBy(() -> listener.onEmployeeEvent(event(written), null))
+                .isInstanceOf(IllegalStateException.class);
+
+        // Sahiplenme KENDI transaction'inda commit edilir, yani dinleyicideki
+        // geri alma ona dokunmaz. Telafi edilmezse yeniden teslim "zaten
+        // islendi" der, mesaj ACK'lenir ve mail SESSIZCE kaybolur -- DLQ'ya
+        // bile dusmez. Olculdu.
+        assertThat(processedEventRepository.findById(written)).isEmpty();
     }
 
     @Test

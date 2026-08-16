@@ -13,7 +13,7 @@ import com.proje.employee.entity.User;
  * Dikey yetkilendirme (hangi uc) ile yatay yetkilendirme (hangi satir)
  * ayrimidir; ikincisi olmadan giris yapan herkes herkesi gorur.
  */
-public record AccessScope(Kind kind, Long employeeId) {
+public record AccessScope(Kind kind, Long employeeId, boolean allSalaries) {
 
     public enum Kind {
         /** Tum kayitlar. Ik uzmani, sistem yoneticisi ve servis hesabi. */
@@ -29,7 +29,7 @@ public record AccessScope(Kind kind, Long employeeId) {
                 || user.hasRole(Role.PAYROLL_SPECIALIST)
                 || user.hasRole(Role.SYSTEM_ADMIN)
                 || user.hasRole(Role.SERVICE)) {
-            return new AccessScope(Kind.ALL, null);
+            return new AccessScope(Kind.ALL, null, user.hasRole(Role.PAYROLL_SPECIALIST));
         }
 
         // Personel kaydina bagli olmayan bir insan hesabi kimseyi goremez.
@@ -38,9 +38,9 @@ public record AccessScope(Kind kind, Long employeeId) {
         Long employeeId = user.getEmployee() == null ? null : user.getEmployee().getId();
 
         if (user.hasRole(Role.MANAGER)) {
-            return new AccessScope(Kind.TEAM, employeeId);
+            return new AccessScope(Kind.TEAM, employeeId, false);
         }
-        return new AccessScope(Kind.SELF, employeeId);
+        return new AccessScope(Kind.SELF, employeeId, false);
     }
 
     /**
@@ -62,6 +62,19 @@ public record AccessScope(Kind kind, Long employeeId) {
 
     public boolean isUnrestricted() {
         return kind == Kind.ALL;
+    }
+
+    /**
+     * Baskasinin ucretini okuyabilir mi?
+     *
+     * AYRI bir eksen olmak ZORUNDA. Once "isUnrestricted()" soruluyordu ve
+     * roller BIRLESINCE en dar degil EN GENIS yetki kazaniyordu: uc kurali
+     * rollerin VEYA'si oldugu icin EMPLOYEE kapiyi aciyor, HR_SPECIALIST ise
+     * satir filtresini kaldiriyordu. Olculdu -- [EMPLOYEE, HR_SPECIALIST,
+     * MANAGER, SYSTEM_ADMIN] tasiyan tohum hesabi BUTUN maaslari okuyordu.
+     */
+    public boolean includesAllSalaries() {
+        return allSalaries;
     }
 
     /** Hicbir seye erisemeyen kapsam: rolu var ama personel kaydi yok. */

@@ -66,7 +66,7 @@ class EmployeeScopeTest {
         when(employeeRepository.search(any(), any(), isNull(), eq(false), any()))
                 .thenReturn(Page.empty());
 
-        service().getAll(null, null, new AccessScope(AccessScope.Kind.ALL, null),
+        service().getAll(null, null, new AccessScope(AccessScope.Kind.ALL, null, false),
                 PageRequest.of(0, 10));
 
         verify(employeeRepository).search(isNull(), isNull(), isNull(), eq(false), any());
@@ -78,7 +78,7 @@ class EmployeeScopeTest {
         when(employeeRepository.search(any(), any(), eq(7L), eq(false), any()))
                 .thenReturn(Page.empty());
 
-        service().getAll(null, null, new AccessScope(AccessScope.Kind.SELF, 7L),
+        service().getAll(null, null, new AccessScope(AccessScope.Kind.SELF, 7L, false),
                 PageRequest.of(0, 10));
 
         // includeReports = false: kendi kaydi disinda hicbir sey.
@@ -91,7 +91,7 @@ class EmployeeScopeTest {
         when(employeeRepository.search(any(), any(), eq(7L), eq(true), any()))
                 .thenReturn(Page.empty());
 
-        service().getAll(null, null, new AccessScope(AccessScope.Kind.TEAM, 7L),
+        service().getAll(null, null, new AccessScope(AccessScope.Kind.TEAM, 7L, false),
                 PageRequest.of(0, 10));
 
         verify(employeeRepository).search(isNull(), isNull(), eq(7L), eq(true), any());
@@ -101,7 +101,7 @@ class EmployeeScopeTest {
     @DisplayName("Returns an empty page without querying when the caller has no employee record")
     void unlinkedCallerSeesEmptyPage() {
         Page<?> page = service().getAll(null, null,
-                new AccessScope(AccessScope.Kind.SELF, null), PageRequest.of(0, 10));
+                new AccessScope(AccessScope.Kind.SELF, null, false), PageRequest.of(0, 10));
 
         assertThat(page).isEmpty();
         // Sorgu HIC atilmaz: kapsam bos oldugu icin sonucun ne olacagi bellidir.
@@ -115,7 +115,7 @@ class EmployeeScopeTest {
         // sayisi ogrenilebilirdi.
         when(employeeRepository.findById(9L)).thenReturn(Optional.of(employee(9L, null)));
 
-        assertThatThrownBy(() -> service().getById(9L, new AccessScope(AccessScope.Kind.SELF, 7L)))
+        assertThatThrownBy(() -> service().getById(9L, new AccessScope(AccessScope.Kind.SELF, 7L, false)))
                 .isInstanceOf(EmployeeNotFoundException.class);
     }
 
@@ -124,7 +124,7 @@ class EmployeeScopeTest {
     void allowsOwnRecord() {
         when(employeeRepository.findById(7L)).thenReturn(Optional.of(employee(7L, null)));
 
-        assertThat(service().getById(7L, new AccessScope(AccessScope.Kind.SELF, 7L)).id())
+        assertThat(service().getById(7L, new AccessScope(AccessScope.Kind.SELF, 7L, false)).id())
                 .isEqualTo(7L);
     }
 
@@ -138,7 +138,7 @@ class EmployeeScopeTest {
         when(employeeRepository.findById(8L)).thenReturn(Optional.of(report));
         when(employeeRepository.findById(9L)).thenReturn(Optional.of(stranger));
 
-        AccessScope team = new AccessScope(AccessScope.Kind.TEAM, 7L);
+        AccessScope team = new AccessScope(AccessScope.Kind.TEAM, 7L, false);
 
         assertThat(service().getById(8L, team).id()).isEqualTo(8L);
         assertThatThrownBy(() -> service().getById(9L, team))
@@ -151,7 +151,7 @@ class EmployeeScopeTest {
         when(employeeRepository.findById(9L)).thenReturn(Optional.of(employee(9L, null)));
 
         assertThatThrownBy(() -> service().getDirectReports(9L,
-                new AccessScope(AccessScope.Kind.SELF, 7L)))
+                new AccessScope(AccessScope.Kind.SELF, 7L, false)))
                 .isInstanceOf(EmployeeNotFoundException.class);
 
         verify(employeeRepository, never()).findByManagerIdOrderByLastNameAsc(any());
@@ -165,7 +165,7 @@ class EmployeeScopeTest {
         when(employeeRepository.findByManagerIdOrderByLastNameAsc(7L))
                 .thenReturn(List.of(employee(8L, boss)));
 
-        assertThat(service().getDirectReports(7L, new AccessScope(AccessScope.Kind.TEAM, 7L)))
+        assertThat(service().getDirectReports(7L, new AccessScope(AccessScope.Kind.TEAM, 7L, false)))
                 .hasSize(1);
     }
 
@@ -185,7 +185,7 @@ class EmployeeScopeTest {
                 .thenReturn(List.of(grandchild));
 
         // Yoneticiyi gorebiliyor (kendi asti), ama ekibi kapsaminin disinda.
-        assertThat(service().getDirectReports(8L, new AccessScope(AccessScope.Kind.TEAM, 7L)))
+        assertThat(service().getDirectReports(8L, new AccessScope(AccessScope.Kind.TEAM, 7L, false)))
                 .isEmpty();
     }
 
@@ -199,7 +199,7 @@ class EmployeeScopeTest {
         when(employeeRepository.findByManagerIdOrderByLastNameAsc(7L))
                 .thenReturn(List.of(employee(8L, self)));
 
-        assertThat(service().getDirectReports(7L, new AccessScope(AccessScope.Kind.SELF, 7L)))
+        assertThat(service().getDirectReports(7L, new AccessScope(AccessScope.Kind.SELF, 7L, false)))
                 .isEmpty();
     }
 }

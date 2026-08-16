@@ -52,7 +52,7 @@ class EmployeeServiceTest {
 
     /** Kapsam testleri ayri dosyada; burada kisitsiz gorunum varsayilir. */
     private static final AccessScope UNRESTRICTED =
-            new AccessScope(AccessScope.Kind.ALL, null);
+            new AccessScope(AccessScope.Kind.ALL, null, false);
 
     @Mock
     private EmployeeRepository employeeRepository;
@@ -297,7 +297,11 @@ class EmployeeServiceTest {
         ada.setSalary(new BigDecimal("95000.00"));
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(ada));
 
-        assertThat(employeeService.getSalary(1L, unrestricted()).salary()).isEqualByComparingTo("95000.00");
+        // Kapsam SINIRSIZ olmasi yetmez: ucret ayri bir eksendir ve yalnizca
+        // bordro uzmani baskasinin ucretini okur.
+        AccessScope payroll = new AccessScope(AccessScope.Kind.ALL, null, true);
+
+        assertThat(employeeService.getSalary(1L, payroll).salary()).isEqualByComparingTo("95000.00");
     }
 
     @Test
@@ -577,6 +581,6 @@ class EmployeeServiceTest {
         return captor.getValue();
     }
     private AccessScope unrestricted() {
-        return new AccessScope(AccessScope.Kind.ALL, null);
+        return new AccessScope(AccessScope.Kind.ALL, null, false);
     }
 }

@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 /**
  * Olayi "bu benim" diye isaretler.
  *
@@ -65,5 +67,16 @@ public class EventClaimService {
         processedEventRepository.saveAndFlush(new ProcessedEvent(
                 event.eventId(), event.eventType().name(), event.employeeId()));
         return true;
+    }
+
+    /**
+     * Sahiplenmeyi geri alir; olay yeniden teslim edildiginde tekrar islenir.
+     *
+     * REQUIRES_NEW SART: cagiran taraf zaten geri alinmakta olan bir
+     * transaction'in icindedir ve orada yapilan silme de geri alinirdi.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void release(UUID eventId) {
+        processedEventRepository.deleteById(eventId);
     }
 }

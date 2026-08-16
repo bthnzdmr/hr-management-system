@@ -68,7 +68,7 @@ class LeaveDecisionScopeTest {
     }
 
     private AccessScope managerScope() {
-        return new AccessScope(AccessScope.Kind.TEAM, grace.getId());
+        return new AccessScope(AccessScope.Kind.TEAM, grace.getId(), false);
     }
 
     @Test
@@ -109,7 +109,7 @@ class LeaveDecisionScopeTest {
         // izinleri askida kalirdi.
         leaveOf(grace);
 
-        assertThat(service.approve(7L, decider, new AccessScope(AccessScope.Kind.ALL, null))
+        assertThat(service.approve(7L, decider, new AccessScope(AccessScope.Kind.ALL, null, false))
                 .status()).isEqualTo(LeaveStatus.APPROVED);
     }
 
@@ -119,7 +119,7 @@ class LeaveDecisionScopeTest {
         leaveOf(ada);
 
         assertThatThrownBy(() -> service.approve(7L, decider,
-                new AccessScope(AccessScope.Kind.SELF, ada.getId())))
+                new AccessScope(AccessScope.Kind.SELF, ada.getId(), false)))
                 .isInstanceOf(LeaveRuleViolationException.class);
     }
 }

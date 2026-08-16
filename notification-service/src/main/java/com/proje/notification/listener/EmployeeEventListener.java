@@ -50,7 +50,16 @@ public class EmployeeEventListener {
                 return;
             }
 
-            mailService.send(event, managerLookupService.managerEmail(event.employeeId()));
+            try {
+                mailService.send(event, managerLookupService.managerEmail(event.employeeId()));
+            } catch (RuntimeException failure) {
+                // Sahiplenme KENDI transaction'inda commit edildi; buradaki geri
+                // alma ona dokunmaz. Telafi edilmezse yeniden teslim "zaten
+                // islendi" der, mesaj ACK'lenir ve mail SESSIZCE kaybolur --
+                // DLQ'ya bile dusmez. Olculdu.
+                releaseQuietly(event);
+                throw failure;
+            }
 
             log.info("Notification sent for event {} ({})", event.eventId(), event.eventType());
         } finally {
@@ -68,6 +77,16 @@ public class EmployeeEventListener {
      * commit'inde UnexpectedRollbackException firlatirdi -- mesaj reddedilir,
      * bir retry hakki yanardi. Olculdu.
      */
+    /** Telafi basarisiz olsa bile OZGUN hata yukari cikmali; yoksa sebep kaybolur. */
+    private void releaseQuietly(EmployeeEvent event) {
+        try {
+            eventClaimService.release(event.eventId());
+        } catch (RuntimeException ex) {
+            log.error("Could not release the claim on event {}; it will not be retried",
+                    event.eventId(), ex);
+        }
+    }
+
     private boolean claimed(EmployeeEvent event) {
         try {
             return eventClaimService.claim(event);

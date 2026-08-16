@@ -192,7 +192,10 @@ public class EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException(id));
 
-        if (!scope.isUnrestricted() && !id.equals(scope.employeeId())) {
+        // Olcut GENEL kapsam DEGIL, ucrete ozel eksendir. isUnrestricted()
+        // sorulsaydi Ik veya sistem yoneticisi rolu tasiyan herkes butun
+        // maaslari okurdu -- roller birlesince en genis yetki kazanirdi.
+        if (!scope.includesAllSalaries() && !id.equals(scope.employeeId())) {
             throw new EmployeeNotFoundException(id);
         }
 
