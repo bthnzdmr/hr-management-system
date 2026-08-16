@@ -14,7 +14,8 @@ const canEdit = vi.fn(() => true);
 const canDecide = vi.fn(() => true);
 
 vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({ canEditEmployees: canEdit(), canDecideLeave: canDecide() }),
+  useAuth: () => ({ canEditEmployees: canEdit(), canDecideLeave: canDecide(),
+    canSeeLeave: true }),
 }));
 
 function leave(overrides: Partial<LeaveRequest> = {}): LeaveRequest {
@@ -170,5 +171,17 @@ describe('LeaveListPage', () => {
     renderPage();
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+
+  it('does not claim the queue is clear when the request failed', async () => {
+    // Olculdu: 403 alan bir kullanici ayni ekranda hem hatayi hem "karar
+    // bekleyen yok" yazisini goruyordu. Ikincisi YANLIS bir guvence:
+    // yuklenememek ile bos olmak ayri hallerdir.
+    vi.mocked(leaveRequestApi.list).mockRejectedValue(new Error('forbidden'));
+
+    renderPage();
+
+    await screen.findByRole('alert');
+    expect(screen.queryByText('Nothing to decide')).not.toBeInTheDocument();
   });
 });

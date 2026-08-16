@@ -44,7 +44,7 @@ interface NavItem {
   to: string;
   icon: typeof GroupsOutlinedIcon;
   /** Hangi yetenek gerekiyor; yoksa herkese acik. */
-  requires?: 'editEmployees' | 'manageAccounts' | 'viewDashboard';
+  requires?: 'editEmployees' | 'manageAccounts' | 'viewDashboard' | 'seeLeave';
 }
 
 /**
@@ -66,7 +66,7 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
     items: [
       { label: 'Overview', to: '/dashboard', icon: InsightsOutlinedIcon, requires: 'viewDashboard' },
       { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon },
-      { label: 'Leave', to: '/leave', icon: EventBusyOutlinedIcon },
+      { label: 'Leave', to: '/leave', icon: EventBusyOutlinedIcon, requires: 'seeLeave' },
       { label: 'Structure', to: '/org-chart', icon: AccountTreeOutlinedIcon, requires: 'viewDashboard' },
       { label: 'Departments', to: '/departments', icon: ApartmentOutlinedIcon, requires: 'editEmployees' },
     ],
@@ -74,7 +74,8 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
 ];
 
 export function Layout() {
-  const { user, canEditEmployees, canManageAccounts, canViewDashboard, logout } = useAuth();
+  const { user, canEditEmployees, canManageAccounts, canViewDashboard,
+    canSeeLeave, logout } = useAuth();
   const { mode, toggle } = useColorMode();
   const theme = useTheme();
   const location = useLocation();
@@ -88,6 +89,7 @@ export function Layout() {
     editEmployees: canEditEmployees,
     manageAccounts: canManageAccounts,
     viewDashboard: canViewDashboard,
+    seeLeave: canSeeLeave,
   };
 
   // Bos bolum basligi gosterilmez: yalnizca personel gorebilen birine

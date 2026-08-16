@@ -30,6 +30,7 @@ interface AuthContextValue {
   canViewDashboard: boolean;
   /** Izin isteklerini sonuclandirma. Hangi isteklere, sunucu karar verir. */
   canDecideLeave: boolean;
+  canSeeLeave: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => void;
 }
@@ -157,6 +158,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Yonetici yalnizca dogrudan astlarina, Ik herkese karar verir; bu
         // ayrimi sunucu yapar. Buradaki bayrak dugmeyi gostermek icin.
         canDecideLeave: hasRole('HR_SPECIALIST') || hasRole('MANAGER'),
+        // Izin IS verisidir: sunucu SYSTEM_ADMIN ve PAYROLL_SPECIALIST'e 403
+        // doner. Menude kosulsuz duruyordu, yani iki rol kacinilmaz olarak
+        // hata alacak bir ekrana yonlendiriliyordu.
+        canSeeLeave: hasRole('EMPLOYEE') || hasRole('MANAGER') || hasRole('HR_SPECIALIST'),
         login,
         logout,
       };

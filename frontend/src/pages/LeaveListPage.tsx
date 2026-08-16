@@ -140,7 +140,10 @@ export function LeaveListPage() {
             </Stack>
           )}
 
-          {rows !== null && rows.length === 0 && (
+          {/* Basarisiz YUKLEME ile GERCEKTEN BOS liste ayri hallerdir. Ayrilmasaydi
+              403 alan bir kullanici ayni ekranda hem hatayi hem "karar bekleyen
+              yok" yazisini gorurdu -- ikincisi yanlis bir guvence. */}
+          {rows !== null && rows.length === 0 && error === null && (
             <EmptyState
               icon={<EventBusyOutlinedIcon />}
               title={filter === 'PENDING' ? 'Nothing to decide' : 'No leave recorded yet'}

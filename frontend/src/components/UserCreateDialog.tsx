@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SyntheticEvent } from 'react';
 import {
   Alert, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, ListItemText,
@@ -37,6 +37,21 @@ export function UserCreateDialog({ open, onClose, onCreated, forEmployee }: Prop
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Durum props'tan YALNIZCA ilk kurulusta okunuyordu. Pencere kosulsuz render
+  // ediliyor ve /employees/:id/details baska bir kisiye gecerken AYNI bileseni
+  // yeniden kullaniyor -- yani baslik yeni kisiyi, kutular ONCEKI kisiyi
+  // gosteriyordu ve hesap yanlis kisiye aciliyordu. Sunucu bunu yakalayamaz:
+  // istek tamamen gecerlidir. SalaryDialog ayni sorunu bu kalipla cozuyor.
+  useEffect(() => {
+    if (!open) return;
+
+    setEmail(forEmployee?.email ?? '');
+    setPassword('');
+    setRoles(['EMPLOYEE']);
+    setEmployee(forEmployee ? { id: forEmployee.id, label: forEmployee.label } : null);
+    setError(null);
+  }, [open, forEmployee?.id, forEmployee?.email, forEmployee?.label]);
 
   const reset = () => {
     setEmail(forEmployee?.email ?? '');
