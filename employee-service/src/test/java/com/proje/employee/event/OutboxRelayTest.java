@@ -63,6 +63,36 @@ class OutboxRelayTest {
         }).when(rabbitTemplate).send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
     }
 
+    /** Broker mesaji kabul eder ama yonlendiremez: onay ACK, yaninda iade. */
+    private void answerWithUnroutable() {
+        doAnswer(invocation -> {
+            CorrelationData correlation = invocation.getArgument(3);
+            correlation.setReturned(new org.springframework.amqp.core.ReturnedMessage(
+                    invocation.getArgument(2), 312, "NO_ROUTE", "employee.exchange",
+                    invocation.getArgument(1)));
+            correlation.getFuture().complete(new CorrelationData.Confirm(true, null));
+            return null;
+        }).when(rabbitTemplate).send(anyString(), anyString(), any(Message.class),
+                any(CorrelationData.class));
+    }
+
+    @Test
+    @DisplayName("An accepted but unrouted event is not marked published")
+    void unroutedEventIsNotPublished() {
+        // Onay "broker kabul etti" der, "bir kuyruga yonlendirdi" DEMEZ.
+        // Yonlendirilemeyen mesaj eskiden ack sayilip SESSIZCE atiliyordu:
+        // yeni bir routing key eklendiginde olay izsiz kaybolurdu.
+        OutboxEvent event = event();
+        when(outboxRepository.lockPending(anyInt(), anyInt())).thenReturn(List.of(event));
+        answerWithUnroutable();
+
+        relay().publishPending();
+
+        assertThat(event.getPublishedAt()).isNull();
+        assertThat(event.getAttempts()).isEqualTo(1);
+        assertThat(event.getLastError()).contains("Unroutable");
+    }
+
     @Test
     @DisplayName("Marks an event as published once the broker confirms it")
     void marksPublishedOnAck() {

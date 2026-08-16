@@ -74,6 +74,13 @@ spring:
     # hangi mesajin kabul edildigi tek tek bilinir. Onaysiz gonderimde
     # "sokete yazildi" ile "broker aldi" ayirt edilemez.
     publisher-confirm-type: correlated
+    # Onay "broker kabul etti" der, "bir kuyruga yonlendirdi" DEMEZ. Hicbir
+    # binding'e uymayan mesaj ack alir ve sessizce atilirdi -- yeni bir routing
+    # key eklendiginde olay izsiz kaybolurdu. mandatory + returns ile broker
+    # yonlendiremedigi mesagi geri verir ve relay bunu basarisizlik sayar.
+    publisher-returns: true
+    template:
+      mandatory: true
 
 # API semasi VARSAYILAN OLARAK KAPALI.
 #

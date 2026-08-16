@@ -87,7 +87,15 @@ public class OutboxRelay {
             CorrelationData.Confirm confirm =
                     correlation.getFuture().get(confirmTimeoutMs, TimeUnit.MILLISECONDS);
 
-            if (confirm.isAck()) {
+            if (confirm.isAck() && correlation.getReturned() != null) {
+                // Broker mesaji KABUL etti ama hicbir kuyruga YONLENDIREMEDI:
+                // onay tek basina teslim garantisi degildir. Bu, mesajin kendi
+                // kusurudur (binding'i olmayan bir routing key) -- altyapi
+                // hatasi degil, o yuzden hakki sayilir ve gorunur kalir.
+                recordFailure(event, "Unroutable: no binding for " + event.getRoutingKey());
+                log.error("Outbox event was accepted but not routed: {} {} (routing key {})",
+                        event.getEventType(), event.getEventId(), event.getRoutingKey());
+            } else if (confirm.isAck()) {
                 event.markPublished();
                 log.debug("Outbox event published: {} {}", event.getEventType(), event.getEventId());
             } else if (isInfrastructureFailure(confirm.getReason())) {

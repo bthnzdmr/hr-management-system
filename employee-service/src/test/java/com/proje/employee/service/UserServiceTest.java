@@ -317,4 +317,27 @@ class UserServiceTest {
 
         verify(userRepository, never()).save(org.mockito.ArgumentMatchers.any());
     }
+
+    @Test
+    @DisplayName("Refuses to grant the service role through the API")
+    void refusesServiceRoleOnCreate() {
+        // Makine kimliginin rolu yapilandirmadir: bir insan hesabi servis
+        // kimligine burunurse loglarda "bu istegi kim yapti" cevapsiz kalir.
+        UserCreateRequest request = new UserCreateRequest(
+                "someone@example.com", "a-long-enough-password",
+                java.util.Set.of(Role.EMPLOYEE, Role.SERVICE), null);
+
+        assertThatThrownBy(() -> service().create(request))
+                .isInstanceOf(UserRuleViolationException.class);
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Refuses to add the service role to an existing account")
+    void refusesServiceRoleOnRoleChange() {
+        assertThatThrownBy(() -> service().changeRoles(
+                1L, java.util.Set.of(Role.SERVICE), "admin@example.com"))
+                .isInstanceOf(UserRuleViolationException.class);
+    }
 }

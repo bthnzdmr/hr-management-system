@@ -59,6 +59,8 @@ public class UserService {
             throw new EmailAlreadyExistsException(request.email());
         }
 
+        rejectServiceRole(request.roles());
+
         User user = new User(
                 request.email(),
                 passwordEncoder.encode(request.password()),
@@ -84,9 +86,26 @@ public class UserService {
         return userMapper.toResponse(userRepository.save(user));
     }
 
+    /**
+     * Makine kimliginin rolu VERI degil YAPILANDIRMADIR: servis hesabinin rolu
+     * her acilista tohumlayici tarafindan dogrulanip duzeltilir. API'den
+     * verilebilseydi bir insan hesabi servis kimligine burunebilir ve loglarda
+     * "bu istegi kim yapti" sorusu cevapsiz kalirdi.
+     */
+    private void rejectServiceRole(Set<Role> roles) {
+        if (roles != null && roles.contains(Role.SERVICE)) {
+            throw new UserRuleViolationException(
+                    "The service role is configuration, not something an account can be granted");
+        }
+    }
+
     @Transactional
     @Auditable(action = AuditAction.ROLES_CHANGED, targetType = "USER")
     public UserResponse changeRoles(Long id, Set<Role> roles, String actingUserEmail) {
+        // Girdi, veritabanina gitmeden once dogrulanir: olmayan bir kullanici
+        // icin bile istek gecersizdir ve varligini sizdirmadan reddedilir.
+        rejectServiceRole(roles);
+
         User user = find(id);
 
         // Kendi rolune HIC dokunulamaz -- yalnizca dusurmek degil, YUKSELTMEK de
