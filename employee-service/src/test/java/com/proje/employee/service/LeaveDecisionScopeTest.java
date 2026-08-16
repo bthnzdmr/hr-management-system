@@ -14,6 +14,7 @@ import com.proje.employee.repository.LeaveRequestRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -24,7 +25,11 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Izin kararini kim verebilir. */
@@ -135,5 +140,53 @@ class LeaveDecisionScopeTest {
         assertThatThrownBy(() -> service.approve(7L, decider,
                 new AccessScope(AccessScope.Kind.SELF, ada.getId(), false)))
                 .isInstanceOf(LeaveRuleViolationException.class);
+    }
+
+    @Test
+    @DisplayName("Filtering by employee cannot widen what the caller may see")
+    void filterCannotWidenScope() {
+        // Suzgec bir GORUNURLUK araci degildir. Kapsam disindaki bir kisi
+        // istendiginde bos sayfa doner -- hata degil: hata, o kaydin
+        // VARLIGINI dogrulardi.
+        var result = service.list(null, 9999L, null, null,
+                new AccessScope(AccessScope.Kind.SELF, ada.getId(), false),
+                PageRequest.of(0, 20));
+
+        assertThat(result).isEmpty();
+        // Sorgu HIC atilmamali: kapsam disindaki kimlik veritabanina bile gitmez.
+        verify(leaveRequests, never()).search(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("An employee may request leave for themselves")
+    void employeeRequestsOwnLeave() {
+        when(employees.findById(ada.getId())).thenReturn(java.util.Optional.of(ada));
+        when(leaveRequests.saveAndFlush(any())).thenAnswer(call -> call.getArgument(0));
+
+        var request = new com.proje.employee.dto.LeaveRequestCreateRequest(
+                ada.getId(), LeaveType.ANNUAL,
+                java.time.LocalDate.of(2033, 5, 1), java.time.LocalDate.of(2033, 5, 3), null);
+
+        assertThatCode(() -> service.create(request, decider,
+                new AccessScope(AccessScope.Kind.SELF, ada.getId(), false)))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("Nobody opens a request on somebody else's behalf without HR rights")
+    void managerCannotRequestForTheirReport() {
+        // Yonetici ASTI adina acamaz: talebi acan ile karar veren ayni kisi
+        // olurdu ve "kendi iznine karar veremezsin" kurali bu yoldan atlatilirdi.
+        when(employees.findById(ada.getId())).thenReturn(java.util.Optional.of(ada));
+
+        var request = new com.proje.employee.dto.LeaveRequestCreateRequest(
+                ada.getId(), LeaveType.ANNUAL,
+                java.time.LocalDate.of(2033, 6, 1), java.time.LocalDate.of(2033, 6, 3), null);
+
+        assertThatThrownBy(() -> service.create(request, decider, managerScope()))
+                .isInstanceOf(LeaveRuleViolationException.class)
+                .hasMessageContaining("only request leave for yourself");
+
+        verify(leaveRequests, never()).saveAndFlush(any());
     }
 }

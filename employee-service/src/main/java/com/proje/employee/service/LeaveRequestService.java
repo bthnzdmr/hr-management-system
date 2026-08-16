@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 
@@ -48,9 +49,12 @@ public class LeaveRequestService {
     /** Yeni izin istegi. */
     @Auditable(action = AuditAction.LEAVE_REQUESTED, targetType = "LEAVE_REQUEST")
     @Transactional
-    public LeaveRequestResponse create(LeaveRequestCreateRequest request, User author) {
+    public LeaveRequestResponse create(LeaveRequestCreateRequest request, User author,
+                                       AccessScope scope) {
         Employee employee = employees.findById(request.employeeId())
                 .orElseThrow(() -> new EmployeeNotFoundException(request.employeeId()));
+
+        requireCanRecordFor(employee, scope);
 
         // Ayrilmis personele izin girilemez. Ayni degismez "ayrilmis personele
         // hesap acilamaz" kuralinin kardesi; kural bir kez yazilir, iki yerde
@@ -64,6 +68,23 @@ public class LeaveRequestService {
                 request.startDate(), request.endDate(), request.note());
 
         return LeaveRequestResponse.from(persist(leave, employee));
+    }
+
+    /**
+     * Baskasi adina talep acmak Ik'ya aittir; herkes KENDI adina acabilir.
+     *
+     * Yonetici de ASTI adina acamaz: talebi acan ile karar veren ayni kisi
+     * olurdu ve kendi iznine karar verme yasagi bu yoldan atlatilirdi.
+     */
+    private void requireCanRecordFor(Employee employee, AccessScope scope) {
+        if (scope.isUnrestricted()) {
+            return;
+        }
+
+        if (!employee.getId().equals(scope.employeeId())) {
+            throw new LeaveRuleViolationException(
+                    "You can only request leave for yourself");
+        }
     }
 
     /** Kaydi yazip veritabanina ANINDA gonderir. */
@@ -94,15 +115,38 @@ public class LeaveRequestService {
     }
 
     @Transactional(readOnly = true)
-    public Page<LeaveRequestResponse> list(Collection<LeaveStatus> statuses,
+    public Page<LeaveRequestResponse> list(Collection<LeaveStatus> statuses, Long employeeId,
+                                           LocalDate from, LocalDate until,
                                            AccessScope scope, Pageable pageable) {
         // Rolu olan ama personel kaydi olmayan hesap kimseyi goremez.
         if (scope.isEmpty()) {
             return Page.empty(pageable);
         }
 
-        return leaveRequests.search(emptyToNull(statuses), visibleEmployees(scope), pageable)
+        Collection<Long> visible = narrowToRequested(visibleEmployees(scope), employeeId);
+
+        // Istenen kisi kapsamin DISINDAysa bos sayfa doner, hata degil: bir
+        // suzgec, gorulemeyen kaydin VARLIGINI da sizdirmamali.
+        if (visible != null && visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        return leaveRequests.search(emptyToNull(statuses), visible,
+                        from == null ? LeaveRequestRepository.BEGINNING_OF_TIME : from,
+                        until == null ? LeaveRequestRepository.END_OF_TIME : until,
+                        pageable)
                 .map(LeaveRequestResponse::from);
+    }
+
+    /** Kapsam ile istenen kisinin KESISIMI; suzgec kapsami genisletemez. */
+    private Collection<Long> narrowToRequested(Collection<Long> visible, Long employeeId) {
+        if (employeeId == null) {
+            return visible;
+        }
+        if (visible == null) {
+            return List.of(employeeId);
+        }
+        return visible.contains(employeeId) ? List.of(employeeId) : List.of();
     }
 
     @Transactional(readOnly = true)

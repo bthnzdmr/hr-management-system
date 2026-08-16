@@ -40,10 +40,21 @@ export const leaveRequestApi = {
    * Kapsam sunucuda uygulanir; arayuz kimin ne gorecegini KENDI karar vermez.
    * Buradaki tek is filtrenin sunucuya tasinmasi.
    */
-  list: (params: { status?: LeaveStatus[]; page?: number; size?: number }) =>
+  list: (params: {
+    status?: LeaveStatus[];
+    employeeId?: number;
+    /** Aralik ORTUSMEYE bakar: "bu hafta kim izinli" sorusunun cevabi budur. */
+    from?: string;
+    until?: string;
+    page?: number;
+    size?: number;
+  }) =>
     api.get<Page<LeaveRequest>>('/api/leave-requests', {
       params: {
         status: params.status?.length ? params.status : undefined,
+        employeeId: params.employeeId,
+        from: params.from || undefined,
+        until: params.until || undefined,
         page: params.page,
         size: params.size,
       },

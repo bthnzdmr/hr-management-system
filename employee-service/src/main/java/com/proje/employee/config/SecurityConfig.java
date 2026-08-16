@@ -183,8 +183,12 @@ public class SecurityConfig {
                         // uclari acikca yazilmali: yazilmasaydi guvenlik agina
                         // duser ve giris yapan herkes baskasi adina izin
                         // girebilirdi -- departman uclarindaki dersin aynisi.
+                        // Calisan KENDI adina talep acabilir; Ik herkes adina.
+                        // "Hangi kayit icin" sorusu burada cevaplanamaz --
+                        // uc bazli bir kural satiri hic gormez -- ve servis
+                        // katmaninda uygulanir.
                         .requestMatchers(HttpMethod.POST, "/api/leave-requests/**")
-                        .hasRole("HR_SPECIALIST")
+                        .hasAnyRole("EMPLOYEE", "MANAGER", "HR_SPECIALIST")
                         // Karari yonetici de verebilir; HANGI istege karar
                         // verebilecegine servis bakar (yalnizca dogrudan astlari,
                         // kendi istegi haric).

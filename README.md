@@ -504,11 +504,11 @@ Taban adres: `http://localhost:8080`
 | `GET` | `/api/employees/{id}/salary` | Maaş bilgisi. `PAYROLL_SPECIALIST` herkesinkini, diğerleri **yalnızca kendi** kayıtlarınınkini görür | `PAYROLL_SPECIALIST`, `EMPLOYEE`, `MANAGER` | `200` |
 | `PUT` | `/api/employees/{id}/salary` | Maaş güncelleme | `PAYROLL_SPECIALIST` | `200` |
 | `GET` | `/api/org-chart` | Aktif personelin ağaç yapısı; erişilemeyenler sayılıp bildirilir | `HR_SPECIALIST`, `SYSTEM_ADMIN` | `200` |
-| `GET` | `/api/leave-requests` | Sayfalı izin listesi. `?status=PENDING` | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `200` |
+| `GET` | `/api/leave-requests` | Sayfalı izin listesi. `?status=PENDING&employeeId=42&from=2026-03-01&until=2026-03-07` — tarih aralığı **örtüşmeye** bakar | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `200` |
 | `GET` | `/api/leave-requests/{id}` | Tek izin kaydı | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `200` |
-| `POST` | `/api/leave-requests` | Personel adına izin girer; çakışan tarih `409` | `HR_SPECIALIST` | `201` + `Location` |
+| `POST` | `/api/leave-requests` | Herkes **kendi adına** talep açar; başkası adına yalnızca İK. Çakışan tarih `409` | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `201` + `Location` |
 | `PUT` | `/api/leave-requests/{id}/decision` | Onay / ret / iptal. Yönetici yalnızca **doğrudan astının**, kendi isteğine **hiç** karar veremez | `MANAGER`, `HR_SPECIALIST` | `200` |
-| `GET` | `/api/audit` | Denetim izi; aktör, eylem, hedef ve tarihe göre süzülür | `SYSTEM_ADMIN` | `200` |
+| `GET` | `/api/audit` | Denetim izi; aktör, eylem, hedef ve tarihe göre süzülür. Arayüzde **Activity** ekranı | `SYSTEM_ADMIN` | `200` |
 | `GET` | `/api/departments` | Aktif departmanlar, isme göre sıralı | giriş yapmış | `200` |
 | `POST` | `/api/departments` | Yeni departman; ad büyük-küçük harf duyarsız benzersiz | `HR_SPECIALIST` | `201` + `Location` |
 | `PUT` | `/api/departments/{id}/status` | Aç / kapat (tekrarı etkisiz). İçinde aktif personel varken kapatılamaz | `HR_SPECIALIST` | `200` |

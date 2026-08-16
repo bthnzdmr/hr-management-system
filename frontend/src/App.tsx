@@ -8,6 +8,7 @@ import { LeaveListPage } from './pages/LeaveListPage';
 import { EmployeeDetailPage } from './pages/EmployeeDetailPage';
 import { EmployeeFormPage } from './pages/EmployeeFormPage';
 import { UserListPage } from './pages/UserListPage';
+import { AuditPage } from './pages/AuditPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { OrgChartPage } from './pages/OrgChartPage';
@@ -63,6 +64,10 @@ export default function App() {
 
           <Route element={<CapabilityRoute requires="manageAccounts" />}>
             <Route path="/users" element={<UserListPage />} />
+
+            {/* Denetim izi de hesap yonetimiyle ayni kitleye ait: sunucu
+                SYSTEM_ADMIN istiyor, arayuz ayni yetenegi soruyor. */}
+            <Route path="/activity" element={<AuditPage />} />
           </Route>
 
           {/* Bilinmeyen adres kabugun ICINDE karsilanir: kullanici menusunu

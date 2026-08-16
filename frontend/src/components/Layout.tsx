@@ -30,6 +30,7 @@ import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined';
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -59,6 +60,7 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
     heading: 'Administration',
     items: [
       { label: 'Accounts', to: '/users', icon: ManageAccountsOutlinedIcon, requires: 'manageAccounts' },
+      { label: 'Activity', to: '/activity', icon: HistoryOutlinedIcon, requires: 'manageAccounts' },
     ],
   },
   {

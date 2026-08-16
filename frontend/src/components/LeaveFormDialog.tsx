@@ -88,7 +88,7 @@ export function LeaveFormDialog({ open, onClose, onSaved }: Props) {
             value={employee}
             onChange={setEmployee}
             label="Employee"
-            helperText="Leave is recorded on someone's behalf"
+            helperText="You can only pick people you are allowed to see"
           />
 
           <TextField

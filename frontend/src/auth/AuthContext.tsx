@@ -30,6 +30,7 @@ interface AuthContextValue {
   /** Izin isteklerini sonuclandirma. Hangi isteklere, sunucu karar verir. */
   canDecideLeave: boolean;
   canSeeLeave: boolean;
+  canRequestLeave: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => void;
 }
@@ -160,6 +161,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // doner. Menude kosulsuz duruyordu, yani iki rol kacinilmaz olarak
         // hata alacak bir ekrana yonlendiriliyordu.
         canSeeLeave: hasRole('EMPLOYEE') || hasRole('MANAGER') || hasRole('HR_SPECIALIST'),
+        // Herkes KENDI adina talep acar; baskasi adina acmak Ik'ya aittir ve
+        // o kurali sunucu uygular -- burasi yalnizca dugmeyi gosterir.
+        canRequestLeave: hasRole('EMPLOYEE') || hasRole('MANAGER') || hasRole('HR_SPECIALIST'),
         login,
         logout,
       };

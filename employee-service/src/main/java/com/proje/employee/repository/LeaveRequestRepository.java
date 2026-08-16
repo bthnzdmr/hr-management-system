@@ -9,9 +9,19 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
+import java.time.LocalDate;
 import java.util.Optional;
 
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
+
+    /**
+     * Sinirsizligi ifade eden uclar.
+     *
+     * LocalDate.MIN/MAX KULLANILAMAZ: yillari +-999999999 ve PostgreSQL'in
+     * DATE araligina sigmaz -- surucu sorguyu dusuruyor. Olculdu.
+     */
+    LocalDate BEGINNING_OF_TIME = LocalDate.of(1, 1, 1);
+    LocalDate END_OF_TIME = LocalDate.of(9999, 12, 31);
 
     /** Listeleme sorgusu. */
     @Query(value = """
@@ -21,14 +31,28 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             LEFT JOIN FETCH l.createdBy
             WHERE (:statuses IS NULL OR l.status IN :statuses)
               AND (:employeeIds IS NULL OR e.id IN :employeeIds)
+              AND l.startDate <= :until AND l.endDate >= :from
             """,
             countQuery = """
             SELECT count(l) FROM LeaveRequest l
             WHERE (:statuses IS NULL OR l.status IN :statuses)
               AND (:employeeIds IS NULL OR l.employee.id IN :employeeIds)
+              AND l.startDate <= :until AND l.endDate >= :from
             """)
+    /**
+     * Tarihler NULL GECILMEZ, notr deger gecilir.
+     *
+     * ":x IS NULL OR ..." kalibi tarihlerde bir kez patlamisti: turu
+     * belirtilmemis bir NULL'u PostgreSQL bytea sanip sorguyu dusuruyordu.
+     * Cagiran taraf sinirsizligi LocalDate.MIN/MAX ile ifade eder.
+     *
+     * Aralik ORTUSMEYE bakar: "bu hafta kim izinli" sorusunun cevabi, izni o
+     * hafta BASLAYANLAR degil, o haftaya DENK GELENLERDIR.
+     */
     Page<LeaveRequest> search(@Param("statuses") Collection<LeaveStatus> statuses,
                              @Param("employeeIds") Collection<Long> employeeIds,
+                             @Param("from") LocalDate from,
+                             @Param("until") LocalDate until,
                              Pageable pageable);
 
     /** Tek kayit; kapsam kontrolu icin personel de yuklenir. */

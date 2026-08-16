@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert, Button, Chip, Paper, Skeleton, Stack, Table, TableBody, TableCell,
   TableContainer, TableHead, TablePagination, TableRow, ToggleButton, ToggleButtonGroup,
-  Typography, useMediaQuery, useTheme,
+  TextField, Typography, useMediaQuery, useTheme,
 } from '@mui/material';
 import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 import { leaveRequestApi } from '../api/leaveRequests';
@@ -12,6 +12,8 @@ import { useAuth } from '../auth/AuthContext';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/EmptyState';
 import { LeaveFormDialog } from '../components/LeaveFormDialog';
+import { EmployeePicker } from '../components/EmployeePicker';
+import type { EmployeeOption } from '../components/EmployeePicker';
 import { useSnackbar } from '../components/SnackbarProvider';
 import { LeaveCard } from '../components/LeaveCard';
 import { RejectLeaveDialog } from '../components/RejectLeaveDialog';
@@ -39,7 +41,7 @@ const FILTERS: { value: 'PENDING' | 'ALL'; label: string }[] = [
 ];
 
 export function LeaveListPage() {
-  const { canEditEmployees, canDecideLeave } = useAuth();
+  const { canEditEmployees, canDecideLeave, canRequestLeave } = useAuth();
   const theme = useTheme();
   // TEK gorunum render edilir. Ikisini birden cizip birini gizlemek her
   // erisilebilir adi DOM'da iki kez birakirdi -- proje bunu bir kez olctu.
@@ -55,6 +57,9 @@ export function LeaveListPage() {
   const [formOpen, setFormOpen] = useState(false);
   /** Reddedilmek uzere secilen satir; gerekce penceresi bunun uzerinden acilir. */
   const [rejecting, setRejecting] = useState<LeaveRequest | null>(null);
+  const [person, setPerson] = useState<EmployeeOption | null>(null);
+  const [from, setFrom] = useState('');
+  const [until, setUntil] = useState('');
   /** Karar bekleyen SATIR; global bir bayrak butun satirlari kilitlerdi. */
   const busyRows = useBusyRows();
 
@@ -70,6 +75,9 @@ export function LeaveListPage() {
     try {
       const data = await leaveRequestApi.list({
         status: filter === 'PENDING' ? ['PENDING'] : undefined,
+        employeeId: person?.id,
+        from,
+        until,
         page,
         size,
       });
@@ -84,7 +92,7 @@ export function LeaveListPage() {
       setError(errorMessage(cause));
       setRows([]);
     }
-  }, [filter, page, size]);
+  }, [filter, person?.id, from, until, page, size]);
 
   useEffect(() => {
     void load();
@@ -121,9 +129,9 @@ export function LeaveListPage() {
         eyebrow="People"
         title="Leave"
         description="Time off recorded for employees, and requests waiting for a decision"
-        actions={canEditEmployees ? (
+        actions={canRequestLeave ? (
           <Button variant="contained" onClick={() => setFormOpen(true)}>
-            Record leave
+            {canEditEmployees ? 'Record leave' : 'Request leave'}
           </Button>
         ) : undefined}
       />
@@ -151,6 +159,41 @@ export function LeaveListPage() {
               </ToggleButton>
             ))}
           </ToggleButtonGroup>
+
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <EmployeePicker
+              value={person}
+              onChange={(next) => {
+                setPerson(next);
+                setPage(0);
+              }}
+              label="Whose leave"
+              helperText="Leave it empty to see everyone in your scope"
+            />
+            <TextField
+              type="date"
+              label="From"
+              value={from}
+              onChange={(event) => {
+                setFrom(event.target.value);
+                setPage(0);
+              }}
+              slotProps={{ inputLabel: { shrink: true } }}
+              size="small"
+            />
+            <TextField
+              type="date"
+              label="Until"
+              value={until}
+              onChange={(event) => {
+                setUntil(event.target.value);
+                setPage(0);
+              }}
+              slotProps={{ inputLabel: { shrink: true } }}
+              size="small"
+              helperText="Overlapping leave, not only leave starting here"
+            />
+          </Stack>
 
           {rows === null && (
             <Stack spacing={1}>
@@ -311,7 +354,7 @@ export function LeaveListPage() {
         onClose={() => setFormOpen(false)}
         onSaved={() => {
           setFormOpen(false);
-          notify('Leave recorded', 'success');
+          notify(canEditEmployees ? 'Leave recorded' : 'Leave requested', 'success');
           void load();
         }}
       />

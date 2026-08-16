@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
 import java.security.Principal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
@@ -62,13 +64,19 @@ public class LeaveRequestController {
                     + "astlarini, calisan yalnizca kendi kayitlarini gorur.")
     public Page<LeaveRequestResponse> list(
             @RequestParam(required = false) List<LeaveStatus> status,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate until,
             @PageableDefault(size = 20, sort = "startDate", direction = Sort.Direction.DESC)
             Pageable pageable,
             Principal caller) {
 
         SortWhitelist.check(pageable, SORTABLE);
 
-        return leaveRequestService.list(status, accessScopeResolver.resolve(caller), pageable);
+        return leaveRequestService.list(status, employeeId, from, until,
+                accessScopeResolver.resolve(caller), pageable);
     }
 
     @GetMapping("/{id}")
@@ -89,7 +97,8 @@ public class LeaveRequestController {
     public ResponseEntity<LeaveRequestResponse> create(
             @Valid @RequestBody LeaveRequestCreateRequest request, Principal caller) {
 
-        LeaveRequestResponse created = leaveRequestService.create(request, currentUser(caller));
+        LeaveRequestResponse created = leaveRequestService.create(request, currentUser(caller),
+                accessScopeResolver.resolve(caller));
 
         return ResponseEntity
                 .created(URI.create("/api/leave-requests/" + created.id()))

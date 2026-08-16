@@ -6,6 +6,14 @@ import { leaveRequestApi } from '../api/leaveRequests';
 import type { LeaveRequest } from '../api/leaveRequests';
 import { SnackbarProvider } from '../components/SnackbarProvider';
 
+vi.mock('../components/EmployeePicker', () => ({
+  EmployeePicker: ({ label, onChange }: { label: string; onChange: (v: unknown) => void }) => (
+    <button type="button" onClick={() => onChange({ id: 77, label: 'Ada Lovelace' })}>
+      {label}
+    </button>
+  ),
+}));
+
 vi.mock('../api/leaveRequests', () => ({
   leaveRequestApi: { list: vi.fn(), create: vi.fn(), decide: vi.fn() },
 }));
@@ -205,6 +213,32 @@ describe('LeaveListPage', () => {
 
     await waitFor(() => expect(leaveRequestApi.decide)
       .toHaveBeenCalledWith(1, 'CANCELLED', undefined));
+  });
+
+  it('narrows the list to one person', async () => {
+    // "Bu kisinin izin gecmisi nedir" sorusu bugune kadar SORULAMIYORDU:
+    // liste yalnizca duruma gore suzuluyordu.
+    const user = userEvent.setup({ delay: null });
+    renderPage();
+    await screen.findByText('Ada Lovelace');
+
+    await user.click(screen.getByRole('button', { name: 'Whose leave' }));
+
+    await waitFor(() => expect(leaveRequestApi.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ employeeId: 77 }),
+    ));
+  });
+
+  it('asks for overlapping leave in a date range', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderPage();
+    await screen.findByText('Ada Lovelace');
+
+    await user.type(screen.getByLabelText('From'), '2031-03-01');
+
+    await waitFor(() => expect(leaveRequestApi.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ from: '2031-03-01' }),
+    ));
   });
 
   it('shows the failure instead of an endless skeleton', async () => {
