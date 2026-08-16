@@ -40,8 +40,14 @@ export function LeaveCard({ leave, statusLabel, typeLabel, canDecide, busy, onDe
         {leave.startDate === leave.endDate
           ? leave.startDate
           : `${leave.startDate} → ${leave.endDate}`}
-        {leave.decidedBy ? ` · decided by ${leave.decidedBy}` : ''}
+        {leave.decidedBy ? ` · decided by ${leave.decidedBy}` : ` · recorded by ${leave.recordedBy}`}
       </Typography>
+
+      {leave.decisionNote && (
+        <Typography variant="caption" color="text.secondary">
+          {leave.decisionNote}
+        </Typography>
+      )}
 
       {canDecide && leave.status === pending && (
         <Stack direction="row" spacing={1}>

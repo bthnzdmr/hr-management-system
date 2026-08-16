@@ -111,7 +111,7 @@ describe('UserListPage', () => {
     // Coklu rol modelinin can alici noktasi: yeni bir rol vermek eskisini
     // silmemeli. Kume komple gonderildigi icin eksik gonderim sessizce
     // yetki kaybettirirdi.
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     vi.mocked(userApi.changeRoles)
       .mockResolvedValue(account({ roles: ['EMPLOYEE', 'HR_SPECIALIST'] }));
 
@@ -129,7 +129,7 @@ describe('UserListPage', () => {
   it('refuses to send an empty role set', async () => {
     // Rolsuz hesap giris yapabilir ama hicbir sey goremez; sunucu da
     // reddediyor, arayuz istegi hic gondermiyor.
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
     await screen.findByText('ada@example.com');
 
@@ -156,7 +156,7 @@ describe('UserListPage', () => {
   });
 
   it('confirms before deactivating an account', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     vi.mocked(userApi.changeStatus).mockResolvedValue(account({ active: false }));
 
     renderPage();
@@ -173,7 +173,7 @@ describe('UserListPage', () => {
   });
 
   it('reactivates without asking', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     vi.mocked(userApi.list).mockResolvedValue(pageOf([account({ active: false })]));
     vi.mocked(userApi.changeStatus).mockResolvedValue(account({ active: true }));
 
@@ -188,7 +188,7 @@ describe('UserListPage', () => {
   it('shows the rule the server enforced instead of pretending it worked', async () => {
     // "Son yonetici kalmali" gibi kurallar sunucudan gelir; arayuz onlari
     // tekrarlamaz, gosterir.
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     vi.mocked(userApi.list).mockResolvedValue(pageOf([account({ active: false })]));
     vi.mocked(userApi.changeStatus).mockRejectedValue(new Error('boom'));
 
@@ -250,7 +250,7 @@ describe('UserListPage', () => {
         ? new Promise<ReturnType<typeof page>>((resolve) => { releaseSecondPage = resolve; })
         : Promise.resolve(page([first], 0))));
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
     await screen.findByText('first@example.com');
 

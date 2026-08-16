@@ -22,6 +22,7 @@ import java.util.HexFormat;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -213,6 +214,6 @@ class RefreshTokenServiceTest {
         // sacma olurdu ve jetonun taninmamasi zaten istenen son durumdur.
         when(refreshTokenRepository.revokeIfActive(anyString(), any())).thenReturn(0);
 
-        service().revoke("never-existed");
+        assertThatCode(() -> service().revoke("never-existed")).doesNotThrowAnyException();
     }
 }

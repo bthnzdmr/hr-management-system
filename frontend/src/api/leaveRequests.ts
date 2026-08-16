@@ -20,6 +20,8 @@ export interface LeaveRequest {
   /** Karari verenin gerekcesi. Once ikisi tek alandi ve reddetme talebin
    *  gerekcesini siliyordu. */
   decisionNote: string | null;
+  /** Izni SISTEME GIREN hesap; iznin sahibiyle ayni olmak zorunda degil. */
+  recordedBy: string;
   decidedBy: string | null;
   decidedAt: string | null;
   createdAt: string;

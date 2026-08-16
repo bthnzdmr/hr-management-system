@@ -80,7 +80,7 @@ describe('EmployeeFormPage', () => {
   it('keeps the existing manager when nothing else is touched', async () => {
     // Yonetici alani ad ile dolduruluyor; okunamazsa kaydederken sessizce
     // null gider ve kisi yoneticisiz kalirdi.
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderForm('/employees/5');
     await screen.findByDisplayValue('Barbara Liskov');
 
@@ -91,7 +91,7 @@ describe('EmployeeFormPage', () => {
   });
 
   it('sends no manager once the selection is cleared', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderForm('/employees/5');
     await screen.findByDisplayValue('Barbara Liskov');
 
@@ -114,7 +114,7 @@ describe('EmployeeFormPage', () => {
   });
 
   it('does not offer the edited employee as their own manager', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     vi.mocked(employeeApi.list).mockResolvedValue({
       content: [makeEmployee({ id: 5 }), makeEmployee({ id: 9, firstName: 'Barbara', lastName: 'Liskov' })],
       totalElements: 2, totalPages: 1, number: 0, size: 10,
@@ -131,7 +131,7 @@ describe('EmployeeFormPage', () => {
   });
 
   it('reports the server error instead of navigating away', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     vi.mocked(employeeApi.update).mockRejectedValue(new Error('boom'));
 
     renderForm('/employees/5');

@@ -212,6 +212,11 @@ export function LeaveListPage() {
                           <Typography variant="body2" color="text.secondary">
                             {leave.decidedBy ?? '—'}
                           </Typography>
+                          {leave.decisionNote && (
+                            <Typography variant="caption" color="text.secondary">
+                              {leave.decisionNote}
+                            </Typography>
+                          )}
                         </TableCell>
 
                         {canDecideLeave && (

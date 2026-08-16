@@ -30,7 +30,7 @@ class SystemEndToEndTest {
     static void requireRunningSystem() {
         if (SystemClient.ADMIN_EMAIL == null || SystemClient.ADMIN_PASSWORD == null) {
             throw new IllegalStateException(
-                    "ADMIN_EMAIL / ADMIN_PASSWORD tanimli degil. .env dosyasini kabuga yukle.");
+                    "ADMIN_EMAIL / ADMIN_PASSWORD are not set. Load .env into the shell first.");
         }
 
         // Baglanti hic kurulamazsa istisna buradan gecer; ham hatayi yukari
@@ -52,10 +52,10 @@ class SystemEndToEndTest {
 
     private static IllegalStateException systemNotRunning(Throwable cause) {
         return new IllegalStateException("""
-                Sistem calismiyor: %s
-                Once ayaga kaldir:
+                The system is not running: %s
+                Start it first:
                   docker compose --profile full up -d
-                Ya da servisleri makinede calistir ve E2E_API_URL degiskenini ayarla.
+                Or run the services locally and set E2E_API_URL.
                 """.formatted(SystemClient.API_URL), cause);
     }
 

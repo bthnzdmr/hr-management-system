@@ -20,7 +20,7 @@ function Harness({ onClear }: { onClear: () => void }) {
 
 describe('useSearchShortcut', () => {
   it('focuses the search box when the page has focus elsewhere', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<Harness onClear={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Somewhere else' }));
@@ -30,7 +30,7 @@ describe('useSearchShortcut', () => {
   });
 
   it('does not insert the slash it just consumed', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<Harness onClear={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Somewhere else' }));
@@ -44,7 +44,7 @@ describe('useSearchShortcut', () => {
   it('keeps its hands off a slash typed into another field', async () => {
     // Klasik hata: kisayol her yerde calisir ve bir yola veya tarihe egik
     // cizgi yazan kullanicinin imleci baska kutuya sicrar.
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<Harness onClear={vi.fn()} />);
 
     const other = screen.getByRole('textbox', { name: 'Job title' });
@@ -57,7 +57,7 @@ describe('useSearchShortcut', () => {
   });
 
   it('leaves a slash typed into a textarea alone as well', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<Harness onClear={vi.fn()} />);
 
     const notes = screen.getByRole('textbox', { name: 'Notes' });
@@ -68,7 +68,7 @@ describe('useSearchShortcut', () => {
   });
 
   it('does not steal a browser shortcut that uses a modifier', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<Harness onClear={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Somewhere else' }));
@@ -79,7 +79,7 @@ describe('useSearchShortcut', () => {
 
   it('clears only when Escape comes from the search box itself', async () => {
     const onClear = vi.fn();
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<Harness onClear={onClear} />);
 
     // Sayfanin herhangi bir yerinde Escape aramayi silmemeli; acik bir

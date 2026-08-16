@@ -75,10 +75,6 @@ public class RefreshToken {
         return expiresAt;
     }
 
-    public Instant getRevokedAt() {
-        return revokedAt;
-    }
-
     public boolean isRevoked() {
         return revokedAt != null;
     }

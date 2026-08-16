@@ -18,6 +18,7 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             SELECT l FROM LeaveRequest l
             LEFT JOIN FETCH l.employee e
             LEFT JOIN FETCH l.decidedBy
+            LEFT JOIN FETCH l.createdBy
             WHERE (:statuses IS NULL OR l.status IN :statuses)
               AND (:employeeIds IS NULL OR e.id IN :employeeIds)
             """,
@@ -31,6 +32,6 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
                              Pageable pageable);
 
     /** Tek kayit; kapsam kontrolu icin personel de yuklenir. */
-    @Query("SELECT l FROM LeaveRequest l LEFT JOIN FETCH l.employee LEFT JOIN FETCH l.decidedBy WHERE l.id = :id")
+    @Query("SELECT l FROM LeaveRequest l LEFT JOIN FETCH l.employee LEFT JOIN FETCH l.decidedBy LEFT JOIN FETCH l.createdBy WHERE l.id = :id")
     Optional<LeaveRequest> findByIdWithEmployee(@Param("id") Long id);
 }

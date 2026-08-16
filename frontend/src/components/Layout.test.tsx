@@ -53,7 +53,7 @@ describe('Layout', () => {
   });
 
   it('opens the account actions from the identity block', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderShell(['HR_SPECIALIST']);
 
     // Adi acikca verilir: aksi halde dugmenin erisilebilir adi icindeki her
@@ -94,7 +94,7 @@ describe('Layout', () => {
   });
 
   it('switches the theme and remembers the choice', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderShell(['EMPLOYEE']);
 
     // matchMedia testte hep "eslesmiyor" doner, yani baslangic acik temadir:

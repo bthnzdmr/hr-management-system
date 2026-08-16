@@ -138,7 +138,7 @@ describe('EmployeeListPage', () => {
   });
 
   it('sends the search term to the server after the user stops typing', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
@@ -151,7 +151,7 @@ describe('EmployeeListPage', () => {
   });
 
   it('asks the server for inactive records only when that filter is chosen', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
@@ -171,7 +171,7 @@ describe('EmployeeListPage', () => {
   });
 
   it('flips the sort direction when the same column header is clicked twice', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
@@ -185,7 +185,7 @@ describe('EmployeeListPage', () => {
   });
 
   it('confirms before deactivating and warns about the direct reports', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     vi.mocked(employeeApi.getDirectReports).mockResolvedValue([
       makeEmployee({ id: 2 }),
       makeEmployee({ id: 3 }),
@@ -211,7 +211,7 @@ describe('EmployeeListPage', () => {
   });
 
   it('sends nothing when the confirmation is cancelled', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
@@ -226,7 +226,7 @@ describe('EmployeeListPage', () => {
 
   it('reactivates an inactive employee without asking', async () => {
     // Geri getirmek zararsizdir; onay penceresi yalnizca surtunme olurdu.
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const inactive = makeEmployee({ active: false });
     vi.mocked(employeeApi.list).mockResolvedValue(pageOf([inactive]));
     vi.mocked(employeeApi.changeStatus).mockResolvedValue({ ...inactive, active: true });
@@ -242,7 +242,7 @@ describe('EmployeeListPage', () => {
   });
 
   it('reports a failed status change instead of pretending it worked', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const inactive = makeEmployee({ active: false });
     vi.mocked(employeeApi.list).mockResolvedValue(pageOf([inactive]));
     vi.mocked(employeeApi.changeStatus).mockRejectedValue(new Error('boom'));
@@ -265,7 +265,7 @@ describe('EmployeeListPage', () => {
   });
 
   it('tells the user when the filters match nothing', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
@@ -278,7 +278,7 @@ describe('EmployeeListPage', () => {
   it('remembers the row density between visits', async () => {
     // Gunde yuz satir tarayan biri tercihini her acilista yeniden yapmak
     // istemez; tercih localStorage'da durur.
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage(['HR_SPECIALIST']);
     await screen.findByText('Grace Hopper');
 
@@ -315,7 +315,7 @@ describe('EmployeeListPage', () => {
         ? new Promise<Employee[]>((resolve) => { releaseAlpha = resolve; })
         : Promise.resolve([])));
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage(['HR_SPECIALIST']);
     await screen.findByText('Alpha One');
 

@@ -103,7 +103,7 @@ describe('EmployeeListPage on a narrow screen', () => {
       content: [], totalElements: 0, totalPages: 0, number: 0, size: 10,
     });
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderNarrow();
 
     await user.type(screen.getByPlaceholderText('Search by name or email'), 'nobody');
@@ -169,7 +169,7 @@ describe('EmployeeListPage on a narrow screen', () => {
   });
 
   it('deactivates through the same confirmation flow', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderNarrow();
     await screen.findByText('Grace Hopper');
 

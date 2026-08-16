@@ -14,15 +14,8 @@ import java.time.Instant;
 /**
  * Idempotency kayitlarinin temizligi.
  *
- * <p>Tablo sinirsiz buyuyordu: her olay kalici bir satir birakiyor ve hicbiri
- * silinmiyordu. Kardes tablolar icin (outbox, refresh_token) temizlik zaten
- * vardi; burada yoktu ve ayni gerekce birebir gecerli -- yigin, yedek ve
- * VACUUM maliyeti dogrusal olarak buyur.
- *
- * <p><b>Saklama suresi bir idempotency penceresidir.</b> Bir mesajin broker'da
- * bekleyebilecegi en uzun sureden guvenle uzun olmalidir: satir erken
- * silinirse gec teslim edilen bir olay "hic islenmemis" gorunur ve ayni
- * personele ikinci bir mail gider. Bu yuzden varsayilan comert.
+ * <p>Saklama suresi bir idempotency penceresidir: erken silinen satir, gec
+ * teslim edilen olayi "hic islenmemis" gosterir ve ikinci bir mail gider.
  */
 @Component
 public class ProcessedEventCleanup {
@@ -38,10 +31,7 @@ public class ProcessedEventCleanup {
         this.retention = Duration.ofDays(retentionDays);
     }
 
-    /**
-     * initialDelay SART: acilir acilmaz silme calistirmak acilis anini
-     * yavaslatir ve ilk mesajlarla veritabani icin yarisir.
-     */
+    /** initialDelay: acilista silme calistirmak ilk mesajlarla yarisirdi. */
     @Scheduled(
             fixedDelayString = "${app.processed-event.cleanup-interval-ms}",
             initialDelayString = "${app.processed-event.cleanup-interval-ms}")

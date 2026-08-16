@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -65,8 +66,6 @@ public class LoginAttemptService {
 
     private final Map<String, Attempts> byKey = new ConcurrentHashMap<>();
 
-    /** Bir adresten hangi hesaplarin denendigi; spraying'in imzasi budur. */
-    private final Map<String, Set<String>> emailsTriedFrom = new ConcurrentHashMap<>();
 
     // @Autowired SART: iki kurucu var ve Spring hangisini kullanacagini
     // bilemez -- isaretlenmezse varsayilan kurucu arar ve baglam ACILMAZ.
@@ -102,73 +101,42 @@ public class LoginAttemptService {
         }
     }
 
-    /**
-     * Basarili giris YALNIZCA o hesabin sayacini sifirlar.
-     *
-     * IP sayaci KASITLI olarak duruyor. Once ikisi birden siliniyordu ve bu,
-     * IP sayacinin varlik sebebini ortadan kaldiriyordu: parolayi sabitleyip
-     * kullanici tarayan biri (password spraying) arada kendi gecerli hesabina
-     * girerek sayaci istedigi gibi temizleyebiliyordu. Olculdu -- her dort
-     * denemede bir gecerli giris yapildiginda on iki hesap denendi ve hic
-     * bloke olunmadi.
-     *
-     * Bedeli: NAT arkasindaki mesru bir kullanici, ayni adresten gelen
-     * basarisiz denemelerin sayacini kendi girisiyle sifirlayamaz. Pencere
-     * zaten kisa ve sayac kendiliginden dusuyor.
-     */
+    /** Basarili giris, o hesabin ve -- kosul tutuyorsa -- adresin sayacini siler. */
     public void recordSuccess(String email, String clientIp) {
         byKey.remove(emailKey(email));
 
-        // IP sayaci YALNIZCA o adresten baska hesap denenmediyse temizlenir.
-        //
-        // Once kosulsuz siliniyordu ve bu, IP sayacinin varlik sebebini
-        // ortadan kaldiriyordu: parolayi sabitleyip kullanici tarayan biri
-        // (password spraying) arada kendi gecerli hesabina girerek sayaci
-        // istedigi gibi temizliyordu. Olculdu -- her dort denemede bir gecerli
-        // giris yapildiginda on iki hesap denendi ve hic bloke olunmadi.
-        //
-        // Kosulsuz KORUMAK da yanlis olurdu: kendi parolasini iki kez yanlis
-        // yazip sonra dogru giren mesru kullanici kendi adresinde kilitlenirdi.
-        // Ayrim, denenen hesap SAYISIDIR: bir kisi kendi hesabini fumbler,
-        // saldirgan baskalarininkini tarar.
-        Set<String> tried = emailsTriedFrom.get(clientIp);
+        // Adres sayaci yalnizca oradan BASKA hesap denenmediyse silinir:
+        // bir kisi kendi hesabini yanlis yazar, saldirgan baskalarininkini tarar.
+        Attempts fromIp = byKey.get(ipKey(clientIp));
 
-        if (tried == null || (tried.size() == 1 && tried.contains(email))) {
+        if (fromIp == null || fromIp.onlyTried(email)) {
             byKey.remove(ipKey(clientIp));
-            emailsTriedFrom.remove(clientIp);
         }
     }
 
     public void recordFailure(String email, String clientIp) {
         Instant now = clock.instant();
 
-        // Sinirli tutulur: aksi halde tek bir adresten sinirsiz e-posta
-        // denenerek bellek sisirilebilirdi.
-        if (emailsTriedFrom.size() < MAX_TRACKED_KEYS) {
-            emailsTriedFrom
-                    .computeIfAbsent(clientIp, key -> ConcurrentHashMap.newKeySet())
-                    .add(email);
-        }
         // Sayac dolduysa yeni anahtar eklenmez ama MEVCUT anahtarlar artmaya
         // devam eder: aksi halde saldirgan tabloyu doldurup kendi sayacinin
         // artmasini engelleyebilirdi.
         boolean roomForNewKeys = byKey.size() < MAX_TRACKED_KEYS;
 
-        increment(emailKey(email), now, roomForNewKeys);
-        increment(ipKey(clientIp), now, roomForNewKeys);
+        increment(emailKey(email), now, roomForNewKeys, null);
+        increment(ipKey(clientIp), now, roomForNewKeys, email);
     }
 
-    private void increment(String key, Instant now, boolean roomForNewKeys) {
+    private void increment(String key, Instant now, boolean roomForNewKeys, String email) {
         byKey.compute(key, (ignored, current) -> {
             if (current == null) {
-                return roomForNewKeys ? new Attempts(1, now) : null;
+                return roomForNewKeys ? Attempts.first(now, email) : null;
             }
             // Pencere kapandiysa sayac bastan baslar: bir gun once yapilan
             // uc hatali deneme, bugunku denemeyi engellememeli.
             if (current.isExpired(now, blockDuration)) {
-                return new Attempts(1, now);
+                return Attempts.first(now, email);
             }
-            return current.increment(now);
+            return current.increment(now, email);
         });
     }
 
@@ -195,10 +163,35 @@ public class LoginAttemptService {
         return "ip:" + (clientIp == null ? "" : clientIp);
     }
 
-    private record Attempts(int count, Instant lastAttemptAt) {
+    /**
+     * Bir anahtarin sayaci ve -- adres anahtarlari icin -- denenen hesaplar.
+     *
+     * Hesaplar AYRI bir haritada tutulmuyor: orada pencere temizligi yoktu ve
+     * kume adres basina sinirsiz buyuyordu. Kayidin icinde yasayinca ayni
+     * sureyle silinir ve boyutu {@code MAX_TRIED_EMAILS} ile sinirlidir.
+     */
+    private record Attempts(int count, Instant lastAttemptAt, Set<String> triedEmails) {
 
-        Attempts increment(Instant now) {
-            return new Attempts(count + 1, now);
+        private static final int MAX_TRIED_EMAILS = 16;
+
+        static Attempts first(Instant now, String email) {
+            return new Attempts(1, now, email == null ? Set.of() : Set.of(email));
+        }
+
+        Attempts increment(Instant now, String email) {
+            if (email == null || triedEmails.contains(email)
+                    || triedEmails.size() >= MAX_TRIED_EMAILS) {
+                return new Attempts(count + 1, now, triedEmails);
+            }
+
+            Set<String> merged = new HashSet<>(triedEmails);
+            merged.add(email);
+            return new Attempts(count + 1, now, Set.copyOf(merged));
+        }
+
+        /** Bu adresten yalnizca bu hesap mi denendi? */
+        boolean onlyTried(String email) {
+            return triedEmails.isEmpty() || triedEmails.equals(Set.of(email));
         }
 
         boolean isExpired(Instant now, Duration window) {

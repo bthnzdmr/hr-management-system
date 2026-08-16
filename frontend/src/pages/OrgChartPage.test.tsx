@@ -90,7 +90,7 @@ describe('OrgChartPage', () => {
       unreachable: 0,
     });
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await user.click(await screen.findByRole('button', { name: /^Sales/ }));
@@ -108,7 +108,7 @@ describe('OrgChartPage', () => {
     // degisiyordu. Simdi tiklamak yalnizca seciyor: agac oldugu gibi kalir.
     vi.mocked(orgChartApi.get).mockResolvedValue(chain());
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { container } = renderPage();
 
     // Sayim CIZIM YUKLENDIKTEN sonra alinmali; once alinsaydi sifir olur ve
@@ -129,7 +129,7 @@ describe('OrgChartPage', () => {
     // cevaplanamaz.
     vi.mocked(orgChartApi.get).mockResolvedValue(chain());
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await user.click(await screen.findByRole('treeitem', { name: /Test Gamma/ }));
@@ -141,7 +141,7 @@ describe('OrgChartPage', () => {
   it('shows nobody above someone who is at the top', async () => {
     vi.mocked(orgChartApi.get).mockResolvedValue(chain());
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await user.click(await screen.findByRole('treeitem', { name: /Test Root/ }));
@@ -155,7 +155,7 @@ describe('OrgChartPage', () => {
   it('lets you walk the organisation from the panel itself', async () => {
     vi.mocked(orgChartApi.get).mockResolvedValue(chain());
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await user.click(await screen.findByRole('treeitem', { name: /Test Gamma/ }));
@@ -178,7 +178,7 @@ describe('OrgChartPage', () => {
       unreachable: 0,
     });
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await user.click(await screen.findByRole('treeitem', { name: /Test SalesHead/ }));
@@ -238,7 +238,7 @@ describe('the panel as an ordered path', () => {
     // "page" sayfa gezinmesini bildirir; burada gezinilen sey SEMADAKI KONUM.
     vi.mocked(orgChartApi.get).mockResolvedValue(chain());
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await user.click(await screen.findByRole('treeitem', { name: /Test Alpha/ }));
@@ -251,7 +251,7 @@ describe('the panel as an ordered path', () => {
     // Sira bilginin KENDISI: zincir tepeden asagi okunur.
     vi.mocked(orgChartApi.get).mockResolvedValue(chain());
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await user.click(await screen.findByRole('treeitem', { name: /Test Gamma/ }));
@@ -273,7 +273,7 @@ describe('selection is reversible', () => {
     // uzerinde KILITLI kalmis gibi duruyordu.
     vi.mocked(orgChartApi.get).mockResolvedValue(chain());
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     const alpha = await screen.findByRole('treeitem', { name: /Test Alpha/ });

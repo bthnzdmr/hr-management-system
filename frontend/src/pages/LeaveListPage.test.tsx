@@ -30,6 +30,7 @@ function leave(overrides: Partial<LeaveRequest> = {}): LeaveRequest {
     days: 6,
     note: null,
     decisionNote: null,
+    recordedBy: 'hr@example.com',
     decidedBy: null,
     decidedAt: null,
     createdAt: '2031-01-01T00:00:00Z',
@@ -86,7 +87,7 @@ describe('LeaveListPage', () => {
   it('sends the decision and reloads the list', async () => {
     vi.mocked(leaveRequestApi.decide).mockResolvedValue(leave({ status: 'APPROVED' }));
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await user.click(await screen.findByRole('button', { name: 'Approve' }));
@@ -106,7 +107,7 @@ describe('LeaveListPage', () => {
     ]));
     vi.mocked(leaveRequestApi.decide).mockReturnValue(new Promise(() => {}));
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     const first = (await screen.findByText('Ada Lovelace')).closest('tr') as HTMLElement;

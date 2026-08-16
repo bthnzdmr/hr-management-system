@@ -69,14 +69,6 @@ public class EmployeeEventListener {
         }
     }
 
-    /**
-     * Sahiplenmeyi dener ve yarisi kaybetmeyi NORMAL bir sonuc sayar.
-     *
-     * Istisna, EventClaimService'in transaction sinirinin DISINDA yakalanir.
-     * Iceride yakalansaydi o transaction rollback-only isaretli kalir ve kendi
-     * commit'inde UnexpectedRollbackException firlatirdi -- mesaj reddedilir,
-     * bir retry hakki yanardi. Olculdu.
-     */
     /** Telafi basarisiz olsa bile OZGUN hata yukari cikmali; yoksa sebep kaybolur. */
     private void releaseQuietly(EmployeeEvent event) {
         try {
@@ -87,6 +79,14 @@ public class EmployeeEventListener {
         }
     }
 
+    /**
+     * Sahiplenmeyi dener ve yarisi kaybetmeyi NORMAL bir sonuc sayar.
+     *
+     * Istisna, EventClaimService'in transaction sinirinin DISINDA yakalanir.
+     * Iceride yakalansaydi o transaction rollback-only isaretli kalir ve kendi
+     * commit'inde UnexpectedRollbackException firlatirdi -- mesaj reddedilir,
+     * bir retry hakki yanardi. Olculdu.
+     */
     private boolean claimed(EmployeeEvent event) {
         try {
             return eventClaimService.claim(event);

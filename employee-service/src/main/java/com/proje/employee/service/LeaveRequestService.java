@@ -159,10 +159,7 @@ public class LeaveRequestService {
                 .orElseThrow(() -> new LeaveRequestNotFoundException(id));
     }
 
-    /** Nihai bir istegi tekrar karara baglamak reddedilir. */
-    // Karar yetkisi: Ik her istegi, yonetici yalnizca DOGRUDAN astlarininkini.
-    // Kendi iznini onaylamak gorevler ayriligina aykiri; kimse kendi rolune
-    // dokunamaz kuralinin ayni ailesinden.
+    /** Ik her istege, yonetici yalnizca DOGRUDAN astininkine karar verir. */
     private void requireCanDecide(LeaveRequest leave, AccessScope scope) {
         Employee owner = leave.getEmployee();
         boolean ownRequest = scope.employeeId() != null
@@ -193,6 +190,7 @@ public class LeaveRequestService {
         }
     }
 
+    /** Nihai bir istegi tekrar karara baglamak reddedilir. */
     private void requirePending(LeaveRequest leave) {
         if (!leave.isPending()) {
             throw new LeaveRuleViolationException(

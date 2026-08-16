@@ -127,8 +127,9 @@ public class AuditAspect {
      * alan adlarini da tasir. Long id ve String actor atlanir: ilki targetId'de,
      * ikincisi actor'de zaten var.
      *
-     * DIKKAT: buraya hicbir sir yazilmaz. Parola tasiyan istekler bilerek
-     * denetlenmiyor; denetlenselerdi bu satir hash'i ize dokerdi.
+     * Sirlar buraya DTO'nun kendi toString'inde maskelenerek gelir
+     * (password=***), cunku toString her yerde cagrilir: log, istisna mesaji,
+     * denetim kaydi. Sirri hic uretmeyen bir temsil onu her yerde korur.
      */
     private String detail(JoinPoint joinPoint) {
         String summary = Arrays.stream(joinPoint.getArgs())
@@ -141,23 +142,14 @@ public class AuditAspect {
     }
 
     /**
-     * Yalnizca INSAN TARAFINDAN OKUNABILIR ozetler yazilir.
+     * Yalnizca insan tarafindan okunabilir ozetler yazilir.
      *
-     * Entity'lerin cogunda {@code toString()} yok ve varsayilan uygulama
-     * {@code com.proje...User@7f67b234} gibi bir kimlik karmasi uretiyordu:
-     * 500 karakterlik detay butcesini yiyen, hicbir sey anlatmayan gurultu.
-     *
-     * Daha onemlisi ileriye donuk bir risk: bir entity'ye {@code toString()}
-     * eklendigi gun butun alanlari -- ornegin {@code passwordHash} -- ize
-     * dokulurdu. Denetim izi, sirlarin arka kapisi olamaz.
+     * Entity'ler DISLANIR: toString'i olmayaninki kimlik karmasi basar, olani
+     * ise butun alanlarini -- ornegin passwordHash -- ize dokebilir.
      */
     private static boolean readable(Object arg) {
         Class<?> type = arg.getClass();
 
-        // Record ve enum: uretilmis/sabit temsil, ozeti anlamli.
-        // JDK tipleri (BigDecimal, LocalDate...): temsili zaten insan okur.
-        // GERISI dislanir -- entity'lerin cogunda toString yok ve varsayilani
-        // kimlik karmasidir; olani ise butun alanlarini dokebilir.
         return type.isRecord() || type.isEnum() || type.getPackageName().startsWith("java.");
     }
 }

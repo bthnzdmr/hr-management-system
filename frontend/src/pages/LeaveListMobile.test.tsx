@@ -31,6 +31,7 @@ const leave: LeaveRequest = {
   id: 1, employeeId: 10, employeeFullName: 'Ada Lovelace', type: 'ANNUAL',
   status: 'PENDING', startDate: '2031-03-10', endDate: '2031-03-15', days: 6,
   note: null, decisionNote: null, decidedBy: null, decidedAt: null,
+  recordedBy: 'hr@example.com',
   createdAt: '2031-01-01T00:00:00Z',
 };
 

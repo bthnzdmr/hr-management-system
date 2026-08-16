@@ -62,7 +62,7 @@ describe('ChangePasswordPage', () => {
   });
 
   it('sends the current and the new password', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await fillIn(user, 'a-brand-new-password', 'a-brand-new-password');
@@ -77,7 +77,7 @@ describe('ChangePasswordPage', () => {
   it('refuses to submit when the repeated password does not match', async () => {
     // Yazim hatasiyla kendini kilitlemeyi onler. Sunucunun bu alandan haberi
     // yoktur; kontrol tamamen arayuze aittir.
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await fillIn(user, 'a-brand-new-password', 'a-brand-new-passward');
@@ -91,7 +91,7 @@ describe('ChangePasswordPage', () => {
     // Sunucu parola degisiminde tum jetonlari iptal ediyor; kullaniciyi bu
     // ekranda birakmak, her istegi sessizce basarisiz olan bir oturumda
     // birakmak olurdu.
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await fillIn(user, 'a-brand-new-password', 'a-brand-new-password');
@@ -103,7 +103,7 @@ describe('ChangePasswordPage', () => {
   });
 
   it('keeps the user on the page when the current password is wrong', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     vi.mocked(userApi.changeOwnPassword).mockRejectedValue(new Error('boom'));
 
     renderPage();

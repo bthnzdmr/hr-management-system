@@ -98,7 +98,7 @@ describe('EmployeeDetailPage', () => {
     canSeeSalaries.mockReturnValue(true);
     vi.mocked(employeeApi.updateSalary).mockResolvedValue({ employeeId: 5, salary: 99000 });
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await user.click(await screen.findByRole('button', { name: 'Update' }));
@@ -117,7 +117,7 @@ describe('EmployeeDetailPage', () => {
     // basarili deniyordu. Sunucu maas silmeyi desteklemiyor.
     canSeeSalaries.mockReturnValue(true);
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderPage();
 
     await user.click(await screen.findByRole('button', { name: 'Update' }));
