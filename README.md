@@ -456,6 +456,25 @@ alıp `NVD_API_KEY` olarak tanımlamak bunu ciddi biçimde kısaltır.
 Arayüz tarafında karşılığı `npm audit`. CI'da tarama haftalık koşar — bir
 bağımlılığın açığı kodla değil zamanla ortaya çıkar.
 
+### Metrikler ve panolar (opsiyonel)
+
+Prometheus ve Grafana **ayrı bir profilde** durur: günlük geliştirme döngüsüne
+iki konteyner daha yüklememek için opt-in.
+
+```bash
+docker compose --profile full --profile metrics up -d
+```
+
+| Ne | Adres |
+|---|---|
+| Prometheus | http://localhost:9091 |
+| Grafana | http://localhost:3000 |
+
+Veri kaynağı ve pano dosyayla sağlanır ([ops/](ops/)), elle değil: "önce şu
+düğmeye bas" diye anlatılan bir kurulum belge değildir. Servislerin metrik ucu
+yönetim portundadır (9090) ve **dışarı yayımlanmaz** — metrik masum görünür ama
+uç desenlerini ve hata oranlarını sızdırır.
+
 ### Durdurma
 
 ```bash
@@ -491,6 +510,8 @@ Taban adres: `http://localhost:8080`
 | `PUT` | `/api/leave-requests/{id}/decision` | Onay / ret / iptal. Yönetici yalnızca **doğrudan astının**, kendi isteğine **hiç** karar veremez | `MANAGER`, `HR_SPECIALIST` | `200` |
 | `GET` | `/api/audit` | Denetim izi; aktör, eylem, hedef ve tarihe göre süzülür | `SYSTEM_ADMIN` | `200` |
 | `GET` | `/api/departments` | Aktif departmanlar, isme göre sıralı | giriş yapmış | `200` |
+| `POST` | `/api/departments` | Yeni departman; ad büyük-küçük harf duyarsız benzersiz | `HR_SPECIALIST` | `201` + `Location` |
+| `PUT` | `/api/departments/{id}/status` | Aç / kapat (tekrarı etkisiz). İçinde aktif personel varken kapatılamaz | `HR_SPECIALIST` | `200` |
 | `GET` | `/api/users` | Hesap listesi (parola özeti **dönmez**) | `SYSTEM_ADMIN` | `200` |
 | `POST` | `/api/users` | Hesap oluştur; `employeeId` ile personele bağlanır | `SYSTEM_ADMIN` | `201` |
 | `PUT` | `/api/users/{id}/roles` | Rol kümesini komple değiştir | `SYSTEM_ADMIN` | `200` |
@@ -629,9 +650,14 @@ curl -X POST http://localhost:8080/api/employees \
     "email": "ada@example.com",
     "departmentId": 1,
     "jobTitle": "Software Engineer",
-    "hireDate": "2024-01-15",
-    "salary": 85000.00
+    "hireDate": "2024-01-15"
   }'
+```
+
+> Ücret bu istekte **yoktur** ve gönderilse yok sayılır: kaydı açan kişi ücret
+> belirleyemez. Ücret ayrı uçtan, `PAYROLL_SPECIALIST` tarafından yazılır.
+
+```bash
 ```
 
 ```json
@@ -647,7 +673,9 @@ curl -X POST http://localhost:8080/api/employees \
   "managerFullName": null,
   "jobTitle": "Software Engineer",
   "hireDate": "2024-01-15",
-  "active": true
+  "active": true,
+  "terminatedAt": null,
+  "terminationReason": null
 }
 ```
 
@@ -720,6 +748,7 @@ HR Management System/
 ├── .env.e2e                    ✅  uçtan uca testlerin ayrı yığını (ad ve portlar)
 ├── .github/workflows/ci.yml    ✅  backend, frontend, uçtan uca, güvenlik ve imaj işleri
 ├── docker/postgres-init/       ✅  ilk kurulumda çalışan veritabanı betikleri
+├── ops/                        ✅  Prometheus ayarı ve Grafana panosu (kod olarak)
 ├── README.md                   ✅  bu dosya
 ├── eureka-server/              ✅  servis keşif sunucusu
 │   ├── pom.xml
@@ -740,7 +769,7 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesi, outbox yazıcı ve relay
 │       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
 │       ├── main/resources/db/migration/   V1__ ... V12__
-│       └── test/               256 test
+│       └── test/               280 test
 ├── notification-service/       ✅  olayları dinleyip mail gönderen servis
 │   ├── pom.xml
 │   └── src/
@@ -753,7 +782,7 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesinin tüketici tarafı
 │       │   └── config/         kuyruk, DLX ve DLQ tanımları
 │       ├── main/resources/db/migration/   V1__
-│       └── test/               30 test
+│       └── test/               32 test
 └── frontend/                   ✅  React + TypeScript arayüz
     ├── package.json
     └── src/
@@ -764,7 +793,7 @@ HR Management System/
         ├── pages/              Giriş, liste, detay, form, 404 ekranları
         ├── components/         Kabuk, onay penceresi, geri bildirim, hata sınırı
         ├── types/              Backend sözleşmesinin TypeScript karşılığı
-        └── *.test.ts(x)        193 test (Vitest + Testing Library)
+        └── *.test.ts(x)        200 test (Vitest + Testing Library)
 
 e2e/                            ✅  çalışan sisteme dışarıdan bakan testler
 └── src/test/java/com/proje/e2e/    19 test

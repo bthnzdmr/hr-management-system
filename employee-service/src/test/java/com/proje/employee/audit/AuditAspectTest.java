@@ -61,6 +61,16 @@ class AuditAspectTest {
         String notAudited(Long id) {
             return "ok";
         }
+
+        /** toString'i OLMAYAN bir nesne alan denetimli metot. */
+        @Auditable(action = AuditAction.LEAVE_REQUESTED, targetType = "LEAVE_REQUEST")
+        String withEntity(Long id, OpaqueEntity author) {
+            return "ok";
+        }
+    }
+
+    /** Entity'lerin cogu boyledir: toString yok, varsayilani kimlik karmasi. */
+    static class OpaqueEntity {
     }
 
     record Created(Long id) {
@@ -176,5 +186,20 @@ class AuditAspectTest {
                 .when(auditEntryRepository).save(org.mockito.ArgumentMatchers.any());
 
         assertThat(service().create("new@example.com")).isEqualTo(new Created(42L));
+    }
+
+    @Test
+    @DisplayName("Keeps an object with no readable form out of the trail")
+    void skipsIdentityHashes() {
+        // Olculdu: "com.proje...User@7f67b234" yaziliyordu -- 500 karakterlik
+        // detay butcesini yiyen, hicbir sey anlatmayan gurultu. Daha onemlisi
+        // ileriye donuk risk: entity'ye toString eklendigi gun butun alanlari
+        // (ornegin passwordHash) ize dokulurdu.
+        service().withEntity(7L, new OpaqueEntity());
+
+        // Okunabilir hicbir arguman kalmadigi icin detay BOS: kimlik karmasi
+        // yazmaktansa hic yazmamak dogru -- kayit yine dusuyor, yalnizca
+        // anlamsiz gurultu tasimiyor.
+        assertThat(captured().getDetail()).isNull();
     }
 }

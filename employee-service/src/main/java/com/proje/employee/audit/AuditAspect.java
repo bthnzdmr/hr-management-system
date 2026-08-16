@@ -133,9 +133,31 @@ public class AuditAspect {
     private String detail(JoinPoint joinPoint) {
         String summary = Arrays.stream(joinPoint.getArgs())
                 .filter(arg -> arg != null && !(arg instanceof Long) && !(arg instanceof String))
+                .filter(AuditAspect::readable)
                 .map(Object::toString)
                 .collect(Collectors.joining(", "));
 
         return summary.isBlank() ? null : summary;
+    }
+
+    /**
+     * Yalnizca INSAN TARAFINDAN OKUNABILIR ozetler yazilir.
+     *
+     * Entity'lerin cogunda {@code toString()} yok ve varsayilan uygulama
+     * {@code com.proje...User@7f67b234} gibi bir kimlik karmasi uretiyordu:
+     * 500 karakterlik detay butcesini yiyen, hicbir sey anlatmayan gurultu.
+     *
+     * Daha onemlisi ileriye donuk bir risk: bir entity'ye {@code toString()}
+     * eklendigi gun butun alanlari -- ornegin {@code passwordHash} -- ize
+     * dokulurdu. Denetim izi, sirlarin arka kapisi olamaz.
+     */
+    private static boolean readable(Object arg) {
+        Class<?> type = arg.getClass();
+
+        // Record ve enum: uretilmis/sabit temsil, ozeti anlamli.
+        // JDK tipleri (BigDecimal, LocalDate...): temsili zaten insan okur.
+        // GERISI dislanir -- entity'lerin cogunda toString yok ve varsayilani
+        // kimlik karmasidir; olani ise butun alanlarini dokebilir.
+        return type.isRecord() || type.isEnum() || type.getPackageName().startsWith("java.");
     }
 }
