@@ -182,7 +182,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [employee-service, notification-service]
+        service: [employee-service, notification-service, eureka-server]
 
     steps:
       - uses: actions/checkout@v4
