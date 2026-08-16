@@ -7,7 +7,8 @@ interface Props {
   typeLabel: string;
   canDecide: boolean;
   busy: boolean;
-  onDecide: (status: 'APPROVED' | 'REJECTED') => void;
+  onDecide: (status: 'APPROVED' | 'REJECTED' | 'CANCELLED') => void;
+  onReject: () => void;
 }
 
 /**
@@ -18,7 +19,9 @@ interface Props {
  * bir kez olculmustu. Dokunma hedefleri 44 px: tablodaki "small" dugmeler
  * (~30 px) parmak icin kucuktu.
  */
-export function LeaveCard({ leave, statusLabel, typeLabel, canDecide, busy, onDecide }: Props) {
+export function LeaveCard({
+  leave, statusLabel, typeLabel, canDecide, busy, onDecide, onReject,
+}: Props) {
   const pending: LeaveStatus = 'PENDING';
 
   return (
@@ -54,7 +57,7 @@ export function LeaveCard({ leave, statusLabel, typeLabel, canDecide, busy, onDe
           <Button
             fullWidth
             disabled={busy}
-            onClick={() => onDecide('REJECTED')}
+            onClick={onReject}
             sx={{ minHeight: 44 }}
           >
             Reject
@@ -69,6 +72,18 @@ export function LeaveCard({ leave, statusLabel, typeLabel, canDecide, busy, onDe
             Approve
           </Button>
         </Stack>
+      )}
+
+      {canDecide && leave.status === pending && (
+        <Button
+          size="small"
+          color="inherit"
+          disabled={busy}
+          onClick={() => onDecide('CANCELLED')}
+          sx={{ minHeight: 44 }}
+        >
+          Cancel request
+        </Button>
       )}
     </Paper>
   );

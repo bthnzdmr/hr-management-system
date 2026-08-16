@@ -92,7 +92,7 @@ describe('LeaveListPage', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Approve' }));
 
-    expect(leaveRequestApi.decide).toHaveBeenCalledWith(1, 'APPROVED');
+    expect(leaveRequestApi.decide).toHaveBeenCalledWith(1, 'APPROVED', undefined);
     // Liste yeniden okunur: karar sonrasi ekranda eski durum kalsaydi
     // kullanici islemin gecmedigini sanirdi.
     await waitFor(() => expect(leaveRequestApi.list).toHaveBeenCalledTimes(2));
@@ -165,6 +165,46 @@ describe('LeaveListPage', () => {
 
     expect(await screen.findByText('Nothing to decide')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Show all requests' })).toBeInTheDocument();
+  });
+
+  it('asks for a reason before rejecting and keeps it separate from the request', async () => {
+    // Ret gerekcesi ile talep gerekcesi IKI AYRI olgudur: sunucuda ayri
+    // kolonlarda durur, arayuz de ikisini karistirmamali.
+    vi.mocked(leaveRequestApi.decide).mockResolvedValue(leave({ status: 'REJECTED' }));
+
+    const user = userEvent.setup({ delay: null });
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Reject' }));
+    await user.type(screen.getByLabelText(/reason/i), 'Team is short-staffed');
+    await user.click(screen.getByRole('button', { name: 'Reject' }));
+
+    await waitFor(() => expect(leaveRequestApi.decide)
+      .toHaveBeenCalledWith(1, 'REJECTED', 'Team is short-staffed'));
+  });
+
+  it('does not reject until the dialog is confirmed', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Reject' }));
+    await user.click(screen.getByRole('button', { name: 'Keep it pending' }));
+
+    expect(leaveRequestApi.decide).not.toHaveBeenCalled();
+  });
+
+  it('can withdraw a request without deciding it', async () => {
+    // Sunucu CANCELLED'i kabul ediyordu ama arayuzde dugmesi yoktu: durum
+    // GOSTERILEBILIYOR ama URETILEMIYORDU.
+    vi.mocked(leaveRequestApi.decide).mockResolvedValue(leave({ status: 'CANCELLED' }));
+
+    const user = userEvent.setup({ delay: null });
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => expect(leaveRequestApi.decide)
+      .toHaveBeenCalledWith(1, 'CANCELLED', undefined));
   });
 
   it('shows the failure instead of an endless skeleton', async () => {

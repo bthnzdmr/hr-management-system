@@ -14,6 +14,7 @@ import { EmptyState } from '../components/EmptyState';
 import { LeaveFormDialog } from '../components/LeaveFormDialog';
 import { useSnackbar } from '../components/SnackbarProvider';
 import { LeaveCard } from '../components/LeaveCard';
+import { RejectLeaveDialog } from '../components/RejectLeaveDialog';
 import { useBusyRows } from '../hooks/useBusyRows';
 
 /** Durum -> etiket ve renk. Tek tanim: iki yerde tutulsa biri geride kalirdi. */
@@ -52,6 +53,8 @@ export function LeaveListPage() {
   const [filter, setFilter] = useState<'PENDING' | 'ALL'>('PENDING');
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  /** Reddedilmek uzere secilen satir; gerekce penceresi bunun uzerinden acilir. */
+  const [rejecting, setRejecting] = useState<LeaveRequest | null>(null);
   /** Karar bekleyen SATIR; global bir bayrak butun satirlari kilitlerdi. */
   const busyRows = useBusyRows();
 
@@ -87,12 +90,23 @@ export function LeaveListPage() {
     void load();
   }, [load]);
 
-  const decide = async (leave: LeaveRequest, status: 'APPROVED' | 'REJECTED') => {
+  const DONE: Record<Exclude<LeaveStatus, 'PENDING'>, string> = {
+    APPROVED: 'approved',
+    REJECTED: 'rejected',
+    CANCELLED: 'cancelled',
+  };
+
+  const decide = async (
+    leave: LeaveRequest,
+    status: Exclude<LeaveStatus, 'PENDING'>,
+    reason?: string,
+  ) => {
     busyRows.start(leave.id);
+    setRejecting(null);
 
     try {
-      await leaveRequestApi.decide(leave.id, status);
-      notify(`Request ${status === 'APPROVED' ? 'approved' : 'rejected'}`, 'success');
+      await leaveRequestApi.decide(leave.id, status, reason);
+      notify(`Request ${DONE[status]}`, 'success');
       await load();
     } catch (cause) {
       notify(errorMessage(cause), 'error');
@@ -175,6 +189,7 @@ export function LeaveListPage() {
                       canDecide={canDecideLeave}
                       busy={busyRows.isBusy(leave.id)}
                       onDecide={(status) => decide(leave, status)}
+                      onReject={() => setRejecting(leave)}
                     />
                   ))}
                 </Stack>
@@ -223,13 +238,23 @@ export function LeaveListPage() {
                           <TableCell align="right">
                             {leave.status === 'PENDING' ? (
                               <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                                {/* Iptal, karara VARMADAN geri cekmektir:
+                                    karar bilgisi bos kalir. */}
+                                <Button
+                                  size="small"
+                                  color="inherit"
+                                  disabled={busyRows.isBusy(leave.id)}
+                                  onClick={() => decide(leave, 'CANCELLED')}
+                                >
+                                  Cancel
+                                </Button>
                                 <Button
                                   size="small"
                                   // Mesgul bayragi SATIR BASINA: global olsaydi
                                   // bir satirin istegi surerken butun tablo
                                   // kilitlenirdi.
                                   disabled={busyRows.isBusy(leave.id)}
-                                  onClick={() => decide(leave, 'REJECTED')}
+                                  onClick={() => setRejecting(leave)}
                                 >
                                   Reject
                                 </Button>
@@ -270,6 +295,16 @@ export function LeaveListPage() {
           )}
         </Stack>
       </Paper>
+
+      <RejectLeaveDialog
+        open={rejecting !== null}
+        employeeName={rejecting?.employeeFullName ?? ''}
+        busy={rejecting !== null && busyRows.isBusy(rejecting.id)}
+        onClose={() => setRejecting(null)}
+        onConfirm={(reason) => {
+          if (rejecting) void decide(rejecting, 'REJECTED', reason);
+        }}
+      />
 
       <LeaveFormDialog
         open={formOpen}
