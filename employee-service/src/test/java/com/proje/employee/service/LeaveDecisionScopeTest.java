@@ -81,6 +81,20 @@ class LeaveDecisionScopeTest {
     }
 
     @Test
+    @DisplayName("an HR specialist may not approve their own leave either")
+    void hrCannotApproveOwnLeave() {
+        // Kural yalnizca yonetici icin isliyordu: "isUnrestricted()" ilk
+        // satirdaydi ve kendi-talebi kontrolune hic ulasilmiyordu. Personele
+        // bagli bir Ik uzmani kendi talebini acip kendisi onayliyordu.
+        leaveOf(grace);
+        AccessScope hrWhoIsAlsoGrace = new AccessScope(AccessScope.Kind.ALL, grace.getId(), false);
+
+        assertThatThrownBy(() -> service.approve(7L, decider, hrWhoIsAlsoGrace))
+                .isInstanceOf(LeaveRuleViolationException.class)
+                .hasMessageContaining("your own leave");
+    }
+
+    @Test
     @DisplayName("a manager may not approve their own leave")
     void managerCannotApproveOwnLeave() {
         // Kendi iznini onaylamak gorevler ayriligina aykiri; kimse kendi

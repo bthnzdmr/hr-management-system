@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -64,6 +65,9 @@ public class LoginAttemptService {
 
     private final Map<String, Attempts> byKey = new ConcurrentHashMap<>();
 
+    /** Bir adresten hangi hesaplarin denendigi; spraying'in imzasi budur. */
+    private final Map<String, Set<String>> emailsTriedFrom = new ConcurrentHashMap<>();
+
     // @Autowired SART: iki kurucu var ve Spring hangisini kullanacagini
     // bilemez -- isaretlenmezse varsayilan kurucu arar ve baglam ACILMAZ.
     // Birim testler bunu goremedi cunku nesneyi dogrudan kuruyorlar.
@@ -98,14 +102,53 @@ public class LoginAttemptService {
         }
     }
 
-    /** Basarili giris ilgili sayaclari sifirlar. */
+    /**
+     * Basarili giris YALNIZCA o hesabin sayacini sifirlar.
+     *
+     * IP sayaci KASITLI olarak duruyor. Once ikisi birden siliniyordu ve bu,
+     * IP sayacinin varlik sebebini ortadan kaldiriyordu: parolayi sabitleyip
+     * kullanici tarayan biri (password spraying) arada kendi gecerli hesabina
+     * girerek sayaci istedigi gibi temizleyebiliyordu. Olculdu -- her dort
+     * denemede bir gecerli giris yapildiginda on iki hesap denendi ve hic
+     * bloke olunmadi.
+     *
+     * Bedeli: NAT arkasindaki mesru bir kullanici, ayni adresten gelen
+     * basarisiz denemelerin sayacini kendi girisiyle sifirlayamaz. Pencere
+     * zaten kisa ve sayac kendiliginden dusuyor.
+     */
     public void recordSuccess(String email, String clientIp) {
         byKey.remove(emailKey(email));
-        byKey.remove(ipKey(clientIp));
+
+        // IP sayaci YALNIZCA o adresten baska hesap denenmediyse temizlenir.
+        //
+        // Once kosulsuz siliniyordu ve bu, IP sayacinin varlik sebebini
+        // ortadan kaldiriyordu: parolayi sabitleyip kullanici tarayan biri
+        // (password spraying) arada kendi gecerli hesabina girerek sayaci
+        // istedigi gibi temizliyordu. Olculdu -- her dort denemede bir gecerli
+        // giris yapildiginda on iki hesap denendi ve hic bloke olunmadi.
+        //
+        // Kosulsuz KORUMAK da yanlis olurdu: kendi parolasini iki kez yanlis
+        // yazip sonra dogru giren mesru kullanici kendi adresinde kilitlenirdi.
+        // Ayrim, denenen hesap SAYISIDIR: bir kisi kendi hesabini fumbler,
+        // saldirgan baskalarininkini tarar.
+        Set<String> tried = emailsTriedFrom.get(clientIp);
+
+        if (tried == null || (tried.size() == 1 && tried.contains(email))) {
+            byKey.remove(ipKey(clientIp));
+            emailsTriedFrom.remove(clientIp);
+        }
     }
 
     public void recordFailure(String email, String clientIp) {
         Instant now = clock.instant();
+
+        // Sinirli tutulur: aksi halde tek bir adresten sinirsiz e-posta
+        // denenerek bellek sisirilebilirdi.
+        if (emailsTriedFrom.size() < MAX_TRACKED_KEYS) {
+            emailsTriedFrom
+                    .computeIfAbsent(clientIp, key -> ConcurrentHashMap.newKeySet())
+                    .add(email);
+        }
         // Sayac dolduysa yeni anahtar eklenmez ama MEVCUT anahtarlar artmaya
         // devam eder: aksi halde saldirgan tabloyu doldurup kendi sayacinin
         // artmasini engelleyebilirdi.

@@ -164,6 +164,18 @@ public class LeaveRequestService {
     // Kendi iznini onaylamak gorevler ayriligina aykiri; kimse kendi rolune
     // dokunamaz kuralinin ayni ailesinden.
     private void requireCanDecide(LeaveRequest leave, AccessScope scope) {
+        Employee owner = leave.getEmployee();
+        boolean ownRequest = scope.employeeId() != null
+                && owner.getId().equals(scope.employeeId());
+
+        // Kendi iznini onaylamak GORUNURLUKTEN once gelir. Once
+        // isUnrestricted() sorulunca kural yalnizca yonetici icin isliyordu:
+        // personele bagli bir Ik uzmani kendi talebini acip kendisi
+        // onaylayabiliyordu. Olculdu.
+        if (ownRequest) {
+            throw new LeaveRuleViolationException("You cannot decide your own leave");
+        }
+
         if (scope.isUnrestricted()) {
             return;
         }
@@ -172,15 +184,12 @@ public class LeaveRequestService {
             throw new LeaveRequestNotFoundException(leave.getId());
         }
 
-        Employee owner = leave.getEmployee();
-        boolean ownRequest = owner.getId().equals(scope.employeeId());
         boolean directReport = owner.getManager() != null
                 && owner.getManager().getId().equals(scope.employeeId());
 
-        if (ownRequest || !directReport) {
-            throw new LeaveRuleViolationException(ownRequest
-                    ? "You cannot decide your own leave"
-                    : "Only this person's manager or HR can decide this request");
+        if (!directReport) {
+            throw new LeaveRuleViolationException(
+                    "Only this person's manager or HR can decide this request");
         }
     }
 

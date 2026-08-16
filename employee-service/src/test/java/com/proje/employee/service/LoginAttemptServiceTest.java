@@ -200,4 +200,39 @@ class LoginAttemptServiceTest {
         assertThatThrownBy(() -> service.assertNotBlocked("ada@example.com", "10.0.0.9"))
                 .isInstanceOf(TooManyLoginAttemptsException.class);
     }
+
+    @Test
+    @DisplayName("A successful sign-in does not wipe the trail of a password spray")
+    void successDoesNotClearTheSprayTrail() {
+        // Olculen bypass: sayac kosulsuz siliniyordu ve gecerli tek bir hesabi
+        // olan saldirgan, arada giris yaparak IP sayacini temizleyip sinirsiz
+        // hesap tarayabiliyordu.
+        LoginAttemptService service = service();
+
+        service.recordFailure("victim1@example.com", IP);
+        service.recordFailure("victim2@example.com", IP);
+
+        // Saldirganin KENDI hesabina basarili girisi
+        service.recordSuccess(EMAIL, IP);
+
+        service.recordFailure("victim3@example.com", IP);
+
+        assertThatThrownBy(() -> service.assertNotBlocked("victim4@example.com", IP))
+                .isInstanceOf(TooManyLoginAttemptsException.class);
+    }
+
+    @Test
+    @DisplayName("Fumbling your own password and then signing in clears your address too")
+    void fumblingOwnPasswordStillClears() {
+        // Ayrim denenen HESAP SAYISIDIR: bir kisi kendi hesabini yanlis yazar,
+        // saldirgan baskalarininkini tarar. Mesru kullanici kendi adresinde
+        // kilitlenmemeli.
+        LoginAttemptService service = service();
+        fail(service, EMAIL, IP, MAX - 1);
+
+        service.recordSuccess(EMAIL, IP);
+        service.recordFailure(EMAIL, IP);
+
+        assertThatCode(() -> service.assertNotBlocked(EMAIL, IP)).doesNotThrowAnyException();
+    }
 }
