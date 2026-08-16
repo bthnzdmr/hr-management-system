@@ -19,7 +19,6 @@ interface AuthUser {
  */
 interface AuthContextValue {
   user: AuthUser | null;
-  hasRole: (role: Role) => boolean;
   /** Personel kaydi olusturma, guncelleme, durum degistirme. */
   canEditEmployees: boolean;
   /** Hesap acma, rol verme, erisim yonetimi. */
@@ -146,7 +145,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return {
         user,
-        hasRole,
         canEditEmployees: hasRole('HR_SPECIALIST'),
         canManageAccounts: hasRole('SYSTEM_ADMIN'),
         // Ucret ayri bir role gecti: ayni kisinin hem kayit acip hem maas

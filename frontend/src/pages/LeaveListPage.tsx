@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert, Button, Chip, Paper, Skeleton, Stack, Table, TableBody, TableCell,
   TableContainer, TableHead, TablePagination, TableRow, ToggleButton, ToggleButtonGroup,
-  Typography,
+  Typography, useMediaQuery, useTheme,
 } from '@mui/material';
 import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 import { leaveRequestApi } from '../api/leaveRequests';
@@ -13,6 +13,8 @@ import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/EmptyState';
 import { LeaveFormDialog } from '../components/LeaveFormDialog';
 import { useSnackbar } from '../components/SnackbarProvider';
+import { LeaveCard } from '../components/LeaveCard';
+import { useBusyRows } from '../hooks/useBusyRows';
 
 /** Durum -> etiket ve renk. Tek tanim: iki yerde tutulsa biri geride kalirdi. */
 const STATUS_LABELS: Record<LeaveStatus, { label: string; color: 'default' | 'success' | 'error' | 'warning' }> = {
@@ -37,6 +39,10 @@ const FILTERS: { value: 'PENDING' | 'ALL'; label: string }[] = [
 
 export function LeaveListPage() {
   const { canEditEmployees, canDecideLeave } = useAuth();
+  const theme = useTheme();
+  // TEK gorunum render edilir. Ikisini birden cizip birini gizlemek her
+  // erisilebilir adi DOM'da iki kez birakirdi -- proje bunu bir kez olctu.
+  const isNarrow = useMediaQuery(theme.breakpoints.down('md'));
   const { notify } = useSnackbar();
 
   const [rows, setRows] = useState<LeaveRequest[] | null>(null);
@@ -47,7 +53,7 @@ export function LeaveListPage() {
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   /** Karar bekleyen SATIR; global bir bayrak butun satirlari kilitlerdi. */
-  const [deciding, setDeciding] = useState<number | null>(null);
+  const busyRows = useBusyRows();
 
   /** Her istege bir sira numarasi. */
   const requestId = useRef(0);
@@ -82,7 +88,7 @@ export function LeaveListPage() {
   }, [load]);
 
   const decide = async (leave: LeaveRequest, status: 'APPROVED' | 'REJECTED') => {
-    setDeciding(leave.id);
+    busyRows.start(leave.id);
 
     try {
       await leaveRequestApi.decide(leave.id, status);
@@ -91,7 +97,7 @@ export function LeaveListPage() {
     } catch (cause) {
       notify(errorMessage(cause), 'error');
     } finally {
-      setDeciding(null);
+      busyRows.finish(leave.id);
     }
   };
 
@@ -158,6 +164,21 @@ export function LeaveListPage() {
 
           {rows !== null && rows.length > 0 && (
             <>
+              {isNarrow ? (
+                <Stack spacing={1.25}>
+                  {rows.map((leave) => (
+                    <LeaveCard
+                      key={leave.id}
+                      leave={leave}
+                      statusLabel={STATUS_LABELS[leave.status]}
+                      typeLabel={TYPE_LABELS[leave.type]}
+                      canDecide={canDecideLeave}
+                      busy={busyRows.isBusy(leave.id)}
+                      onDecide={(status) => decide(leave, status)}
+                    />
+                  ))}
+                </Stack>
+              ) : (
               <TableContainer sx={{ overflowX: 'auto' }}>
                 <Table>
                   <TableHead>
@@ -202,7 +223,7 @@ export function LeaveListPage() {
                                   // Mesgul bayragi SATIR BASINA: global olsaydi
                                   // bir satirin istegi surerken butun tablo
                                   // kilitlenirdi.
-                                  disabled={deciding === leave.id}
+                                  disabled={busyRows.isBusy(leave.id)}
                                   onClick={() => decide(leave, 'REJECTED')}
                                 >
                                   Reject
@@ -210,7 +231,7 @@ export function LeaveListPage() {
                                 <Button
                                   size="small"
                                   variant="contained"
-                                  disabled={deciding === leave.id}
+                                  disabled={busyRows.isBusy(leave.id)}
                                   onClick={() => decide(leave, 'APPROVED')}
                                 >
                                   Approve
@@ -226,6 +247,7 @@ export function LeaveListPage() {
                   </TableBody>
                 </Table>
               </TableContainer>
+              )}
 
               <TablePagination
                 component="div"

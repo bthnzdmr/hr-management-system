@@ -54,8 +54,9 @@ export const employeeApi = {
     api.put<Employee>(`${BASE}/${id}/status`, { active, terminationReason: terminationReason ?? null })
       .then((r) => r.data),
 
-  // Maas ayri bir alt kaynaktir ve yalnizca ADMIN erisebilir; genel personel
-  // cevabinda hic donmez.
+  // Maas ayri bir alt kaynaktir: bordro uzmani herkesinkini, calisan ve
+  // yonetici yalnizca KENDI kayitlarininkini okur. Genel personel cevabinda
+  // hic donmez.
   getSalary: (id: number) =>
     api.get<SalaryResponse>(`${BASE}/${id}/salary`).then((r) => r.data),
 

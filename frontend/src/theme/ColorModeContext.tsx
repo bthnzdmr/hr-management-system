@@ -23,9 +23,13 @@ const ColorModeContext = createContext<ColorModeContextValue | null>(null);
 export function ColorModeProvider({ children }: { children: ReactNode }) {
   const prefersDark = useMediaQuery('(prefers-color-scheme: dark)');
 
-  const [stored, setStored] = useState<PaletteMode | null>(
-    () => (localStorage.getItem(STORAGE_KEY) as PaletteMode | null),
-  );
+  // Tip IDDIASI dogrulama degildir: depodaki bozuk bir deger dogrudan temaya
+  // gecerdi. Taninmayan tercih, tercihsizlik sayilir -- useDensity ayni sinifi
+  // zaten boyle ele aliyor.
+  const [stored, setStored] = useState<PaletteMode | null>(() => {
+    const value = localStorage.getItem(STORAGE_KEY);
+    return value === 'light' || value === 'dark' ? value : null;
+  });
 
   // Kullanici bir secim yapmadiysa isletim sisteminin tercihi izlenir.
   const mode: PaletteMode = stored ?? (prefersDark ? 'dark' : 'light');

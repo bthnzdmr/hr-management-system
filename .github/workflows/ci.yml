@@ -196,11 +196,22 @@ jobs:
       # NVD veritabani ~500 MB ve anahtarsiz indirmesi olculdu: ~35 dakika.
       # Onbellege alinmazsa bu is her kosuda o bedeli oder. Anahtar tanimliysa
       # guncelleme cok daha hizli; yoksa is yine calisir, sadece yavas.
+      # Anahtar HAFTALIK doner. Iki tuzak birden var:
+      #   - run_id kullanilsaydi tam eslesme HIC tutmaz ve her kosu ~1 GB'lik
+      #     yeni bir onbellek yazardi; depo butcesi dolunca setup-java'nin
+      #     Maven onbellekleri tahliye edilir ve diger isler yavaslardi.
+      #   - Sabit anahtar da yanlis: actions/cache var olan anahtari
+      #     GUNCELLEMEZ, yani veritabani sonsuza kadar bayat kalirdi.
+      - name: Stamp the cache week
+        id: week
+        run: echo "stamp=$(date -u +%Y-%V)" >> "$GITHUB_OUTPUT"
+
       - name: Cache the vulnerability database
         uses: actions/cache@v4
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
-          key: nvd-${{ matrix.service }}-${{ github.run_id }}
+          key: nvd-${{ steps.week.outputs.stamp }}
+          # Onceki haftanin onbellegi geri yuklenir: guncelleme artimli olur.
           restore-keys: nvd-
 
       - name: Scan

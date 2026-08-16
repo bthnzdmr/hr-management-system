@@ -27,7 +27,7 @@ export function LoginPage() {
     try {
       await login({ email, password });
       // Korumali bir sayfadan yonlendirilmisse oraya geri don.
-      const from = (location.state as { from?: Location })?.from?.pathname ?? '/employees';
+      const from = (location.state as { from?: Location })?.from?.pathname ?? '/';
       navigate(from, { replace: true });
     } catch (err) {
       setError(errorMessage(err));

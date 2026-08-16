@@ -235,8 +235,6 @@ export function EmployeeFormPage() {
             </Section>
           </Paper>
 
-          <Paper sx={{ p: 3 }}>
-          </Paper>
 
           {/* Dar ekranda alt alta ve ters sirada: birincil eylem parmaga en
               yakin yerde, yani altta kalir. */}

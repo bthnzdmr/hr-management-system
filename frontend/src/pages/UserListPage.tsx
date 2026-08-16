@@ -12,6 +12,7 @@ import { userApi } from '../api/users';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useSnackbar } from '../components/SnackbarProvider';
+import { useBusyRows } from '../hooks/useBusyRows';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { UserCreateDialog } from '../components/UserCreateDialog';
 import { AccountCard } from '../components/AccountCard';
@@ -41,7 +42,7 @@ export function UserListPage() {
   const [size, setSize] = useState(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const busyRows = useBusyRows();
   const [creating, setCreating] = useState(false);
   const [pendingDeactivation, setPendingDeactivation] = useState<User | null>(null);
   // Yalnizca EN SON listeleme istegi durumu yazabilir.
@@ -82,7 +83,7 @@ export function UserListPage() {
 
   const applyStatus = useCallback(
     async (target: User, active: boolean) => {
-      setBusyId(target.id);
+      busyRows.start(target.id);
       try {
         replace(await userApi.changeStatus(target.id, active));
         notify(active ? `${target.email} activated` : `${target.email} deactivated`);
@@ -90,7 +91,7 @@ export function UserListPage() {
         // Sunucunun is kurali mesaji burada gorunur: "son yonetici kalmali" gibi.
         notify(errorMessage(cause), 'error');
       } finally {
-        setBusyId(null);
+        busyRows.finish(target.id);
       }
     },
     [notify],
@@ -105,14 +106,14 @@ export function UserListPage() {
         return;
       }
 
-      setBusyId(target.id);
+      busyRows.start(target.id);
       try {
         replace(await userApi.changeRoles(target.id, roles));
         notify(`Roles updated for ${target.email}`);
       } catch (cause) {
         notify(errorMessage(cause), 'error');
       } finally {
-        setBusyId(null);
+        busyRows.finish(target.id);
       }
     },
     [notify],
@@ -184,7 +185,7 @@ export function UserListPage() {
             key={account.id}
             account={account}
             isSelf={account.email === currentUser?.email}
-            busy={busyId === account.id}
+            busy={busyRows.isBusy(account.id)}
             onRolesChange={(roles) => applyRoles(account, roles)}
             onToggleStatus={() =>
               account.active ? setPendingDeactivation(account) : applyStatus(account, true)}
@@ -242,7 +243,7 @@ export function UserListPage() {
                           select
                           size="small"
                           value={account.roles.filter((role) => ASSIGNABLE_ROLES.includes(role))}
-                          disabled={isSelf || busyId === account.id}
+                          disabled={isSelf || busyRows.isBusy(account.id)}
                           onChange={(event) =>
                             applyRoles(account, event.target.value as unknown as Role[])}
                           sx={{ minWidth: 190 }}
@@ -298,7 +299,7 @@ export function UserListPage() {
                             <IconButton
                               size="small"
                               aria-label={account.active ? 'Deactivate' : 'Activate'}
-                              disabled={isSelf || busyId === account.id}
+                              disabled={isSelf || busyRows.isBusy(account.id)}
                               onClick={() =>
                                 account.active
                                   ? setPendingDeactivation(account)
@@ -365,7 +366,7 @@ export function UserListPage() {
         confirmColor="error"
         // Satir basina; global bayrak kullaniciyi baska bir satirin
         // istegi yuzunden pencerede kilitli birakirdi.
-        busy={busyId !== null && busyId === pendingDeactivation?.id}
+        busy={busyRows.isBusy(pendingDeactivation?.id)}
         description={
           <Stack spacing={1.5}>
             <Typography variant="body2">

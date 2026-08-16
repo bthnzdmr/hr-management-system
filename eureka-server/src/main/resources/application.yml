@@ -2,8 +2,16 @@
 
 server:
   port: 8761        # Eureka'nin standart portu. Panele http://localhost:8761 ile bakarsin.
+  # Diger iki servisle es: SIGTERM gelince ucustaki istekler bitirilir.
+  # Eksikligi tutarsizlikti -- kayit defteri de dagitim sirasinda yarida
+  # kesilebiliyordu.
+  shutdown: graceful
 
 spring:
+  # Kapanma butcesi: compose'daki stop_grace_period bundan UZUN olmali,
+  # yoksa JVM isini bitiremeden SIGKILL yer ve zarif kapanma kagit uzerinde kalir.
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
   application:
     name: eureka-server   # Servisin Eureka uzerindeki adi.
 
@@ -23,6 +31,12 @@ eureka:
     enable-self-preservation: ${EUREKA_SELF_PRESERVATION:true}
 
 management:
+  # Yonetim ucu AYRI PORTTA ve compose'da yayimlanmiyor. Onceden 8761'de
+  # duruyordu ve o port disari acik: /actuator/info surum ile TAM JVM
+  # yapisini kimlik dogrulamasi olmadan veriyordu. Diger iki serviste ayni
+  # karar zaten uygulanmisti.
+  server:
+    port: 9090
   endpoints:
     web:
       exposure:

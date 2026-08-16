@@ -81,6 +81,16 @@ services:
     ports:
       - "${MAILHOG_SMTP_PORT:-1025}:1025"     # SMTP -> Notification Service buraya mail atar
       - "${MAILHOG_PANEL_PORT:-8025}:8025"     # web arayuz -> http://localhost:8025
+    # Saglik kontrolu YOKTU, dolayisiyla tuketici "service_healthy" ile
+    # bekleyemiyordu: SMTP dinlemiyorken gelen ilk olay bes retry hakkini
+    # yakip DLQ'ya dusuyordu. Imajda kabuk araci sinirli, bu yuzden web
+    # arayuzune kendi TCP'siyle bakiyoruz.
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "8025"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     deploy:
       resources:
         limits:
@@ -107,7 +117,10 @@ services:
     ports:
       - "${EUREKA_PORT:-8761}:8761"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8761/actuator/health"]
+      # Yonetim portu 9090'a tasindi (8761 disari acik ve /actuator/info tam
+      # JVM yapisini veriyordu). Saglik kontrolu de onunla birlikte tasinmali,
+      # yoksa konteyner kalici olarak "unhealthy" kalir -- olculdu.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -221,8 +234,10 @@ services:
     # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
     restart: unless-stopped
     profiles: ["full"]
-    ports:
-      - "${NOTIFICATION_PORT:-8081}:8081"
+    # ports YOK: bu serviste hicbir controller ve guvenlik zinciri yok.
+    # 8081'i yayimlamak, tek sakini whitelabel hata sayfasi olan kimliksiz bir
+    # yuzey acmakti. Konteyner agi icinden erisim (saglik kontrolu, Feign)
+    # etkilenmez.
     environment:
       # Compose'un "full" profili YEREL GELISTIRME yigindir; uretim degil.
       # Bu yuzden dev profili varsayilan olarak aciktir: DEBUG SQL ve Swagger
@@ -253,6 +268,10 @@ services:
       rabbitmq:
         condition: service_healthy
       eureka-server:
+        condition: service_healthy
+      # mailhog EKSIKTI: SMTP dinlemiyorken gelen ilk olay bes retry
+      # hakkini yakip DLQ'ya dusuyordu -- ve DLQ'nun tuketicisi yok.
+      mailhog:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/actuator/health"]

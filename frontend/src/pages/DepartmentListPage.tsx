@@ -14,6 +14,7 @@ import type { Department } from '../types/api';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/EmptyState';
 import { useSnackbar } from '../components/SnackbarProvider';
+import { useBusyRows } from '../hooks/useBusyRows';
 
 const COLUMNS = ['Department', 'Active employees', 'Status', 'Actions'];
 
@@ -25,7 +26,7 @@ export function DepartmentListPage() {
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const busyRows = useBusyRows();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,7 +63,7 @@ export function DepartmentListPage() {
   };
 
   const changeStatus = async (department: Department, active: boolean) => {
-    setBusyId(department.id);
+    busyRows.start(department.id);
     try {
       const updated = await departmentApi.changeStatus(department.id, active);
       setDepartments((current) =>
@@ -73,7 +74,7 @@ export function DepartmentListPage() {
       // gerektigini soyler.
       notify(errorMessage(cause), 'error');
     } finally {
-      setBusyId(null);
+      busyRows.finish(department.id);
     }
   };
 
@@ -166,7 +167,7 @@ export function DepartmentListPage() {
                             <IconButton
                               size="small"
                               aria-label={`Close ${department.name}`}
-                              disabled={staffed || busyId === department.id}
+                              disabled={staffed || busyRows.isBusy(department.id)}
                               onClick={() => changeStatus(department, false)}
                             >
                               <BlockIcon fontSize="small" />
@@ -179,7 +180,7 @@ export function DepartmentListPage() {
                             <IconButton
                               size="small"
                               aria-label={`Reopen ${department.name}`}
-                              disabled={busyId === department.id}
+                              disabled={busyRows.isBusy(department.id)}
                               onClick={() => changeStatus(department, true)}
                             >
                               <RestartAltIcon fontSize="small" />

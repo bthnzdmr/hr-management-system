@@ -22,14 +22,14 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
 
-  # Iki @Scheduled is var (OutboxRelay ve RefreshTokenCleanup) ve Spring'in
+  # Uc @Scheduled is var (OutboxRelay, RefreshTokenCleanup, OutboxCleanup) ve Spring'in
   # varsayilan zamanlayici havuzu TEK ipliktir. Relay en kotu durumda
   # batch-size x confirm-timeout kadar (20 x 5sn = 100sn) o ipligi tutar ve
   # o sure boyunca jeton temizligi hic calisamaz.
   task:
     scheduling:
       pool:
-        size: 2
+        size: 3
 
   application:
     name: employee-service
