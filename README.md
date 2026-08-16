@@ -769,7 +769,7 @@ HR Management System/
 │       │   ├── event/          olay sözleşmesi, outbox yazıcı ve relay
 │       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
 │       ├── main/resources/db/migration/   V1__ ... V12__
-│       └── test/               280 test
+│       └── test/               282 test
 ├── notification-service/       ✅  olayları dinleyip mail gönderen servis
 │   ├── pom.xml
 │   └── src/
