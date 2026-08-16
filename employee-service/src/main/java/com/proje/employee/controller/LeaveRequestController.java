@@ -31,11 +31,18 @@ import org.springframework.web.bind.annotation.RestController;
 import java.net.URI;
 import java.security.Principal;
 import java.util.List;
+import java.util.Set;
 
 @Tag(name = "Leave", description = "Izin istekleri. Kayitlari Ik personel adina girer.")
 @RestController
 @RequestMapping("/api/leave-requests")
 public class LeaveRequestController {
+
+    // Siralanabilir alanlar. ILISKI UZERINDEN siralama (employee.salary gibi)
+    // bilerek disarida: cevapta donmeyen bir alan, siralama uzerinden yine de
+    // okunabilir hale gelirdi.
+    private static final Set<String> SORTABLE = Set.of(
+            "id", "startDate", "endDate", "status", "type", "createdAt");
 
     private final LeaveRequestService leaveRequestService;
     private final AccessScopeResolver accessScopeResolver;
@@ -58,6 +65,8 @@ public class LeaveRequestController {
             @PageableDefault(size = 20, sort = "startDate", direction = Sort.Direction.DESC)
             Pageable pageable,
             Principal caller) {
+
+        SortWhitelist.check(pageable, SORTABLE);
 
         return leaveRequestService.list(status, accessScopeResolver.resolve(caller), pageable);
     }

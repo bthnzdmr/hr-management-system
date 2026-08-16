@@ -50,6 +50,7 @@ class DashboardRepositoryTest {
         // users.employee_id yabanci anahtari personel silmeyi engeller. Baglanti
         // once koparilir; @DataJpaTest transaction icinde calisip geri
         // alindigi icin gercek hesaplar etkilenmez.
+        entityManager.createQuery("DELETE FROM LeaveRequest").executeUpdate();
         entityManager.createQuery("UPDATE User u SET u.employee = null").executeUpdate();
         employeeRepository.deleteAllInBatch();
         sales = departmentRepository.findByName("Sales").orElseThrow();

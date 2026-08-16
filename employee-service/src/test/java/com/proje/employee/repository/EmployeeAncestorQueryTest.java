@@ -46,6 +46,7 @@ class EmployeeAncestorQueryTest {
     void setUp() {
         // Test onceki duruma bagimli olmamali. @DataJpaTest transaction icinde
         // calisip geri aldigi icin bu silme kalici degil.
+        entityManager.createQuery("DELETE FROM LeaveRequest").executeUpdate();
         entityManager.createQuery("UPDATE User u SET u.employee = null").executeUpdate();
         employeeRepository.deleteAllInBatch();
 

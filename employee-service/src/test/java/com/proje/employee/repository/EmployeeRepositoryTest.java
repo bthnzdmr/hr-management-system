@@ -41,6 +41,7 @@ class EmployeeRepositoryTest {
         // yabanci anahtari personel silmeyi engeller, bu yuzden baglanti once
         // koparilir; @DataJpaTest transaction icinde calisip geri alindigi icin
         // ne silme ne de koparma kalicidir.
+        entityManager.createQuery("DELETE FROM LeaveRequest").executeUpdate();
         entityManager.createQuery("UPDATE User u SET u.employee = null").executeUpdate();
         employeeRepository.deleteAllInBatch();
 

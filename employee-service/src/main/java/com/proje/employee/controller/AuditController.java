@@ -6,6 +6,7 @@ import com.proje.employee.service.AuditService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -27,8 +28,9 @@ public class AuditController {
         this.auditService = auditService;
     }
 
-    // Siralama parametreye baglanmaz: gizli bir alana gore siralamak degeri
-    // gostermeden bilgi sizdirir.
+    // Istemcinin siralamasi YOK SAYILIR. Yorum eskiden bunu iddia ediyordu ama
+    // Pageable siralamayi da tasiyor ve kod iddiayi tutmuyordu; sorgu zaten
+    // occurredAt DESC donuyor.
     @GetMapping
     @Operation(summary = "Denetim izi",
             description = "Kim, ne zaman, neyi degistirdi. Ucret TUTARI kayda hic yazilmaz.")
@@ -40,6 +42,8 @@ public class AuditController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant since,
             @PageableDefault(size = 25) Pageable pageable) {
 
-        return auditService.search(actor, action, targetType, since, pageable);
+        Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+
+        return auditService.search(actor, action, targetType, since, unsorted);
     }
 }
