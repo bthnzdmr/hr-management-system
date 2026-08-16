@@ -30,6 +30,9 @@ eureka:
 # bu yuzden kodun okudugu her anahtar burada da tanimli olmak zorundadir.
 # Aksi halde ilk @SpringBootTest "Could not resolve placeholder" ile patlar.
 app:
+  processed-event:
+    retention-days: 30
+    cleanup-interval-ms: 3600000
   mail:
     from: hr-system@example.com
   employee-service:

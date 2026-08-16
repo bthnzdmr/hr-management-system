@@ -82,6 +82,13 @@ spring:
             read-timeout: 3000
 
 app:
+  processed-event:
+    # Saklama suresi, bir mesajin broker'da bekleyebilecegi en uzun sureden
+    # GUVENLE uzun secilir: satir erken silinirse gec teslim edilen bir olay
+    # "hic islenmemis" gorunur ve ikinci bir mail gider.
+    retention-days: ${PROCESSED_EVENT_RETENTION_DAYS:30}
+    cleanup-interval-ms: ${PROCESSED_EVENT_CLEANUP_INTERVAL_MS:3600000}
+
   mail:
     # Sir degil, gorunur bir gonderici adresi; varsayilani olmasi sakincasiz.
     from: ${MAIL_FROM:hr-system@example.com}
@@ -123,6 +130,14 @@ management:
       enabled: true
     java:
       enabled: true
+  health:
+    # SMTP kesintisi tuketiciyi HASTA yapmaz. Olculdu: MailHog durunca servis
+    # "unhealthy" isaretleniyordu, oysa kuyrugu tuketmeye ve veritabanina
+    # yazmaya devam ediyordu. Gercek bir orkestratorde bu, calisan bir
+    # tuketiciyi oldururdu. Mail sunucusuna ulasilamamasi tuketicinin ISIDIR,
+    # canliligi degil -- ve zaten DLQ ile gorunur olur.
+    mail:
+      enabled: false
   endpoint:
     health:
       show-details: when-authorized

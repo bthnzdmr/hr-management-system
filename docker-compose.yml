@@ -234,6 +234,11 @@ services:
       # sessiz geri dusus, tam da kacinmak istedigimiz sey.
       SERVICE_ACCOUNT_EMAIL: ${SERVICE_ACCOUNT_EMAIL:?see .env.example}
       SERVICE_ACCOUNT_PASSWORD: ${SERVICE_ACCOUNT_PASSWORD:?see .env.example}
+      # Idempotency penceresi. .env'e yazmak YETMEZ: degisken burada
+      # acikca gecirilmezse uygulama onu hic gormez ve ayar sessizce
+      # etkisiz kalir -- projede bir kez yasanmis tuzak.
+      PROCESSED_EVENT_RETENTION_DAYS: ${PROCESSED_EVENT_RETENTION_DAYS:-30}
+      PROCESSED_EVENT_CLEANUP_INTERVAL_MS: ${PROCESSED_EVENT_CLEANUP_INTERVAL_MS:-3600000}
     depends_on:
       postgres:
         condition: service_healthy
