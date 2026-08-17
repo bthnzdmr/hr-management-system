@@ -9,7 +9,6 @@ import { EmptyState } from '../components/EmptyState';
 import { OrgBubbleMap, OrgOutline, useDepartmentColors } from '../components/OrgBubbleMap';
 import { DepartmentRail } from '../components/DepartmentRail';
 import { departmentsOf, groupByDepartment, isDepartmentNode, scopeToDepartment } from '../components/orgScope';
-import { DepartmentSummary } from '../components/DepartmentSummary';
 import { PersonPanel } from '../components/PersonPanel';
 
 export function OrgChartPage() {
@@ -61,15 +60,8 @@ export function OrgChartPage() {
 
   /** Secim aç/kapa calisir. */
   const toggleSelect = (person: OrgNode) => {
-    // Departman balonu bir KISI degil. Tiklamak o departmana ODAKLANIR --
-    // raftaki dugmenin yaptigi isin aynisi, ama sema uzerinden kesfedilebilir.
-    if (isDepartmentNode(person)) {
-      setSelected(null);
-      setDepartment((current) => (current === person.departmentName
-        ? null
-        : person.departmentName));
-      return;
-    }
+    // Departman balonu bir KISI degil; secmek sagdaki panele bos bir kayit acardi.
+    if (isDepartmentNode(person)) return;
 
     setSelected((current) => (current?.id === person.id ? null : person));
   };
@@ -198,25 +190,14 @@ export function OrgChartPage() {
           {chart && (
             // `key` ile yeniden kuruluyor: hizlica birkac kisiye tiklandiginda
             // gecisler ic ice girmesin. Ayni desen semada da kullaniliyor.
-            <Fade in key={selected?.id ?? department ?? 'none'} timeout={220}>
+            <Fade in key={selected?.id ?? 'none'} timeout={220}>
               <Box>
-                {!selected && department !== null && (
-                  <DepartmentSummary
-                    name={department}
-                    headcount={departments.find((d) => d.name === department)?.headcount ?? 0}
-                    heads={scoped[0]?.reports ?? []}
-                    color={colors.get(department)}
-                    onSelect={setSelected}
-                  />
-                )}
-                {(selected || department === null) && (
                 <PersonPanel
                   person={selected}
                   chain={chain}
                   color={selected ? colors.get(selected.departmentName) : undefined}
                   onSelect={setSelected}
                 />
-                )}
               </Box>
             </Fade>
           )}

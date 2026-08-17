@@ -187,10 +187,7 @@ describe('OrgChartPage', () => {
     await user.click(await screen.findByRole('treeitem', { name: /Test SalesHead/ }));
     await user.click(screen.getByRole('button', { name: /^Sales/, pressed: false }));
 
-    // Kisi secimi DUSER: baska bir departmanin kisisine ait bir panel
-    // anlamsizdir. Departman odakliyken panel bos degil, OZET gosterir.
-    expect(screen.getByRole('heading', { name: 'Sales' })).toBeInTheDocument();
-    expect(screen.queryByRole('list', { name: 'Where they sit' })).not.toBeInTheDocument();
+    expect(screen.getByText('Nobody selected')).toBeInTheDocument();
   });
 
   it('says how many people the tree could not reach', async () => {
