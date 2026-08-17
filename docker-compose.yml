@@ -353,6 +353,33 @@ services:
           cpus: "0.5"
           memory: 512M
 
+  # Uyarilarin ULASTIGI yer. Prometheus kurallari degerlendirir ama bildirim
+  # gondermez; bu konteyner olmadan "uyari var" ile "uyari ulasiyor" ayni
+  # sanilirdi -- ve olculdu: DLQ'da fark edilmemis 16 mesaj gunlerce bekledi.
+  #
+  # Kanal MailHog: yiginda zaten var, yani bildirimin gercekten ulastigi
+  # dogrulanabiliyor. Gercek bir dagitimda kurumun kendi SMTP'si yazilir.
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: ${STACK_PREFIX:-hr}-alertmanager
+    restart: unless-stopped
+    profiles: ["metrics"]
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    volumes:
+      - .\ops\alertmanager\alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    ports:
+      # Prometheus ve Grafana gibi sabit: metrik profili e2e yiginda
+      # kullanilmiyor, dolayisiyla port cakismasi icin degisken gerekmiyor.
+      - "9093:9093"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+
   grafana:
     image: grafana/grafana:11.1.0
     container_name: ${STACK_PREFIX:-hr}-grafana
@@ -382,5 +409,8 @@ services:
 
 volumes:
   prometheus-data:
+  # Susturma (silence) kayitlari ve bildirim gecmisi burada durur: konteyner
+  # yeniden basladiginda susturulmus bir uyari tekrar bildirilmesin.
+  alertmanager-data:
   grafana-data:
   postgres-data:

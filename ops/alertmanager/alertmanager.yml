@@ -1,0 +1,67 @@
+# Uyarilarin GITTIGI yer.
+#
+# Prometheus kurallari degerlendirir ve "firing" durumunu KENDI sayfasinda
+# gosterir; kimseye haber vermez. "Uyari var" ile "uyari ULASIYOR" ayri
+# seylerdir ve bugune kadar elimizde yalnizca birincisi vardi -- olculdu:
+# DLQ'da fark edilmemis 16 mesaj gunlerce bekledi.
+#
+# Kanal olarak MailHog secildi cunku YIGINDA ZATEN VAR. Yeni bir dis servise
+# (Slack, PagerDuty) bagimli olmadan bildirimin gercekten ulastigi uctan uca
+# dogrulanabiliyor: uyari atesler, mail MailHog'un kutusuna duser.
+#
+# GERCEK BIR DAGITIMDA BU DOSYA DEGISIR: alici adres ve SMTP sunucusu kurumun
+# kendi kanali olur. Burada olan sey bir MEKANIZMA gosterimi, hazir bir
+# uretim yapilandirmasi degil.
+
+global:
+  # MailHog kimlik dogrulamasi ve TLS istemez; gercek bir SMTP sunucusunda
+  # ikisi de gerekir ve buraya eklenir.
+  smtp_smarthost: "mailhog:1025"
+  smtp_from: "alerts@hr.local"
+  smtp_require_tls: false
+
+route:
+  receiver: mail
+
+  # Ayni anda atesleyen uyarilar TEK mailde toplanir. Aksi halde bir servis
+  # coktugunde her hedef icin ayri mail giderdi ve gurultu, uyarinin kendisini
+  # gormezden gelinir hale getirirdi.
+  group_by: ["alertname", "severity"]
+
+  # Ilk maili beklemeden once kisa bir pencere: ayni olaydan kaynaklanan
+  # uyarilar (TargetDown + Backlog) ayni gruba girsin.
+  group_wait: 30s
+
+  # Ayni grup icin yeni bir uye eklenirse bu sure sonra tekrar bildirilir.
+  group_interval: 5m
+
+  # COZULMEYEN bir uyari bu araliklarla HATIRLATILIR. Susmasaydi gurultu
+  # olurdu; hic hatirlatmasaydi unutulurdu -- DLQ olayinda tam olarak bu oldu.
+  repeat_interval: 12h
+
+receivers:
+  - name: mail
+    email_configs:
+      - to: "ops@hr.local"
+        # Konu satirinda uyarinin ADI ve kac tane oldugu: posta kutusunda
+        # acmadan ayirt edilebilmeli.
+        headers:
+          Subject: '{{ .Status | toUpper }} [{{ .Alerts.Firing | len }}] {{ .GroupLabels.alertname }}'
+        # Govde kurallardaki `summary` ve `description` alanlarini tasir;
+        # uyariyi yazan kisi mesaji bir kez yazar, iki yerde tekrarlanmaz.
+        html: |
+          {{ range .Alerts }}
+            <p><b>{{ .Annotations.summary }}</b></p>
+            <p>{{ .Annotations.description }}</p>
+            <p><small>{{ .Labels }}</small></p>
+          {{ end }}
+
+# Bir uyari susturulmus baska bir uyarinin SONUCUYSA tekrar bildirilmez.
+#
+# Somut: bir servis coktugunde `TargetDown` atesler ve ayni sebeple kuyruk
+# birikip `NotificationQueueBacklog` da atesler. Ikincisi yeni bir bilgi
+# tasimaz -- ayni arizanin belirtisidir.
+inhibit_rules:
+  - source_matchers: ["severity = critical"]
+    target_matchers: ["severity = warning"]
+    equal: ["service"]

@@ -5,10 +5,12 @@
 # demektir -- ve hatirlanmadigi olculdu: bu dosya yazilirken DLQ'da fark
 # edilmemis 16 mesaj duruyordu.
 #
-# Alertmanager YOK, yani bu uyarilar kimseye BILDIRIM gondermez; Prometheus'un
-# /alerts sayfasinda ve Grafana'da gorunurler. Bu bilincli bir sinir: bildirim
-# icin bir kanal (e-posta, Slack) ve bir konteyner daha gerekir. Kayda geciyor
-# ki "uyari var" ile "uyari ulasiyor" karistirilmasin.
+# Alertmanager ARTIK VAR (ops/alertmanager) ve bildirimler MailHog'a mail
+# olarak dusuyor. Onceki hali "Alertmanager yok, uyarilar kimseye ulasmiyor"
+# diyordu; o cumle dogruydu ama artik degil.
+#
+# Kanal MailHog cunku yiginda zaten var: bildirimin gercekten ulastigi uctan
+# uca dogrulanabiliyor. Gercek bir dagitimda kurumun kendi SMTP'si yazilir.
 groups:
   - name: messaging
     rules:
