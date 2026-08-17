@@ -15,6 +15,13 @@ interface Props {
   /** Listeden cikarilacak kayit; kimse kendi yoneticisi olamaz. */
   excludeId?: number;
   disabled?: boolean;
+  /**
+   * Alan boyu.
+   *
+   * Suzgec satirinda yanindaki tarih alanlari `small` iken bu kutu varsayilan
+   * `medium` kaliyordu ve ucu yan yana farkli yukseklikte duruyordu.
+   */
+  size?: 'small' | 'medium';
 }
 
 const DEBOUNCE_MS = 300;
@@ -33,7 +40,7 @@ const MAX_OPTIONS = 10;
  * birini sec" demek.
  */
 export function EmployeePicker({
-  value, onChange, label, helperText, excludeId, disabled = false,
+  value, onChange, label, helperText, excludeId, disabled = false, size = 'medium',
 }: Props) {
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<EmployeeOption[]>([]);
@@ -91,6 +98,7 @@ export function EmployeePicker({
       options={options}
       loading={loading}
       disabled={disabled}
+      size={size}
       // Secenekler sunucudan zaten suzulmus geliyor; tarayici ikinci kez
       // suzerse sunucunun bulduklarini gizler.
       filterOptions={(x) => x}

@@ -313,7 +313,16 @@ describe('LeaveListPage', () => {
     renderPage();
     await screen.findByText('Ada Lovelace');
 
-    await user.type(screen.getByLabelText('From'), '2031-03-01');
+    // Tarih alani artik tek bir <input> degil: `role="group"` icinde Gun / Ay
+    // / Yil bolumleri var ve her biri ayri ayri duzenlenebiliyor. "From" adi
+    // hem gruba hem gizli girdiye dustugu icin etiketle aramak IKI eslesme
+    // buluyor; hedef acikca grup ve onun ilk bolumu.
+    const range = screen.getByRole('group', { name: 'From' });
+    await user.click(within(range).getByLabelText('Day'));
+
+    // Kullanici GUN-AY-YIL yazar; sunucuya ISO gider. Iddia bu yuzden iki
+    // farkli bicim tasiyor -- sinirdaki donusumun dogrulugu tam da budur.
+    await user.keyboard('01032031');
 
     await waitFor(() => expect(leaveRequestApi.list).toHaveBeenLastCalledWith(
       expect.objectContaining({ from: '2031-03-01' }),

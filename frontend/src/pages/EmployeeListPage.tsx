@@ -31,6 +31,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmployeeCard } from '../components/EmployeeCard';
 import { useSnackbar } from '../components/SnackbarProvider';
 import { employeeApi } from '../api/employees';
+import { formatDay } from '../utils/formatDate';
 import { TERMINATION_REASONS, TERMINATION_REASON_LABELS } from '../types/api';
 import type { Employee, TerminationReason } from '../types/api';
 
@@ -408,7 +409,7 @@ export function EmployeeListPage() {
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell>{employee.hireDate}</TableCell>
+                    <TableCell>{formatDay(employee.hireDate)}</TableCell>
                     <TableCell>
                       <Chip
                         label={employee.active ? 'Active' : 'Inactive'}

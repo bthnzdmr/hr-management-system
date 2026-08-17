@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Alert, Button, Chip, Paper, Skeleton, Stack, Table, TableBody, TableCell,
   TableContainer, TableHead, TablePagination, TableRow, ToggleButton, ToggleButtonGroup,
-  TextField, Typography, useMediaQuery, useTheme,
+  Typography, useMediaQuery, useTheme,
 } from '@mui/material';
 import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 import { leaveRequestApi } from '../api/leaveRequests';
@@ -15,6 +15,7 @@ import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/EmptyState';
 import { LeaveFormDialog } from '../components/LeaveFormDialog';
 import { EmployeePicker } from '../components/EmployeePicker';
+import { DateField } from '../components/DateField';
 import type { EmployeeOption } from '../components/EmployeePicker';
 import { useSnackbar } from '../components/SnackbarProvider';
 import { LeaveCard } from '../components/LeaveCard';
@@ -246,7 +247,25 @@ export function LeaveListPage() {
             ))}
           </ToggleButtonGroup>
 
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+          {/* Uc suzgec de AYNI boyda ve esit genislikte.
+              Onceden kisi secici varsayilan `medium`, tarih alanlari `small`
+              idi ve yan yana farkli yukseklikte duruyorlardi; ustelik "From"un
+              yardim metni yoktu, dolayisiyla alt hizalari da tutmuyordu.
+              `alignItems: flex-start` kutulari TEPEDEN hizalar, boylece yardim
+              metni sarsa bile kutular kaymaz. */}
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2}
+            sx={{
+              alignItems: { md: 'flex-start' },
+              // Takvim paneli SABIT 320 px genisliginde ve alanin sol kenarina
+              // yaslanir. 900'de her alan (900-32)/3 = 289 px kaliyordu, yani
+              // panel alanin sagindan 31 px tasıyordu. 1024'te her alan 330 px
+              // ve panel alanin icinde kaliyor.
+              maxWidth: 1024,
+              '& > *': { flex: 1, minWidth: 0 },
+            }}
+          >
             <EmployeePicker
               value={person}
               onChange={(next) => {
@@ -255,21 +274,21 @@ export function LeaveListPage() {
               }}
               label="Whose leave"
               helperText="Leave it empty to see everyone in your scope"
-            />
-            <TextField
-              type="date"
-              label="From"
-              value={from}
-              onChange={(event) => setFilters({ from: event.target.value })}
-              slotProps={{ inputLabel: { shrink: true } }}
               size="small"
             />
-            <TextField
-              type="date"
+            <DateField
+              label="From"
+              value={from}
+              onChange={(next) => setFilters({ from: next })}
+              size="small"
+              // Bos bir yardim satiri: yer AYRILIR, yoksa bu kutu digerlerinden
+              // bir satir kisa kalir.
+              helperText=" "
+            />
+            <DateField
               label="Until"
               value={until}
-              onChange={(event) => setFilters({ until: event.target.value })}
-              slotProps={{ inputLabel: { shrink: true } }}
+              onChange={(next) => setFilters({ until: next })}
               size="small"
               helperText="Overlapping leave, not only leave starting here"
             />
@@ -330,8 +349,10 @@ export function LeaveListPage() {
                         <TableCell>{leave.employeeFullName}</TableCell>
                         <TableCell>{TYPE_LABELS[leave.type]}</TableCell>
                         <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                          {/* Tek gunluk izinde tarih HAM basiliyordu; ayni
+                              ifadenin iki dali farkli davraniyordu. */}
                           {leave.startDate === leave.endDate
-                            ? leave.startDate
+                            ? formatDay(leave.startDate)
                             : `${formatDay(leave.startDate)} → ${formatDay(leave.endDate)}`}
                         </TableCell>
                         <TableCell>{leave.days}</TableCell>

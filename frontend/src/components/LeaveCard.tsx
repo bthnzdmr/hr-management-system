@@ -41,8 +41,10 @@ export function LeaveCard({
       </Stack>
 
       <Typography variant="caption" color="text.secondary">
+        {/* Tek gunluk izinde tarih HAM basiliyordu; ayni bilesenin iki dali
+            farkli davraniyordu ve ekranda "2031-03-10" gorunuyordu. */}
         {leave.startDate === leave.endDate
-          ? leave.startDate
+          ? formatDay(leave.startDate)
           : `${formatDay(leave.startDate)} → ${formatDay(leave.endDate)}`}
         {leave.decidedBy ? ` · decided by ${leave.decidedBy}` : ` · recorded by ${leave.recordedBy}`}
       </Typography>

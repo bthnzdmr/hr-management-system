@@ -139,6 +139,24 @@ export function buildTheme(mode: PaletteMode): Theme {
     components: {
       MuiCssBaseline: {
         styleOverrides: {
+          /**
+           * Tarayiciya temanin ne oldugu SOYLENIR.
+           *
+           * `<input type="date">` acilir takvimi tarayicinin KENDI bileseni;
+           * icini CSS ile bicimlendirmek mumkun degil ve tek kaldirac
+           * `color-scheme`. Ayarlanmadigi surece tarayici acik tema varsayar:
+           * koyu sayfanin uzerine bembeyaz bir takvim aciliyor ve alanin
+           * icindeki takvim ikonu koyu zeminde neredeyse gorunmuyordu.
+           *
+           * Ayni tek satir kaydirma cubuklarini, yerlesik acilir listeleri ve
+           * otomatik tamamlama panellerini de temaya uyduruyor.
+           */
+          ':root': { colorScheme: light ? 'light' : 'dark' },
+
+          // Takvim ikonu tiklanabilir oldugunu soylemeliydi; varsayilan imlec
+          // metin imleci.
+          'input[type="date"]::-webkit-calendar-picker-indicator': { cursor: 'pointer' },
+
           // Sayilarin sutun halinde hizalanmasi icin: tabular rakamlar
           // olmadan "111" ile "999" farkli genislikte olur ve tablo titrer.
           'th, td, .MuiChip-label': { fontVariantNumeric: 'tabular-nums' },

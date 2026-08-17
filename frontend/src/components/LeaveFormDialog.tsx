@@ -6,6 +6,7 @@ import { leaveRequestApi } from '../api/leaveRequests';
 import type { LeaveType } from '../api/leaveRequests';
 import { errorMessage } from '../api/client';
 import { EmployeePicker } from './EmployeePicker';
+import { DateField } from './DateField';
 import type { EmployeeOption } from './EmployeePicker';
 
 interface Props {
@@ -105,20 +106,16 @@ export function LeaveFormDialog({ open, onClose, onSaved }: Props) {
           </TextField>
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              type="date"
+            <DateField
               label="First day"
               value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-              fullWidth
+              onChange={setStartDate}
+              helperText=" "
             />
-            <TextField
-              type="date"
+            <DateField
               label="Last day"
               value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
+              onChange={setEndDate}
               error={datesInvalid}
               helperText={datesInvalid ? 'Cannot be before the first day' : 'This day is included'}
               fullWidth

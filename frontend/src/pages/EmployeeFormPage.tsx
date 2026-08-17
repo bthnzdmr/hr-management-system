@@ -12,6 +12,7 @@ import { errorMessage } from '../api/client';
 import { EmployeePicker } from '../components/EmployeePicker';
 import type { EmployeeOption } from '../components/EmployeePicker';
 import { PageHeader } from '../components/PageHeader';
+import { DateField } from '../components/DateField';
 import { useSnackbar } from '../components/SnackbarProvider';
 import type { Department, EmployeeCreateRequest } from '../types/api';
 
@@ -215,10 +216,11 @@ export function EmployeeFormPage() {
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    label="Hire date" type="date" value={form.hireDate} required fullWidth
-                    slotProps={{ inputLabel: { shrink: true } }}
-                    onChange={(e) => update('hireDate', e.target.value)}
+                  <DateField
+                    label="Hire date"
+                    value={form.hireDate}
+                    onChange={(next) => update('hireDate', next)}
+                    required
                     helperText=" "
                   />
                 </Grid>
