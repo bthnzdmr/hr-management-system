@@ -8,6 +8,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 /** Izin istegi cevabi. */
+import com.proje.employee.audit.AuditLabel;
+
 public record LeaveRequestResponse(
         Long id,
         Long employeeId,
@@ -23,7 +25,13 @@ public record LeaveRequestResponse(
         String decidedBy,
         Instant decidedAt,
         Instant createdAt
-) {
+) implements AuditLabel {
+
+    @Override
+    public String auditLabel() {
+        return employeeFullName;
+    }
+
 
     public static LeaveRequestResponse from(LeaveRequest leave) {
         return new LeaveRequestResponse(

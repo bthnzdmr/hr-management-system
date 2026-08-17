@@ -12,6 +12,7 @@ public record AuditEntryResponse(
         AuditAction action,
         String targetType,
         String targetId,
+        String targetLabel,
         String detail,
         String correlationId,
         Instant occurredAt
@@ -24,6 +25,7 @@ public record AuditEntryResponse(
                 entry.getAction(),
                 entry.getTargetType(),
                 entry.getTargetId(),
+                entry.getTargetLabel(),
                 entry.getDetail(),
                 entry.getCorrelationId(),
                 entry.getOccurredAt());

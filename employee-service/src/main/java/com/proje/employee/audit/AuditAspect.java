@@ -63,6 +63,7 @@ public class AuditAspect {
                     auditable.action(),
                     auditable.targetType(),
                     targetId(joinPoint, result),
+                    result instanceof AuditLabel labelled ? labelled.auditLabel() : null,
                     detail(joinPoint, auditable),
                     MDC.get(CorrelationIdFilter.MDC_KEY)));
         } catch (RuntimeException e) {

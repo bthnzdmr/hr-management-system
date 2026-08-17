@@ -38,7 +38,7 @@ class AuditSearchTest {
     }
 
     private AuditEntry entry(String actor, AuditAction action, String targetType) {
-        return new AuditEntry(actor, action, targetType, "1", "detail", "corr");
+        return new AuditEntry(actor, action, targetType, "1", "Ada Lovelace", "detail", "corr");
     }
 
     /** Filtresiz cagri: butun kayitlar, en yeniden eskiye. */

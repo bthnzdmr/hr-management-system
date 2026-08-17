@@ -49,6 +49,11 @@ public class AuditEntry {
     @Column(name = "target_id", length = 64, updatable = false)
     private String targetId;
 
+    // Kaydin YAZILDIGI ANDAKI adi. Okurken JOIN yapilsaydi bugunku ad
+    // gorunurdu ve hedef kaybolursa ad tamamen kaybolurdu.
+    @Column(name = "target_label", length = 255, updatable = false)
+    private String targetLabel;
+
     @Column(name = "detail", length = DETAIL_MAX, updatable = false)
     private String detail;
 
@@ -62,11 +67,12 @@ public class AuditEntry {
     }
 
     public AuditEntry(String actor, AuditAction action, String targetType, String targetId,
-                      String detail, String correlationId) {
+                      String targetLabel, String detail, String correlationId) {
         this.actor = actor;
         this.action = action;
         this.targetType = targetType;
         this.targetId = targetId;
+        this.targetLabel = targetLabel;
         // Kolon sinirini asan bir detay INSERT'i patlatir ve is islemini geri
         // alirdi: denetim kaydi ise ENGEL OLMAMALI, kirpilmali.
         this.detail = truncate(detail);
@@ -103,6 +109,10 @@ public class AuditEntry {
 
     public String getTargetId() {
         return targetId;
+    }
+
+    public String getTargetLabel() {
+        return targetLabel;
     }
 
     public String getDetail() {

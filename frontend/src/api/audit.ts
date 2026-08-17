@@ -19,6 +19,8 @@ export interface AuditEntry {
   action: AuditAction;
   targetType: string;
   targetId: string | null;
+  /** Kaydin YAZILDIGI ANDAKI adi; eski satirlarda yoktur. */
+  targetLabel: string | null;
   /** Insan tarafindan okunacak ozet; ucret TUTARI buraya hic yazilmaz. */
   detail: string | null;
   /** Ayni istegin butun servislerdeki loglarini birbirine baglar. */

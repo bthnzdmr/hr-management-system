@@ -4,6 +4,8 @@ import com.proje.employee.entity.TerminationReason;
 
 import java.time.LocalDate;
 
+import com.proje.employee.audit.AuditLabel;
+
 public record EmployeeResponse(
         Long id,
         String firstName,
@@ -26,5 +28,11 @@ public record EmployeeResponse(
         // ayrildigi, devir oraninin dayandigi bilgidir.
         LocalDate terminatedAt,
         TerminationReason terminationReason
-) {
+) implements AuditLabel {
+
+    @Override
+    public String auditLabel() {
+        return firstName + " " + lastName;
+    }
+
 }

@@ -155,7 +155,7 @@ export function AuditPage() {
                           />
                         </TableCell>
                         <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                          {entry.targetType}{entry.targetId ? ` #${entry.targetId}` : ''}
+                          {entry.targetLabel ?? `${entry.targetType}${entry.targetId ? ` #${entry.targetId}` : ''}`}
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" color="text.secondary">

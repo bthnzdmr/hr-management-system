@@ -11,6 +11,8 @@ import java.util.Set;
  * Parola ozeti BILEREK yok. Bir kez cevaba eklenirse her istemciye, her loga ve
  * her tarayici gecmisine girer; DTO kullanmanin sebeplerinden biri tam da budur.
  */
+import com.proje.employee.audit.AuditLabel;
+
 public record UserResponse(
         Long id,
         String email,
@@ -19,5 +21,11 @@ public record UserResponse(
         Long employeeId,
         String employeeFullName,
         Instant createdAt
-) {
+) implements AuditLabel {
+
+    @Override
+    public String auditLabel() {
+        return email;
+    }
+
 }
