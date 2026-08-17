@@ -183,13 +183,21 @@ Gerekçeleri proje kurallarında kayıtlıdır.
 | -------------------- | ----- | -------------------------------------------- | -------- |
 | Eureka Server        | 8761  | http://localhost:8761                        | ✅       |
 | Employee Service     | 8080  | http://localhost:8080                        | ✅       |
-| Notification Service | 8081  | http://localhost:8081                        | ✅       |
+| Notification Service | 8081  | yalnızca konteyner ağından; dışarı **açılmaz** | ✅       |
 | Frontend (React)     | 5173  | http://localhost:5173                        | ✅       |
 | PostgreSQL           | 5432  | `employee_db` ve `notification_db`           | ✅       |
 | RabbitMQ (AMQP)      | 5672  | uygulamaların bağlandığı port                | ✅       |
 | RabbitMQ paneli      | 15672 | http://localhost:15672                       | ✅       |
 | MailHog (SMTP)       | 1025  | Notification Service buraya mail atar        | ✅       |
 | MailHog paneli       | 8025  | http://localhost:8025                        | ✅       |
+| Prometheus paneli    | 9091  | http://localhost:9091 (`metrics` profili)    | ✅       |
+| Grafana              | 3000  | http://localhost:3000 (`metrics` profili)    | ✅       |
+
+Notification Service'in dışarıya açık bir ucu yoktur, bu yüzden portu
+yayımlanmaz. Servislerin **yönetim portu 9090**'dır ve o da yayımlanmaz —
+`/actuator/prometheus` uç desenlerini ve hata oranlarını sızdırır. Prometheus
+aynı Docker ağında olduğu için oraya erişebilir; tarayıcıdan `localhost:9090`
+çalışmaz, panel **9091**'dedir.
 
 Kimlik bilgileri depoda yazmaz; hepsi `.env` dosyasından gelir (bkz. bölüm 6).
 

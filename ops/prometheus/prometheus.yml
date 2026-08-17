@@ -1,3 +1,8 @@
+# BU DOSYADAKI BUTUN ADRESLER KONTEYNER ICIDIR, tarayiciya yazilacak adres
+# degildir. Prometheus panelinin HOST adresi http://localhost:9091 --
+# compose "9091:9090" esler, cunku 9090 servislerin yonetim portudur.
+# Grafana ise http://localhost:3000. Ikisi de "metrics" profilinde.
+#
 # Prometheus, servisleri KENDISI kazir (pull). Servisler metrik gondermez.
 #
 # Bu tercih bilerek: gonderim (push) modelinde bir servis coktugunde susar ve
@@ -32,6 +37,8 @@ scrape_configs:
     static_configs:
       - targets: ["rabbitmq:15692"]
 
+  # Prometheus kendini kazir. "localhost" BURADA Prometheus konteyneridir;
+  # tarayicidan ayni adres calismaz (host'ta panel 9091'dedir).
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]

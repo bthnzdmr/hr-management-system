@@ -112,16 +112,17 @@ eureka:
     prefer-ip-address: true
 
 management:
-  # Actuator API ILE AYNI PORTTA DEGIL.
+  # Actuator, uygulama portundan (8081) AYRI bir portta.
   #
-  # 8080 disari yayimlaniyor; metrikler ayni portta kalsaydi /actuator/prometheus
-  # de disaridan okunabilirdi. Metrik masum gorunur ama uc desenlerini, istek
-  # sayilarini ve hata oranlarini sizdirir -- kesif icin degerli bilgi.
+  # Bu serviste 8081 zaten compose'da yayimlanmiyor, yani kardes serviste
+  # gecerli olan "8080 disari acik" gerekcesi BURADA GECERLI DEGIL. Ayrim iki
+  # sey icin duruyor: uc serviste ayni kazima adresi (Prometheus tek bir
+  # yapilandirma kullanir) ve 8081 bir gun yayimlanirsa metriklerin
+  # kendiliginden acilmamasi.
   #
   # 9090 compose'da YAYIMLANMIYOR: yalnizca Docker aginin icinden, yani
-  # Prometheus konteynerinden erisilebilir. Ayri bir yonetim portu Spring
-  # Boot'ta ayri bir baglam acar; ana guvenlik zinciri oraya uygulanmaz ve
-  # buna gerek de yoktur -- koruma AG SEVIYESINDEDIR.
+  # Prometheus konteynerinden erisilebilir. Koruma AG SEVIYESINDEDIR --
+  # bu serviste dogrulanacak bir guvenlik zinciri de yok.
   server:
     port: ${MANAGEMENT_PORT:9090}
   endpoints:
