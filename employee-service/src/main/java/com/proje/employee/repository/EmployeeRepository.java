@@ -82,7 +82,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
      *
      * WITH RECURSIVE iki parcadir: cikis satiri (baslangic) ve kendisine
      * JOIN yapan ozyinelemeli adim. UNION ALL kullanilir, UNION degil:
-     * UNION her adimda tekillestirme yapar ve bunun bedeli boşunadir --
+     * UNION her adimda tekillestirme yapar ve bunun bedeli bosunadir --
      * asagidaki derinlik sigortasi zaten sonlanmayi garanti eder.
      *
      * DERINLIK SIGORTASI SART: veride bir dongu varsa (A -> B -> A)

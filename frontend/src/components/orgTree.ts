@@ -52,7 +52,7 @@ export const CHAR_WIDTH = 0.55;
  *
  * Genligi buyutmenin bedeli var -- LABEL_PAD buna bagli ve pay buyudukce
  * etiket sigmayan dugum sayisi artiyor. Hareketi FARK EDILIR kilan sey zaten
- * genlik degil HIZ: ayni mesafeyi yarı surede almak, bedeli sifir olan
+ * genlik degil HIZ: ayni mesafeyi yari surede almak, bedeli sifir olan
  * kaldiractir. Bu yuzden genlik olculu kaldi, sure kisaldi.
  */
 export const DRIFT_AMPLITUDE = 5;

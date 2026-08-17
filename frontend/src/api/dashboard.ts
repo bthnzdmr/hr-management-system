@@ -18,10 +18,6 @@ export interface DashboardOverview {
     averageDirectReports: number;
     largestTeam: number;
   };
-  /**
-   * Yonetici basina yuk. spanOfControl ozetin kendisi; bu DAGILIMI tasir --
-   * ortalama, "biri 12 tasirken digeri 1 tasiyor" durumunu gizler.
-   */
   dataQuality: {
     activeWithoutManager: number;
     emptyDepartments: number;

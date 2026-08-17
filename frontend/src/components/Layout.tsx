@@ -86,7 +86,7 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
  *
  * Onceden 1280'di. Genislik bir okuma konforu sorusudur -- satir uzadikca goz,
  * satir sonundan bir sonrakinin basina donerken kayboluyor -- ama 1280, 1920'lik
- * bir ekranda iki yana genis boşluklar birakiyordu ve yedi sutunlu tablolar
+ * bir ekranda iki yana genis bosluklar birakiyordu ve yedi sutunlu tablolar
  * bosuna sikisiyordu. 1600 yogun uygulama arayuzlerinde yerlesik bir tavan:
  * tablolar nefes aliyor, satirlar hala okunabilir kaliyor.
  *
@@ -206,7 +206,7 @@ export function Layout() {
                 const selected = location.pathname === item.to;
 
                 return (
-                  // Bos basliklı ipucu hic cizilmez, yani genis menude bir
+                  // Bos baslikli ipucu hic cizilmez, yani genis menude bir
                   // sey degismiyor.
                   <Tooltip key={item.to} title={mini ? item.label : ''} placement="right">
                     <ListItemButton

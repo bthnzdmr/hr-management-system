@@ -43,7 +43,7 @@ export function OrgChartPage() {
     [chart],
   );
 
-  // Renk eslemesi TEK yerde uretilir: raf ile cizim ayrı ayrı hesaplasaydi
+  // Renk eslemesi TEK yerde uretilir: raf ile cizim ayri ayri hesaplasaydi
   // ikisi zamanla birbirinden ayrilirdi.
   const names = useMemo(() => departments.map((d) => d.name), [departments]);
   const colors = useDepartmentColors(names);
@@ -64,7 +64,7 @@ export function OrgChartPage() {
       : scopeToDepartment(chart.roots, department);
   }, [chart, department]);
 
-  /** Secim aç/kapa calisir. */
+  /** Secim ac/kapa calisir. */
   const toggleSelect = (person: OrgNode) => {
     setSelected((current) => (current?.id === person.id ? null : person));
   };

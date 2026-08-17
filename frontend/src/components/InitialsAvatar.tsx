@@ -9,7 +9,7 @@ interface Props {
 /**
  * Avatar zeminleri.
  *
- * Onceki set acik pastellerle koyu tonlari kariştiriyordu; bir liste boyunca
+ * Onceki set acik pastellerle koyu tonlari karistiriyordu; bir liste boyunca
  * alt alta dizildiginde bazi avatarlar parliyor, bazilari kayboluyordu ve
  * goz surekli ayar yapiyordu. Simdi hepsi KOYU: aralarindaki fark yalnizca
  * hue, parlaklik degil. Bu sayede tek bir acik metin rengi yeter ve liste

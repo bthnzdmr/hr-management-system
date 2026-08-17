@@ -7,10 +7,10 @@
  * Bicim GUN-AY-YIL: "17-08-2026". Onceki hal ayi ADIYLA yaziyordu ("17 Aug
  * 2026") ve gerekcesi 03/04 belirsizligini hic olusturmamakti; kullanici
  * sayisal bicim istedi ve karar onun. Bilinen bedel kayda geciyor: 01-12-2023
- * ile 12-01-2023, bicimi bilmeyen bir okuyucu icin ayirt edilemez. Ayraç nokta
+ * ile 12-01-2023, bicimi bilmeyen bir okuyucu icin ayirt edilemez. Ayrac nokta
  * degil TIRE, cunku 01.12.2023 bazi yerlerde ondalik gibi okunuyor.
  *
- * Yerel ayara HIC bakilmiyor. `Intl` kullanilsaydi ayraç ve sira makinenin
+ * Yerel ayara HIC bakilmiyor. `Intl` kullanilsaydi ayrac ve sira makinenin
  * yereline gore degisir, ayni ekran her makinede farkli basar ve test
  * edilemezdi -- ucret bicimlendirmesinde ayni karar 'en-US' olarak bir kez
  * verilmisti.

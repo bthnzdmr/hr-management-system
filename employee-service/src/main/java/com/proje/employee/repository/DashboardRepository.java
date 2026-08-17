@@ -66,7 +66,7 @@ public interface DashboardRepository extends Repository<Employee, Long> {
     }
 
     /**
-     * FILTER (WHERE ...) tek gecişte birden fazla kosullu sayim yapar.
+     * FILTER (WHERE ...) tek geciste birden fazla kosullu sayim yapar.
      *
      * Alternatifi bes ayri sorgu olurdu; tablo bir kez taranir ve sayaclar
      * ayni taramada doldurulur.

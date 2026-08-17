@@ -260,7 +260,7 @@ export function LeaveListPage() {
               alignItems: { md: 'flex-start' },
               // Takvim paneli SABIT 320 px genisliginde ve alanin sol kenarina
               // yaslanir. 900'de her alan (900-32)/3 = 289 px kaliyordu, yani
-              // panel alanin sagindan 31 px tasıyordu. 1024'te her alan 330 px
+              // panel alanin sagindan 31 px tasiyordu. 1024'te her alan 330 px
               // ve panel alanin icinde kaliyor.
               maxWidth: 1024,
               '& > *': { flex: 1, minWidth: 0 },

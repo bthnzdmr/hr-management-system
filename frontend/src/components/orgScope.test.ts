@@ -205,7 +205,7 @@ describe('departmentInitials', () => {
   });
 
   it('does not grow past three letters', () => {
-    // Isaret dairenin ICINE siğmali; uzun bir kisaltma tasar.
+    // Isaret dairenin ICINE sigmali; uzun bir kisaltma tasar.
     expect(departmentInitials('Research Development And Innovation')).toBe('RDA');
   });
 });

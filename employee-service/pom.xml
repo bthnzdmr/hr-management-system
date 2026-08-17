@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <!-- Parent, yuzlerce kutuphanenin birbiriyle uyumlu SURUMLERINI tutan tablodur.
-         Asagidaki bagimliliklarda <version> yazmiyoruz; Maven sürümü buradan okur. -->
+         Asagidaki bagimliliklarda <version> yazmiyoruz; Maven surumu buradan okur. -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -92,7 +92,7 @@
             <version>${springdoc.version}</version>
         </dependency>
 
-        <!-- 8) Actuator: saglik ucu. Orkestratör ve yuk dengeleyici bunu sorar. -->
+        <!-- 8) Actuator: saglik ucu. Orkestrator ve yuk dengeleyici bunu sorar. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>

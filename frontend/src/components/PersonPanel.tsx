@@ -91,7 +91,7 @@ export function PersonPanel({ person, chain, color, onSelect }: Props) {
       <Stack spacing={1}>
         <Label>Where they sit</Label>
 
-        {/* Tek bir dikey cizgi: tepeden seçili kisiye iner. Cizim ile panel
+        {/* Tek bir dikey cizgi: tepeden secili kisiye iner. Cizim ile panel
             ayni hiyerarsiyi iki farkli dilde anlatiyor. */}
         <Rail label="Where they sit">
           {managers.map((manager) => (

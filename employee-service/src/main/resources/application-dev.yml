@@ -14,7 +14,7 @@ spring:
         # Bicimlendirme her ifadeyi ~12 satira yayiyor. OutboxRelay iki saniyede
         # bir sorgu attigi icin bos bir sistemde dakikada 417 satir olculdu ve
         # hicbiri gercek bir olay degildi: cikan bir INFO satiri gorunmezdi.
-        # SQL hala tek satir halinde loglaniyor; guzel bicim tek koşuda acilir.
+        # SQL hala tek satir halinde loglaniyor; guzel bicim tek kosuda acilir.
         format_sql: ${SQL_FORMAT:false}
 
 # Etkilesimli dokumantasyon gelistirmede acik ama KAPATILABILIR olmali.

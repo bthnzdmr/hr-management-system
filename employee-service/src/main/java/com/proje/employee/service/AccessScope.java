@@ -4,7 +4,7 @@ import com.proje.employee.entity.Role;
 import com.proje.employee.entity.User;
 
 /**
- * Bir isteğin personel verisinde NE KADARINI gorebilecegi.
+ * Bir istegin personel verisinde NE KADARINI gorebilecegi.
  *
  * SecurityConfig "bu uca girebilir misin" sorusunu cevaplar; bu sinif "hangi
  * satirlari gorebilirsin" sorusunu. Ikisi farkli sorulardir: uc bazli bir kural

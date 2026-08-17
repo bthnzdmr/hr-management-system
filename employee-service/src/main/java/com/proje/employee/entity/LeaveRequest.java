@@ -96,7 +96,7 @@ public class LeaveRequest {
         this.updatedAt = Instant.now();
     }
 
-    /** Isteği onaylar. */
+    /** Istegi onaylar. */
     public void approve(User decider) {
         requirePending();
         this.status = LeaveStatus.APPROVED;

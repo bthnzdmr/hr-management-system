@@ -16,7 +16,7 @@ describe('formatDay', () => {
   });
 
   it('does not depend on the machine locale', () => {
-    // `Intl` kullanilsaydi ayraç ve sira makineye gore degisirdi; ayni ekran
+    // `Intl` kullanilsaydi ayrac ve sira makineye gore degisirdi; ayni ekran
     // her makinede farkli basar ve test edilemezdi.
     expect(formatDay('2026-03-04')).toBe('04-03-2026');
   });
