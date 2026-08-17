@@ -189,4 +189,38 @@ class LeaveDecisionScopeTest {
 
         verify(leaveRequests, never()).saveAndFlush(any());
     }
+
+    @Test
+    @DisplayName("Anyone may withdraw their own pending request")
+    void ownRequestCanBeWithdrawn() {
+        // Vazgecmek karar vermek DEGILDIR: "kendi iznine karar veremezsin"
+        // kurali iptali kapsamaz, yoksa calisan actigi talebi geri
+        // cekemez ve yonetici mesgul edilirdi.
+        leaveOf(ada);
+
+        assertThatCode(() -> service.cancel(7L,
+                new AccessScope(AccessScope.Kind.SELF, ada.getId(), false)))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("Withdrawing somebody else's request still needs the authority to decide")
+    void othersRequestNeedsAuthority() {
+        leaveOf(grace);
+
+        assertThatThrownBy(() -> service.cancel(7L,
+                new AccessScope(AccessScope.Kind.SELF, ada.getId(), false)))
+                .isInstanceOf(LeaveRequestNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("An employee still cannot approve their own request")
+    void ownRequestCannotBeApproved() {
+        leaveOf(ada);
+
+        assertThatThrownBy(() -> service.approve(7L, decider,
+                new AccessScope(AccessScope.Kind.SELF, ada.getId(), false)))
+                .isInstanceOf(LeaveRuleViolationException.class)
+                .hasMessageContaining("your own leave");
+    }
 }

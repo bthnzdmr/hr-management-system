@@ -6,6 +6,19 @@ server:
   # yeniden gider. At-least-once bunu emer, ama HER DAGITIMDA onlenebilir bir
   # mukerrer mail kaynagidir.
   shutdown: graceful
+  # Vekil basliklarina GUVENILMEZ (varsayilan NONE) ve bu bilinclidir.
+  #
+  # Acilmasi gereken durum: uygulama bir vekilin (nginx, ingress) ARKASINDA
+  # ve dogrudan erisilemiyor. O zaman kapali birakmak butun istekleri tek IP
+  # gosterir ve bes hatali parola BUTUN sirketi kilitler.
+  #
+  # Kapali kalmasi gereken durum: bugunku gibi 8080 dogrudan yayimlanmis.
+  # Acik olsaydi istemci kendi X-Forwarded-For'unu yazar ve IP hiz sinirini
+  # tamamen atlardi. OLCULDU: kapaliyken alti sahte IP'ye ragmen 6. denemede
+  # 429 geldi.
+  #
+  # Yani ayar guvenlik ARTIRMAZ; hangi katmanin dogruyu soyledigini bildirir.
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
 
 spring:
   # Sayfa boyutu TAVANI. Spring Data'nin varsayilani 2000: "?size=2000" ile

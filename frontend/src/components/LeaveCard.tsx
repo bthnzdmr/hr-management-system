@@ -74,7 +74,7 @@ export function LeaveCard({
         </Stack>
       )}
 
-      {canDecide && leave.status === pending && (
+      {leave.status === pending && (
         <Button
           size="small"
           color="inherit"

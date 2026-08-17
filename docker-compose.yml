@@ -194,6 +194,9 @@ services:
       # Gercek bir dagitimda false verilir; anahtar burada gorunur olsun diye
       # acikca yazildi.
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      # Yalnizca uygulama bir vekilin ARKASINDAYSA 'framework' yapilir;
+      # dogrudan yayimlanmis bir uygulamada istemci kendi IP'sini uydurur.
+      FORWARD_HEADERS_STRATEGY: ${FORWARD_HEADERS_STRATEGY:-none}
       # .env'e yazmak YETMEZ: gecirilmeyen degisken uygulamaya hic ulasmaz
       # ve ayar sessizce etkisiz kalir. Olculdu -- LOGIN_MAX_ATTEMPTS=3
       # yazilmasina ragmen sinir 5'te kaliyordu.

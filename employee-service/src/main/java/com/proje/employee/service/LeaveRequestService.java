@@ -191,7 +191,7 @@ public class LeaveRequestService {
     @Transactional
     public LeaveRequestResponse cancel(Long id, AccessScope scope) {
         LeaveRequest leave = load(id);
-        requireCanDecide(leave, scope);
+        requireCanCancel(leave, scope);
         requirePending(leave);
         leave.cancel();
 
@@ -201,6 +201,24 @@ public class LeaveRequestService {
     private LeaveRequest load(Long id) {
         return leaveRequests.findByIdWithEmployee(id)
                 .orElseThrow(() -> new LeaveRequestNotFoundException(id));
+    }
+
+    /**
+     * Geri cekmek karar vermek DEGILDIR: kisi kendi talebinden vazgecebilir.
+     *
+     * Onay ve rette "kendi iznine karar veremezsin" kurali gecerlidir; iptalde
+     * degildir, cunku vazgecmek gorevler ayriligini ihlal etmez. Baskasinin
+     * talebini geri cekmek ise karar yetkisi ister.
+     */
+    private void requireCanCancel(LeaveRequest leave, AccessScope scope) {
+        boolean ownRequest = scope.employeeId() != null
+                && leave.getEmployee().getId().equals(scope.employeeId());
+
+        if (ownRequest) {
+            return;
+        }
+
+        requireCanDecide(leave, scope);
     }
 
     /** Ik her istege, yonetici yalnizca DOGRUDAN astininkine karar verir. */

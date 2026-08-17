@@ -244,7 +244,7 @@ export function LeaveListPage() {
                       {['Employee', 'Type', 'Dates', 'Days', 'Status', 'Decided by'].map((column) => (
                         <TableCell key={column}>{column}</TableCell>
                       ))}
-                      {canDecideLeave && <TableCell align="right">Actions</TableCell>}
+                      <TableCell align="right">Actions</TableCell>
                     </TableRow>
                   </TableHead>
 
@@ -277,12 +277,15 @@ export function LeaveListPage() {
                           )}
                         </TableCell>
 
-                        {canDecideLeave && (
+                        {(
                           <TableCell align="right">
                             {leave.status === 'PENDING' ? (
                               <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-                                {/* Iptal, karara VARMADAN geri cekmektir:
-                                    karar bilgisi bos kalir. */}
+                                {/* Geri cekmek karar vermek DEGILDIR: kisi
+                                    kendi talebinden vazgecebilir. Calisanin
+                                    listesi zaten yalnizca kendi kayitlarini
+                                    tasidigi icin "gorunur + bekliyor" dogru
+                                    olcuttur. */}
                                 <Button
                                   size="small"
                                   color="inherit"
@@ -291,24 +294,28 @@ export function LeaveListPage() {
                                 >
                                   Cancel
                                 </Button>
-                                <Button
-                                  size="small"
-                                  // Mesgul bayragi SATIR BASINA: global olsaydi
-                                  // bir satirin istegi surerken butun tablo
-                                  // kilitlenirdi.
-                                  disabled={busyRows.isBusy(leave.id)}
-                                  onClick={() => setRejecting(leave)}
-                                >
-                                  Reject
-                                </Button>
-                                <Button
-                                  size="small"
-                                  variant="contained"
-                                  disabled={busyRows.isBusy(leave.id)}
-                                  onClick={() => decide(leave, 'APPROVED')}
-                                >
-                                  Approve
-                                </Button>
+                                {canDecideLeave && (
+                                  <>
+                                    <Button
+                                      size="small"
+                                      // Mesgul bayragi SATIR BASINA: global
+                                      // olsaydi bir satirin istegi surerken
+                                      // butun tablo kilitlenirdi.
+                                      disabled={busyRows.isBusy(leave.id)}
+                                      onClick={() => setRejecting(leave)}
+                                    >
+                                      Reject
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      variant="contained"
+                                      disabled={busyRows.isBusy(leave.id)}
+                                      onClick={() => decide(leave, 'APPROVED')}
+                                    >
+                                      Approve
+                                    </Button>
+                                  </>
+                                )}
                               </Stack>
                             ) : (
                               <Typography variant="body2" color="text.disabled">—</Typography>

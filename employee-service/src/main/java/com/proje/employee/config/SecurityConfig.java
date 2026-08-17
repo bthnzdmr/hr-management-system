@@ -192,8 +192,11 @@ public class SecurityConfig {
                         // Karari yonetici de verebilir; HANGI istege karar
                         // verebilecegine servis bakar (yalnizca dogrudan astlari,
                         // kendi istegi haric).
+                        // Calisan KENDI bekleyen talebini geri cekebilir;
+                        // onay ve ret yonetici ile Ik'ya ait. Ayrimi servis
+                        // yapar -- uc, karar turunu gormez.
                         .requestMatchers(HttpMethod.PUT, "/api/leave-requests/**")
-                        .hasAnyRole("MANAGER", "HR_SPECIALIST")
+                        .hasAnyRole("EMPLOYEE", "MANAGER", "HR_SPECIALIST")
 
                         // Okuma giris yapan herkese acik; HANGI SATIRLARI
                         // gorecegini AccessScope belirler. SYSTEM_ADMIN burada

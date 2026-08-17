@@ -139,9 +139,9 @@ describe('LeaveListPage', () => {
     expect(screen.queryByRole('button', { name: 'Record leave' })).not.toBeInTheDocument();
   });
 
-  it('offers no decision buttons to someone who can neither record nor decide', async () => {
+  it('offers no decision buttons to someone who cannot decide', async () => {
     // Arayuzdeki kontrol GUVENLIK degil: sunucu zaten reddeder. Amac,
-    // kacinilmaz olarak 403 alacak bir dugmeyi hic gostermemek.
+    // kacinilmaz olarak reddedilecek bir dugmeyi hic gostermemek.
     canEdit.mockReturnValue(false);
     canDecide.mockReturnValue(false);
 
@@ -149,7 +149,24 @@ describe('LeaveListPage', () => {
 
     await screen.findByText('Ada Lovelace');
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Record leave' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reject' })).not.toBeInTheDocument();
+  });
+
+  it('still lets that person withdraw a pending request', async () => {
+    // Geri cekmek karar vermek DEGILDIR. Calisanin listesi zaten yalnizca
+    // kendi kayitlarini tasir, dolayisiyla gorunen her bekleyen satir
+    // geri cekilebilir.
+    canEdit.mockReturnValue(false);
+    canDecide.mockReturnValue(false);
+    vi.mocked(leaveRequestApi.decide).mockResolvedValue(leave({ status: 'CANCELLED' }));
+
+    const user = userEvent.setup({ delay: null });
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => expect(leaveRequestApi.decide)
+      .toHaveBeenCalledWith(1, 'CANCELLED', undefined));
   });
 
   it('does not show decision buttons on a request that is already settled', async () => {
