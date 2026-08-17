@@ -16,6 +16,7 @@ import com.proje.employee.exception.EmployeeNotFoundException;
 import com.proje.employee.exception.InactiveManagerException;
 import com.proje.employee.exception.ManagerCycleException;
 import com.proje.employee.exception.MissingTerminationReasonException;
+import com.proje.employee.exception.StaleRecordException;
 import com.proje.employee.mapper.EmployeeMapper;
 import com.proje.employee.repository.DepartmentRepository;
 import com.proje.employee.repository.EmployeeRepository;
@@ -80,7 +81,13 @@ class EmployeeServiceTest {
     }
 
     private EmployeeUpdateRequest updateRequest(String email, Long departmentId, Long managerId) {
-        return new EmployeeUpdateRequest("Ada", "Lovelace", email, null,
+        return updateRequest(email, departmentId, managerId, 0L);
+    }
+
+    /** Surumu acikca veren varyant; bayat form testleri bunu kullanir. */
+    private EmployeeUpdateRequest updateRequest(String email, Long departmentId, Long managerId,
+                                                Long version) {
+        return new EmployeeUpdateRequest(version, "Ada", "Lovelace", email, null,
                 departmentId, managerId, "Engineer",
                 LocalDate.of(2024, 1, 1));
     }
@@ -89,7 +96,30 @@ class EmployeeServiceTest {
         Employee employee = new Employee("First", "Last", email, department,
                 "Engineer", LocalDate.of(2024, 1, 1));
         ReflectionTestUtils.setField(employee, "id", id);
+        // Surum de kurulur: gercekte Hibernate yazar, burada kaydedilmemis bir
+        // nesne var ve null kalsaydi her guncelleme "bayat form" sayilirdi.
+        ReflectionTestUtils.setField(employee, "version", 0L);
         return employee;
+    }
+
+    @Test
+    @DisplayName("Rejects an update built on a version someone else has already replaced")
+    void rejectsStaleUpdate() {
+        // Kayip guncelleme: iki Ik uzmani ayni kaydi acar, biri kaydeder ve
+        // surum 1 olur; digerinin formu hala 0 tasiyor. Yazilsaydi ilkinin
+        // degisikligi SESSIZCE geri alinirdi -- guncelleme butun alanlari
+        // istekten yazdigi icin kayip tek alanla da sinirli kalmazdi.
+        Employee saved = employeeWithId(1L, "ada@example.com", new Department("Sales"));
+        ReflectionTestUtils.setField(saved, "version", 1L);
+
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(saved));
+
+        assertThatThrownBy(() ->
+                employeeService.update(1L, updateRequest("ada@example.com", 1L, null, 0L)))
+                .isInstanceOf(StaleRecordException.class);
+
+        // Hicbir alan yazilmamis olmali: reddedilen bir istek yarim uygulanmaz.
+        assertThat(saved.getFirstName()).isEqualTo("First");
     }
 
     @Test

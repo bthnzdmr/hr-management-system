@@ -9,6 +9,7 @@ import type { Employee } from '../types/api';
 
 const employee = (id: number, active = true): Employee => ({
   id,
+  version: 0,
   firstName: 'Ada',
   lastName: 'Lovelace',
   email: `ada${id}@example.com`,

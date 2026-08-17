@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import java.time.Instant;
 
@@ -18,6 +19,11 @@ public class Department {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /** Iyimser kilit sayaci; setter yok, Hibernate yonetir. */
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
@@ -53,6 +59,10 @@ public class Department {
 
     public Long getId() {
         return id;
+    }
+
+    public Long getVersion() {
+        return version;
     }
 
     public String getName() {

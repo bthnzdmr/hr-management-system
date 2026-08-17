@@ -10,6 +10,7 @@ public class EmployeeMapper {
     public EmployeeResponse toResponse(Employee employee) {
         return new EmployeeResponse(
                 employee.getId(),
+                employee.getVersion(),
                 employee.getFirstName(),
                 employee.getLastName(),
                 employee.getEmail(),

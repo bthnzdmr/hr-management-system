@@ -24,6 +24,7 @@ vi.mock('../api/departments', () => ({
 function makeEmployee(overrides: Partial<Employee> = {}): Employee {
   return {
     id: 5,
+    version: 0,
     firstName: 'Alan',
     lastName: 'Kay',
     email: 'alan@example.com',

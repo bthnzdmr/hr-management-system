@@ -13,6 +13,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -25,6 +26,20 @@ public class Employee {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /**
+     * Iyimser kilit sayaci; Hibernate her UPDATE'te artirir ve WHERE'e koyar.
+     *
+     * Kapatilan kusur: iki Ik uzmani ayni kaydi acip farkli alanlari
+     * degistirdiginde sonra kaydeden digerinin degisikligini SESSIZCE geri
+     * aliyordu. Guncelleme butun alanlari istekten yazdigi icin kayip tek
+     * alanla sinirli da kalmiyordu.
+     *
+     * Kolon SETTER'SIZ: surumu uygulama kodu yazmaz, Hibernate yonetir.
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;
@@ -101,6 +116,11 @@ public class Employee {
 
     public Long getId() {
         return id;
+    }
+
+    /** Setter YOK: surumu Hibernate yonetir, uygulama kodu yazmaz. */
+    public Long getVersion() {
+        return version;
     }
 
     public String getFirstName() {

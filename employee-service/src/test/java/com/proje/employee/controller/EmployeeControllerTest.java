@@ -115,7 +115,7 @@ class EmployeeControllerTest {
     @DisplayName("A valid create returns 201 with a Location header")
     void createReturns201WithLocation() throws Exception {
         EmployeeResponse response = new EmployeeResponse(
-                42L, "Ada", "Lovelace", "ada@example.com", null,
+                42L, 0L, "Ada", "Lovelace", "ada@example.com", null,
                 1L, "Software Development", null, null, "Software Engineer",
                 LocalDate.of(2024, 1, 15), true, null, null);
 

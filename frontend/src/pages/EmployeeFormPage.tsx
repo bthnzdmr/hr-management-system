@@ -54,6 +54,14 @@ export function EmployeeFormPage() {
   const [form, setForm] = useState<EmployeeCreateRequest>(EMPTY_FORM);
   const [manager, setManager] = useState<EmployeeOption | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
+  /**
+   * Sunucudan okunan iyimser kilit surumu.
+   *
+   * Form durumuna KARISTIRILMADI: kullanicinin duzenledigi bir alan degil,
+   * "bu kaydi hangi halde actim" bilgisi. Forma konsaydi `update()` ile
+   * yanlislikla degistirilebilirdi.
+   */
+  const [version, setVersion] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +94,7 @@ export function EmployeeFormPage() {
           jobTitle: employee.jobTitle,
           hireDate: employee.hireDate,
         });
+        setVersion(employee.version);
         // Secim kutusu adi sunucudan gelen cevaptan doldurulur; aksi halde
         // mevcut yonetici alani bos gorunur ve kaydederken sessizce silinirdi.
         setManager(
@@ -112,7 +121,10 @@ export function EmployeeFormPage() {
 
     try {
       if (isEdit) {
-        await employeeApi.update(Number(id), payload);
+        // Surum, kaydin OKUNDUGU haldir. Sunucu bunu bugunku surumle
+        // karsilastirir ve ayrilmissa 409 doner: aradaki degisikligi sessizce
+        // ezmek yerine kullaniciya soyler.
+        await employeeApi.update(Number(id), { ...payload, version: version ?? 0 });
       } else {
         await employeeApi.create(payload);
       }

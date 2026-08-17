@@ -8,6 +8,15 @@ import com.proje.employee.audit.AuditLabel;
 
 public record EmployeeResponse(
         Long id,
+
+        /**
+         * Iyimser kilit surumu; istemci guncellemede AYNEN geri gonderir.
+         *
+         * Bu alan olmadan "bu kaydi ben actiktan sonra baskasi degistirdi mi"
+         * sorusu cevaplanamaz: sunucu yalnizca son hali gorur.
+         */
+        Long version,
+
         String firstName,
         String lastName,
         String email,

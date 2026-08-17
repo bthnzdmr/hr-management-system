@@ -13,6 +13,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -25,6 +26,17 @@ public class LeaveRequest {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /**
+     * Iyimser kilit sayaci.
+     *
+     * Servis "zaten karara baglanmis" kontrolu yapiyor ama o kontrol ile yazma
+     * arasinda bir pencere var: iki yonetici ayni talebi ayni anda
+     * sonuclandirabilirdi. Surum, o pencereyi veritabani seviyesinde kapatir.
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "employee_id", nullable = false)
@@ -134,6 +146,10 @@ public class LeaveRequest {
 
     public Long getId() {
         return id;
+    }
+
+    public Long getVersion() {
+        return version;
     }
 
     public Employee getEmployee() {

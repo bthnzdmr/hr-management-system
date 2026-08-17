@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -38,6 +39,32 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             UserNotFoundException.class})
     public ProblemDetail handleNotFound(RuntimeException ex) {
         return problem(HttpStatus.NOT_FOUND, "Resource not found", ex.getMessage());
+    }
+
+    /**
+     * Kayit, istemci onu okuduktan sonra degismis.
+     *
+     * IKI kaynak tek yerde karsilaniyor:
+     *  - `StaleRecordException`: istemcinin gonderdigi surum eski (bayat form).
+     *  - `OptimisticLockingFailureException`: Hibernate'in UPDATE ... WHERE
+     *    version = ? cumlesi sifir satir etkilemis (es zamanli iki yazma).
+     *
+     * Ikisi ayni olguyu farkli olceklerde yakalar ve kullaniciya soylenecek
+     * sey aynidir: yeniden yukle, tekrar dene.
+     *
+     * 409 doner: istegin kendisi gecerli, sistemin durumu degismis.
+     */
+    @ExceptionHandler({StaleRecordException.class, OptimisticLockingFailureException.class})
+    public ProblemDetail handleStaleRecord(Exception ex) {
+        // Hibernate'in mesaji entity sinifi ve id icerir -- ic detaydir ve
+        // disari verilmez.
+        log.warn("Concurrent modification rejected: {}", ex.getMessage());
+
+        String message = ex instanceof StaleRecordException
+                ? ex.getMessage()
+                : "This record was changed by someone else. Reload and try again.";
+
+        return problem(HttpStatus.CONFLICT, "Record was modified", message);
     }
 
     // Istek gecerli ama sistemin durumu izin vermiyor: son yoneticiyi dusurmek,

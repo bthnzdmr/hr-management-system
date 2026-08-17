@@ -15,6 +15,17 @@ import java.time.LocalDate;
  */
 public record EmployeeUpdateRequest(
 
+        /**
+         * Istemcinin DUZENLEMEYE BASLADIGI surum.
+         *
+         * Entity'deki `@Version` iki es zamanli transaction'i yakalar ama asil
+         * problem daha uzun bir pencerede: kullanici formu acar, baskasi
+         * kaydeder, sonra o kaydeder. Arada dakikalar olabilir ve iki
+         * transaction hic cakismaz. Bu alan o pencereyi kapatir.
+         */
+        @NotNull(message = "Version is required")
+        Long version,
+
         @NotBlank(message = "First name is required")
         @Size(max = 100, message = "First name must not exceed 100 characters")
         String firstName,

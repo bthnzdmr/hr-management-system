@@ -20,6 +20,7 @@ import com.proje.employee.exception.InactiveDepartmentException;
 import com.proje.employee.exception.InactiveManagerException;
 import com.proje.employee.exception.ManagerCycleException;
 import com.proje.employee.exception.MissingTerminationReasonException;
+import com.proje.employee.exception.StaleRecordException;
 import com.proje.employee.mapper.EmployeeMapper;
 import com.proje.employee.repository.DepartmentRepository;
 import com.proje.employee.repository.EmployeeRepository;
@@ -35,6 +36,7 @@ import java.util.List;
 // Locale.ROOT sart: Turkce locale'de "I".toLowerCase() "ı" uretir ve
 // "ISMAIL" aramasi "ismail" kaydini bulamaz. Kucultme dile bagli olmamali.
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -154,6 +156,17 @@ public class EmployeeService {
     public EmployeeResponse update(Long id, EmployeeUpdateRequest request) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException(id));
+
+        // Istemcinin gordugu surum ile kaydin bugunku surumu ayrilmissa, bu
+        // form acildiktan SONRA baska biri kaydetmis demektir. Yazmak, onun
+        // degisikligini sessizce geri almak olurdu.
+        //
+        // Entity'deki @Version es zamanli iki transaction'i yakalar; buradaki
+        // kontrol ise dakikalar surebilen "bayat form" penceresini kapatir.
+        // Ikisi ayni seyin farkli olcekleri.
+        if (!Objects.equals(employee.getVersion(), request.version())) {
+            throw new StaleRecordException("employee", id);
+        }
 
         if (!employee.getEmail().equals(request.email())
                 && employeeRepository.existsByEmail(request.email())) {

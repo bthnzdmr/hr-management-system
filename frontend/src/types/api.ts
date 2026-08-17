@@ -106,6 +106,13 @@ export const TERMINATION_REASON_LABELS: Record<TerminationReason, string> = {
 
 export interface Employee {
   id: number;
+  /**
+   * Iyimser kilit surumu; guncellemede AYNEN geri gonderilir.
+   *
+   * Bu olmadan sunucu "bu formu acdiktan sonra baskasi kaydetti mi" sorusunu
+   * cevaplayamaz ve iki Ik uzmani birbirinin degisikligini sessizce ezerdi.
+   */
+  version: number;
   firstName: string;
   lastName: string;
   email: string;
@@ -135,8 +142,13 @@ export interface EmployeeCreateRequest {
   hireDate: string;
 }
 
-/** Guncelleme olusturmayla ayni sekli tasir; maas ikisinde de yok. */
-export type EmployeeUpdateRequest = EmployeeCreateRequest;
+/**
+ * Guncelleme, olusturmanin uzerine SURUM ekler.
+ *
+ * Olusturmada surum olamaz (kayit henuz yok); guncellemede zorunludur --
+ * eksikse sunucu istegi dogrulamada reddeder.
+ */
+export type EmployeeUpdateRequest = EmployeeCreateRequest & { version: number };
 
 
 export interface SalaryResponse {
