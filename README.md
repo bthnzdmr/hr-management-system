@@ -480,7 +480,7 @@ docker compose --profile full --profile metrics up -d
 
 | Ne | Adres |
 |---|---|
-| Prometheus | http://localhost:9091 |
+| Prometheus | http://localhost:9091 (uyarılar: `/alerts`) |
 | Grafana | http://localhost:3000 |
 
 Veri kaynağı ve pano dosyayla sağlanır ([ops/](ops/)), elle değil: "önce şu

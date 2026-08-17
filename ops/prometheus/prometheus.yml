@@ -12,6 +12,10 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+# Uyari kurallari ayri dosyada: kural da koddur, gozden gecirilebilmeli.
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
 scrape_configs:
   # Servislerin YONETIM portu (9090) kazilir. O port compose'da disari
   # yayimlanmiyor; Prometheus ayni Docker aginda oldugu icin erisebiliyor.

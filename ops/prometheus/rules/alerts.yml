@@ -1,0 +1,64 @@
+# Uyari kurallari. Adresler konteyner icidir; panele host'ta 9091'den bakilir.
+#
+# NEDEN: tasarim notlari "DLQ'nun tuketicisi yok, elle inceleme yeterli" diyerek
+# riski kabul etmisti. Ama "elle inceleme", birinin panoyu acmayi hatirlamasi
+# demektir -- ve hatirlanmadigi olculdu: bu dosya yazilirken DLQ'da fark
+# edilmemis 16 mesaj duruyordu.
+#
+# Alertmanager YOK, yani bu uyarilar kimseye BILDIRIM gondermez; Prometheus'un
+# /alerts sayfasinda ve Grafana'da gorunurler. Bu bilincli bir sinir: bildirim
+# icin bir kanal (e-posta, Slack) ve bir konteyner daha gerekir. Kayda geciyor
+# ki "uyari var" ile "uyari ulasiyor" karistirilmasin.
+groups:
+  - name: messaging
+    rules:
+      # DLQ'da mesaj olmasi normal DEGILDIR: oraya ancak retry hakki bitmis
+      # bir olay duser ve o olayin maili hic gitmemistir.
+      - alert: DeadLetterQueueNotEmpty
+        expr: rabbitmq_queue_messages{queue=~".*\\.dlq"} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.queue }} kuyrugunda {{ $value }} olu mesaj var"
+          description: >
+            Retry hakki biten olaylar burada bekliyor ve bildirimleri hic
+            gitmedi. Sebep x-exception-message basliginda yazili.
+
+      # Tuketici durmus ya da yavassa kuyruk birikir. Esik sifir DEGIL:
+      # anlik birikme normaldir, SUREKLI birikme degil.
+      - alert: NotificationQueueBacklog
+        expr: rabbitmq_queue_messages{queue=~".*\\.notification\\.queue"} > 50
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.queue }} birikiyor ({{ $value }} mesaj)"
+
+  - name: outbox
+    rules:
+      # OutboxMetrics'in olctugu "en eski bekleyen olayin yasi". Ortalama
+      # degil: "relay su anda ne kadar geride" sorusunun cevabi budur.
+      - alert: OutboxRelayFallingBehind
+        expr: hr_outbox_publish_lag_seconds > 120
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Outbox relay geride: en eski olay {{ $value }} sn bekliyor"
+          description: >
+            Broker erisilemez olabilir ya da relay durmus olabilir. Olaylar
+            kaybolmaz, yayinlanmaz.
+
+  - name: availability
+    rules:
+      # Cekme modelinin asil kazanci: kazima basarisiz olur ve BU KENDISI bir
+      # sinyaldir. Gonderim modelinde cokmus bir servis yalnizca SUSARDI ve
+      # "veri yok" ile "saglikli" ayirt edilemezdi.
+      - alert: TargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} kazinamiyor"

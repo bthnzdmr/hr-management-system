@@ -343,6 +343,7 @@ services:
       - "--storage.tsdb.retention.time=15d"
     volumes:
       - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus-data:/prometheus
     ports:
       - "9091:9090"   # host:9091 -> panel; 9090 servislerin yonetim portu
