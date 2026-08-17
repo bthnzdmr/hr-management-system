@@ -9,7 +9,6 @@ import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.retry.MessageRecoverer;
-import org.springframework.amqp.rabbit.retry.RepublishMessageRecoverer;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
@@ -29,6 +28,17 @@ public class RabbitConfig {
     public static final String QUEUE = "employee.notification.queue";
     public static final String DLX = "employee.dlx";
     public static final String DLQ = "employee.notification.dlq";
+
+    /**
+     * Gecikmeli yeniden deneme basamaklarinin exchange'i.
+     *
+     * DLX'ten AYRI tutuldu bilerek: DLX "vazgecildi, park et" demektir,
+     * bu exchange ise "bekle ve tekrar dene". Ikisini ayni exchange'e
+     * yigmak, iki farkli niyeti tek adres altinda gizlerdi.
+     *
+     * Direct: desen eslesmesine ihtiyac yok, hedef her zaman tek bir kuyruk.
+     */
+    public static final String RETRY_EXCHANGE = "employee.retry.exchange";
 
     // Hesap olaylari AYRI bir kuyruga gider: farkli govde sekli, farkli is.
     // Ayni kuyrukta olsalardi tek bir dinleyici iki ayri JSON semasini
@@ -122,6 +132,73 @@ public class RabbitConfig {
         return BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange).with(DLQ);
     }
 
+    @Bean
+    DirectExchange retryExchange() {
+        return new DirectExchange(RETRY_EXCHANGE, true, false);
+    }
+
+    /**
+     * Her tuketici kuyrugu icin basamak kuyruklari.
+     *
+     * Basamak kuyrugunun TUKETICISI YOKTUR: mesaj orada TTL dolana kadar
+     * bekler, sonra `x-dead-letter-*` ile TUKETICI kuyruguna geri duser.
+     * Bekleme isini RabbitMQ yapiyor; bizim zamanlanmis bir isimiz yok.
+     *
+     * Hedef, basamagin KENDI ozelligidir ve her tuketici kuyrugu icin ayri
+     * basamak seti uretilir. Paylasilan tek set kullanilsaydi geri donus
+     * adresi mesaja gore degismek zorunda kalirdi -- oysa
+     * `x-dead-letter-routing-key` bir KUYRUK ozelligidir, mesaj ozelligi degil.
+     */
+    private Declarables ladderFor(String consumerQueue) {
+        List<org.springframework.amqp.core.Declarable> declarations = new java.util.ArrayList<>();
+
+        for (RetryLadder.Rung rung : RetryLadder.RUNGS) {
+            String name = RetryLadder.queueName(consumerQueue, rung);
+
+            Queue queue = QueueBuilder.durable(name)
+                    .ttl((int) rung.ttl().toMillis())
+                    // TTL dolunca mesaj TUKETICI kuyruguna geri doner.
+                    .deadLetterExchange(RETRY_EXCHANGE)
+                    .deadLetterRoutingKey(consumerQueue)
+                    .build();
+
+            declarations.add(queue);
+            declarations.add(BindingBuilder.bind(queue)
+                    .to(new DirectExchange(RETRY_EXCHANGE, true, false))
+                    .with(name));
+        }
+
+        return new Declarables(declarations);
+    }
+
+    @Bean
+    Declarables employeeRetryLadder() {
+        return ladderFor(QUEUE);
+    }
+
+    @Bean
+    Declarables accountRetryLadder() {
+        return ladderFor(ACCOUNT_QUEUE);
+    }
+
+    /**
+     * Tuketici kuyruklari retry exchange'ine de baglanir.
+     *
+     * Bu baglanti olmadan basamaktan dusen mesaj hicbir kuyruga ulasmaz ve
+     * SESSIZCE kaybolurdu -- yayinlanmis ama yonlendirilememis mesaj.
+     *
+     * Anahtar kuyrugun KENDI ADI: boylece geri donus yalnizca basarisiz olan
+     * tuketiciyi hedefler. Ozgun topic anahtari kullanilsaydi ayni olay,
+     * zaten basariyla islemis DIGER tuketicilere de tekrar giderdi.
+     */
+    @Bean
+    Declarables retryReturnBindings(Queue notificationQueue, Queue accountQueue,
+                                    DirectExchange retryExchange) {
+        return new Declarables(
+                BindingBuilder.bind(notificationQueue).to(retryExchange).with(QUEUE),
+                BindingBuilder.bind(accountQueue).to(retryExchange).with(ACCOUNT_QUEUE));
+    }
+
     // Uretici mesaji application/json olarak gonderiyor; bu donusturucu onu
     // dogrudan EmployeeEvent'e cevirir.
     @Bean
@@ -130,15 +207,15 @@ public class RabbitConfig {
     }
 
     /**
-     * Retry hakki biten mesaji DLQ'ya HATA SEBEBIYLE birlikte tasir.
+     * Surec ici retry bittiginde mesaji merdivene tasir, sonunda park eder.
      *
-     * Varsayilan davranis mesaji reddetmek ve DLX'e birakmaktir; o zaman DLQ'da
-     * yalnizca x-death sayaci bulunur, NEDEN basarisiz oldugu bilinmez.
-     * RepublishMessageRecoverer x-exception-message ve x-exception-stacktrace
-     * basliklarini ekler -- DLQ'ya bakan kisi sebebi dogrudan gorur.
+     * Varsayilan davranis mesaji reddetmek ve dogrudan DLX'e birakmaktir; o
+     * zaman DLQ'da yalnizca x-death sayaci bulunur, NEDEN basarisiz oldugu
+     * bilinmez. Recoverer hem x-exception-message basligini ekler hem de
+     * gecici arizalarin parka hic ulasmamasini saglar.
      */
     @Bean
     MessageRecoverer messageRecoverer(RabbitTemplate rabbitTemplate) {
-        return new RepublishMessageRecoverer(rabbitTemplate, DLX, DLQ);
+        return new RetryLadderRecoverer(rabbitTemplate, RETRY_EXCHANGE, DLX);
     }
 }
