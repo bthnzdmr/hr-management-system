@@ -16,6 +16,9 @@ function entry(overrides: Partial<AuditEntry> = {}): AuditEntry {
     action: 'ROLES_CHANGED',
     targetType: 'USER',
     targetId: '42',
+    // Temel nesne alani hic kurmasaydi tipi yalnizca `overrides`'tan gelir ve
+    // `undefined` olabilirdi; `AuditEntry` ise deger istiyor.
+    targetLabel: null,
     detail: 'roles=[EMPLOYEE, MANAGER]',
     correlationId: 'abc123',
     occurredAt: '2026-08-17T09:15:30Z',
