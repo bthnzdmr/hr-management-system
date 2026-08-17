@@ -8,7 +8,7 @@ import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/EmptyState';
 import { OrgBubbleMap, OrgOutline, useDepartmentColors } from '../components/OrgBubbleMap';
 import { DepartmentRail } from '../components/DepartmentRail';
-import { departmentsOf, groupByDepartment, isDepartmentNode, scopeToDepartment } from '../components/orgScope';
+import { departmentsOf, scopeToDepartment } from '../components/orgScope';
 import { PersonPanel } from '../components/PersonPanel';
 
 export function OrgChartPage() {
@@ -51,18 +51,11 @@ export function OrgChartPage() {
   const scoped = useMemo(() => {
     if (!chart) return [];
 
-    // Kisiler DOGRUDAN merkezden dagilmaz: araya departman balonu girer, yani
-    // "kim hangi departmanda" renkten degil KONUMDAN okunur. Bir departman
-    // secildiginde tek balon kalir ve merkeze o oturur.
-    return groupByDepartment(
-        department === null ? chart.roots : scopeToDepartment(chart.roots, department));
+    return department === null ? chart.roots : scopeToDepartment(chart.roots, department);
   }, [chart, department]);
 
   /** Secim aç/kapa calisir. */
   const toggleSelect = (person: OrgNode) => {
-    // Departman balonu bir KISI degil; secmek sagdaki panele bos bir kayit acardi.
-    if (isDepartmentNode(person)) return;
-
     setSelected((current) => (current?.id === person.id ? null : person));
   };
 
@@ -74,7 +67,7 @@ export function OrgChartPage() {
 
   // Secilen kisinin merkezden kendisine kadar olan zinciri; panel bunu okur.
   const chain = useMemo(
-    () => (selected ? pathTo(scoped, selected.id).filter((n) => !isDepartmentNode(n)) : []),
+    () => (selected ? pathTo(scoped, selected.id) : []),
     [scoped, selected],
   );
 
@@ -209,13 +202,6 @@ export function OrgChartPage() {
 }
 
 /** Koklerden verilen kisiye giden yol; kisinin kendisi sonda. */
-/**
- * Yonetim zinciri: departman balonlari ELENIR.
- *
- * Panel "kim kime bagli" sorusunu cevaplar ve departman bir yonetici degildir.
- * Zincire girseydi kisinin ustunde olmayan bir dugum varmis gibi okunurdu --
- * semadaki gruplama ile raporlama iliskisi ayri seylerdir.
- */
 function pathTo(roots: OrgNode[], id: number): OrgNode[] {
   for (const root of roots) {
     if (root.id === id) return [root];

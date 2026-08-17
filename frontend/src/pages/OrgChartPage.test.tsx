@@ -75,9 +75,8 @@ describe('OrgChartPage', () => {
     // <title> yalnizca gercek kisilerde var: yorunge halkalari ve gorunmez
     // merkez sayilmaz. Daireleri saymak bunlari da yakalardi.
     const named = [...container.querySelectorAll('title')].map((t) => t.textContent);
-    // Uc kisi + kisilerin toplandigi departman balonlari.
-    expect(named.length).toBeGreaterThan(3);
-    expect(named.some((name) => name?.includes('Test Root'))).toBe(true);
+    expect(named).toHaveLength(3);
+    expect(named[0]).toContain('Test Root');
   });
 
   it('narrows the map to a department and its own head', async () => {
@@ -94,12 +93,10 @@ describe('OrgChartPage', () => {
     const user = userEvent.setup({ delay: null });
     renderPage();
 
-    await user.click(await screen.findByRole('button', { name: /^Sales/, pressed: false }));
+    await user.click(await screen.findByRole('button', { name: /^Sales/ }));
 
     const items = within(await outline()).getAllByRole('listitem');
-    // Departman balonu artik zincirin BASINDA duruyor: kisiler ondan dallanir.
     expect(items.map((item) => item.textContent)).toEqual([
-      expect.stringContaining('Sales'),
       expect.stringContaining('Test SalesHead'),
       expect.stringContaining('Test Rep'),
     ]);
@@ -185,7 +182,7 @@ describe('OrgChartPage', () => {
     renderPage();
 
     await user.click(await screen.findByRole('treeitem', { name: /Test SalesHead/ }));
-    await user.click(screen.getByRole('button', { name: /^Sales/, pressed: false }));
+    await user.click(screen.getByRole('button', { name: /^Sales/ }));
 
     expect(screen.getByText('Nobody selected')).toBeInTheDocument();
   });

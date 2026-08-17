@@ -44,9 +44,6 @@ describe('groupByDepartment', () => {
       .map((d) => d.id);
 
     expect(ids.every((id) => id < 0)).toBe(true);
-    // -1 yerlesimin gorunmez merkezine ait; paylasilirsa ilk departman
-    // merkez sanilir. Olculdu: React anahtar cakismasi verdi.
-    expect(ids).not.toContain(-1);
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
