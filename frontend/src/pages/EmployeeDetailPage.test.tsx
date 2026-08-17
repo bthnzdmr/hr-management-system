@@ -17,12 +17,14 @@ vi.mock('../api/employees', () => ({
 }));
 
 const canSeeSalaries = vi.fn(() => false);
+const canSeeLeave = vi.fn(() => true);
 
 vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({
     canEditEmployees: false,
     canManageAccounts: false,
     canSeeSalaries: canSeeSalaries(),
+    canSeeLeave: canSeeLeave(),
   }),
 }));
 
@@ -62,9 +64,30 @@ describe('EmployeeDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     canSeeSalaries.mockReturnValue(false);
+    canSeeLeave.mockReturnValue(true);
     vi.mocked(employeeApi.getById).mockResolvedValue(makeEmployee());
     vi.mocked(employeeApi.getDirectReports).mockResolvedValue([]);
     vi.mocked(employeeApi.getSalary).mockResolvedValue({ employeeId: 5, salary: 95000 });
+  });
+
+  it('links to this person leave history, already filtered', async () => {
+    // Suzme altyapisi vardi ama oraya GIDECEK bir yol yoktu: ozellik yarim
+    // kalmisti. Adres, filtreyi kuran seyin ta kendisi.
+    renderPage();
+
+    const link = await screen.findByRole('link', { name: 'Leave history' });
+    expect(link).toHaveAttribute('href', '/leave?employee=5&status=ALL');
+  });
+
+  it('offers no leave link to a role the leave endpoint refuses', async () => {
+    // Bordro uzmani ve sistem yoneticisi bu kaydi gorur ama izin ucundan 403
+    // alir; kosulsuz bir baglanti onlari kesin hataya gotururdu.
+    canSeeLeave.mockReturnValue(false);
+
+    renderPage();
+
+    await screen.findByText('Alan Kay');
+    expect(screen.queryByRole('link', { name: 'Leave history' })).not.toBeInTheDocument();
   });
 
   it('hides compensation entirely when the server refuses it', async () => {

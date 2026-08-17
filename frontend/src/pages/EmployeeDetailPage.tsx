@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined';
 import { employeeApi } from '../api/employees';
 import { errorMessage } from '../api/client';
@@ -37,7 +38,7 @@ function Field({ label, value }: { label: string; value: string }) {
 export function EmployeeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { canEditEmployees, canManageAccounts, canSeeSalaries } = useAuth();
+  const { canEditEmployees, canManageAccounts, canSeeSalaries, canSeeLeave } = useAuth();
   const { notify } = useSnackbar();
   const [creatingLogin, setCreatingLogin] = useState(false);
   const [editingSalary, setEditingSalary] = useState(false);
@@ -151,6 +152,20 @@ export function EmployeeDetailPage() {
                 onClick={() => setCreatingLogin(true)}
               >
                 Give a login
+              </Button>
+            )}
+
+            {/* Bordro uzmani ve sistem yoneticisi bu kaydi gorur ama izin
+                ucundan 403 alir; kosulsuz bir baglanti onlari kesin hataya
+                gotururdu. */}
+            {canSeeLeave && (
+              <Button
+                variant="outlined"
+                startIcon={<EventBusyOutlinedIcon />}
+                component={RouterLink}
+                to={`/leave?employee=${employee.id}&status=ALL`}
+              >
+                Leave history
               </Button>
             )}
 

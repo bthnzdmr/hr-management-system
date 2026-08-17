@@ -1,21 +1,33 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { LeaveListPage } from './LeaveListPage';
 import { leaveRequestApi } from '../api/leaveRequests';
+import { employeeApi } from '../api/employees';
 import type { LeaveRequest } from '../api/leaveRequests';
 import { SnackbarProvider } from '../components/SnackbarProvider';
 
+// Kurgu SECILI degeri de cizer: gercek kutu da onu gosterir ve gostermeyen
+// bir kurgu, "filtre gorunuyor mu" sorusunu hic sinayamazdi.
 vi.mock('../components/EmployeePicker', () => ({
-  EmployeePicker: ({ label, onChange }: { label: string; onChange: (v: unknown) => void }) => (
-    <button type="button" onClick={() => onChange({ id: 77, label: 'Ada Lovelace' })}>
-      {label}
+  EmployeePicker: ({ label, value, onChange }: {
+    label: string;
+    value: { id: number; label: string } | null;
+    onChange: (v: unknown) => void;
+  }) => (
+    <button type="button" onClick={() => onChange({ id: 77, label: 'Grace Hopper' })}>
+      {value ? value.label : label}
     </button>
   ),
 }));
 
 vi.mock('../api/leaveRequests', () => ({
   leaveRequestApi: { list: vi.fn(), create: vi.fn(), decide: vi.fn() },
+}));
+
+vi.mock('../api/employees', () => ({
+  employeeApi: { getById: vi.fn() },
 }));
 
 const canEdit = vi.fn(() => true);
@@ -56,11 +68,16 @@ function page(rows: LeaveRequest[]) {
   } as Awaited<ReturnType<typeof leaveRequestApi.list>>;
 }
 
-function renderPage() {
+/** Filtreler adres cubugunda yasadigi icin sayfa bir Router olmadan calismaz. */
+function renderPage(url = '/leave') {
   return render(
-    <SnackbarProvider>
-      <LeaveListPage />
-    </SnackbarProvider>,
+    <MemoryRouter initialEntries={[url]}>
+      <SnackbarProvider>
+        <Routes>
+          <Route path="/leave" element={<LeaveListPage />} />
+        </Routes>
+      </SnackbarProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -70,6 +87,9 @@ describe('LeaveListPage', () => {
     canEdit.mockReturnValue(true);
     canDecide.mockReturnValue(true);
     vi.mocked(leaveRequestApi.list).mockResolvedValue(page([leave()]));
+    vi.mocked(employeeApi.getById).mockResolvedValue(
+      { id: 42, firstName: 'Ada', lastName: 'Lovelace', jobTitle: 'Engineer' } as never,
+    );
   });
 
   it('asks only for pending requests until told otherwise', async () => {
@@ -243,6 +263,48 @@ describe('LeaveListPage', () => {
 
     await waitFor(() => expect(leaveRequestApi.list).toHaveBeenLastCalledWith(
       expect.objectContaining({ employeeId: 77 }),
+    ));
+  });
+
+  it('starts filtered when a link carries the person', async () => {
+    // Baglantinin calismasi TAM OLARAK bu demek: filtre bilesende degil
+    // URL'de yasar, yoksa personel detayindan gelen bagalanti kurulamazdi.
+    renderPage('/leave?employee=42&status=ALL');
+
+    await waitFor(() => expect(leaveRequestApi.list).toHaveBeenCalledWith(
+      expect.objectContaining({ employeeId: 42, status: undefined }),
+    ));
+  });
+
+  it('does not wait for the name before loading the list', async () => {
+    // URL yalnizca id tasir. Liste, adin cozulmesini bekleseydi yavas bir
+    // personel cagrisi butun ekrani gecikirdi.
+    vi.mocked(employeeApi.getById).mockReturnValue(new Promise(() => {}));
+
+    renderPage('/leave?employee=42');
+
+    expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
+  });
+
+  it('names an employee it cannot resolve instead of hiding the filter', async () => {
+    // Kapsam disi bir id elle yazilabilir. Filtre gorunmezse liste sebepsiz
+    // bos gorunur ve kullanicinin temizleyecegi bir sey olmaz.
+    vi.mocked(employeeApi.getById).mockRejectedValue(new Error('404'));
+
+    renderPage('/leave?employee=42');
+
+    expect(await screen.findByText('Employee #42')).toBeInTheDocument();
+  });
+
+  it('gives a filtered-empty list its own way out', async () => {
+    vi.mocked(leaveRequestApi.list).mockResolvedValue(page([]));
+    const user = userEvent.setup({ delay: null });
+    renderPage('/leave?employee=42&status=ALL');
+
+    await user.click(await screen.findByRole('button', { name: 'Clear filters' }));
+
+    await waitFor(() => expect(leaveRequestApi.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ employeeId: undefined }),
     ));
   });
 

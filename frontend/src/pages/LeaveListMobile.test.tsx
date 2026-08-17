@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { LeaveListPage } from './LeaveListPage';
 import { leaveRequestApi } from '../api/leaveRequests';
 import type { LeaveRequest } from '../api/leaveRequests';
@@ -45,7 +46,7 @@ describe('LeaveListPage on a narrow screen', () => {
   });
 
   it('shows cards instead of a table that would scroll sideways', async () => {
-    render(<SnackbarProvider><LeaveListPage /></SnackbarProvider>);
+    render(<MemoryRouter><SnackbarProvider><LeaveListPage /></SnackbarProvider></MemoryRouter>);
 
     await screen.findByText('Ada Lovelace');
     // Yedi sutunlu tablo telefonda yatay kaydirma demekti; ayni veri, farkli bicim.
@@ -53,7 +54,7 @@ describe('LeaveListPage on a narrow screen', () => {
   });
 
   it('renders only one view, so every accessible name appears once', async () => {
-    render(<SnackbarProvider><LeaveListPage /></SnackbarProvider>);
+    render(<MemoryRouter><SnackbarProvider><LeaveListPage /></SnackbarProvider></MemoryRouter>);
 
     // Ikisini birden cizip birini gizlemek ekran okuyucuya ayni dugmeyi iki
     // kez okuturdu -- proje bunu bir kez olctu.

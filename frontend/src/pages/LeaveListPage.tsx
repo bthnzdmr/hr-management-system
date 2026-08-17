@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Alert, Button, Chip, Paper, Skeleton, Stack, Table, TableBody, TableCell,
   TableContainer, TableHead, TablePagination, TableRow, ToggleButton, ToggleButtonGroup,
@@ -7,6 +8,7 @@ import {
 import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 import { leaveRequestApi } from '../api/leaveRequests';
 import type { LeaveRequest, LeaveStatus } from '../api/leaveRequests';
+import { employeeApi } from '../api/employees';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { PageHeader } from '../components/PageHeader';
@@ -48,20 +50,79 @@ export function LeaveListPage() {
   const isNarrow = useMediaQuery(theme.breakpoints.down('md'));
   const { notify } = useSnackbar();
 
+  // Filtreler adres cubugunda yasar, bilesende degil: baska bir sayfadan
+  // gelen baglanti ancak URL uzerinden filtre kurabilir. Yan faydasi geri
+  // dugmesi ve yer imi.
+  const [params, setParams] = useSearchParams();
+  const filter: 'PENDING' | 'ALL' = params.get('status') === 'ALL' ? 'ALL' : 'PENDING';
+  const employeeId = Number(params.get('employee')) || undefined;
+  const from = params.get('from') ?? '';
+  const until = params.get('until') ?? '';
+  const page = Number(params.get('page')) || 0;
+  const filtered = employeeId !== undefined || from !== '' || until !== '';
+
   const [rows, setRows] = useState<LeaveRequest[] | null>(null);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
-  const [filter, setFilter] = useState<'PENDING' | 'ALL'>('PENDING');
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   /** Reddedilmek uzere secilen satir; gerekce penceresi bunun uzerinden acilir. */
   const [rejecting, setRejecting] = useState<LeaveRequest | null>(null);
+  /** URL yalnizca id tasir; secim kutusunun gosterecegi ad buradan cozulur. */
   const [person, setPerson] = useState<EmployeeOption | null>(null);
-  const [from, setFrom] = useState('');
-  const [until, setUntil] = useState('');
   /** Karar bekleyen SATIR; global bir bayrak butun satirlari kilitlerdi. */
   const busyRows = useBusyRows();
+
+  /**
+   * Sayfa icindeki filtre degisiklikleri gecmise yazilmaz (`replace`): tarih
+   * kutusu her duzenlemede yeni bir kayit birakir ve geri dugmesi detay
+   * sayfasina donmek icin defalarca basilmayi gerektirirdi.
+   */
+  const setFilters = (changes: Record<string, string | undefined>) => {
+    const next = new URLSearchParams(params);
+
+    Object.entries(changes).forEach(([key, value]) => {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    });
+
+    // Filtre degisince sayfa basa doner; yoksa 3. sayfada bos bir liste
+    // gorunur ve kullanici "kayit yok" saniyordu.
+    if (!('page' in changes)) next.delete('page');
+
+    setParams(next, { replace: true });
+  };
+
+  useEffect(() => {
+    if (employeeId === undefined) {
+      setPerson(null);
+      return;
+    }
+
+    if (person?.id === employeeId) return;
+
+    let active = true;
+
+    employeeApi
+      .getById(employeeId)
+      .then((employee) => {
+        if (active) {
+          setPerson({
+            id: employee.id,
+            label: `${employee.firstName} ${employee.lastName} — ${employee.jobTitle}`,
+          });
+        }
+      })
+      .catch(() => {
+        // Kapsam disindaki bir id elle yazilmis olabilir. Filtre yine de
+        // GORUNUR kalmali, yoksa liste sebepsiz bos gorunurdu.
+        if (active) setPerson({ id: employeeId, label: `Employee #${employeeId}` });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [employeeId, person?.id]);
 
   /** Her istege bir sira numarasi. */
   const requestId = useRef(0);
@@ -75,7 +136,9 @@ export function LeaveListPage() {
     try {
       const data = await leaveRequestApi.list({
         status: filter === 'PENDING' ? ['PENDING'] : undefined,
-        employeeId: person?.id,
+        // Adi degil ID'yi bekler: liste, secim kutusunun adi cozmesini
+        // beklemeden yuklenmelidir.
+        employeeId,
         from,
         until,
         page,
@@ -92,7 +155,7 @@ export function LeaveListPage() {
       setError(errorMessage(cause));
       setRows([]);
     }
-  }, [filter, person?.id, from, until, page, size]);
+  }, [filter, employeeId, from, until, page, size]);
 
   useEffect(() => {
     void load();
@@ -123,6 +186,31 @@ export function LeaveListPage() {
     }
   };
 
+  /**
+   * Bos listenin UC ayri hali vardir ve her birinin cevabi farklidir. Suzgecle
+   * bosalan bir listeye cikis yolu birakmamak personel listesinde bir kez
+   * olculmustu.
+   */
+  const empty = filtered
+    ? {
+      title: 'No leave matches these filters',
+      description: 'Nobody in your scope has leave in that range.',
+      action: <Button onClick={() => setFilters({ employee: undefined, from: undefined, until: undefined })}>
+        Clear filters
+      </Button>,
+    }
+    : filter === 'PENDING'
+      ? {
+        title: 'Nothing to decide',
+        description: 'Every request has been dealt with.',
+        action: <Button onClick={() => setFilters({ status: 'ALL' })}>Show all requests</Button>,
+      }
+      : {
+        title: 'No leave recorded yet',
+        description: 'Leave recorded for employees will appear here.',
+        action: undefined,
+      };
+
   return (
     <Stack spacing={2.5}>
       <PageHeader
@@ -146,10 +234,7 @@ export function LeaveListPage() {
             value={filter}
             onChange={(_, next) => {
               if (next === null) return;
-              setFilter(next);
-              // Filtre degisince sayfa basa doner; yoksa 3. sayfada bos bir
-              // liste gorunur ve kullanici "kayit yok" saniyordu.
-              setPage(0);
+              setFilters({ status: next === 'ALL' ? 'ALL' : undefined });
             }}
             aria-label="Filter requests"
           >
@@ -165,7 +250,7 @@ export function LeaveListPage() {
               value={person}
               onChange={(next) => {
                 setPerson(next);
-                setPage(0);
+                setFilters({ employee: next ? String(next.id) : undefined });
               }}
               label="Whose leave"
               helperText="Leave it empty to see everyone in your scope"
@@ -174,10 +259,7 @@ export function LeaveListPage() {
               type="date"
               label="From"
               value={from}
-              onChange={(event) => {
-                setFrom(event.target.value);
-                setPage(0);
-              }}
+              onChange={(event) => setFilters({ from: event.target.value })}
               slotProps={{ inputLabel: { shrink: true } }}
               size="small"
             />
@@ -185,10 +267,7 @@ export function LeaveListPage() {
               type="date"
               label="Until"
               value={until}
-              onChange={(event) => {
-                setUntil(event.target.value);
-                setPage(0);
-              }}
+              onChange={(event) => setFilters({ until: event.target.value })}
               slotProps={{ inputLabel: { shrink: true } }}
               size="small"
               helperText="Overlapping leave, not only leave starting here"
@@ -209,13 +288,9 @@ export function LeaveListPage() {
           {rows !== null && rows.length === 0 && error === null && (
             <EmptyState
               icon={<EventBusyOutlinedIcon />}
-              title={filter === 'PENDING' ? 'Nothing to decide' : 'No leave recorded yet'}
-              description={filter === 'PENDING'
-                ? 'Every request has been dealt with.'
-                : 'Leave recorded for employees will appear here.'}
-              action={filter === 'PENDING' ? (
-                <Button onClick={() => setFilter('ALL')}>Show all requests</Button>
-              ) : undefined}
+              title={empty.title}
+              description={empty.description}
+              action={empty.action}
             />
           )}
 
@@ -335,10 +410,10 @@ export function LeaveListPage() {
                 page={page}
                 rowsPerPage={size}
                 rowsPerPageOptions={[10, 20, 50]}
-                onPageChange={(_, next) => setPage(next)}
+                onPageChange={(_, next) => setFilters({ page: next ? String(next) : undefined })}
                 onRowsPerPageChange={(event) => {
                   setSize(Number(event.target.value));
-                  setPage(0);
+                  setFilters({ page: undefined });
                 }}
               />
             </>
