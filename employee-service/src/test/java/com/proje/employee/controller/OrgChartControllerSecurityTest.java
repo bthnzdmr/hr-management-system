@@ -11,7 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * goremedigi kisileri toplu halde gostermek olurdu.
  */
 @WebMvcTest(OrgChartController.class)
-// JwtAuthenticationFilter GERCEK bean olarak alinir, @MockBean DEGIL.
+// JwtAuthenticationFilter GERCEK bean olarak alinir, @MockitoBean DEGIL.
 // Sahte bir filtre doFilter'i cagirmaz, yani zincir hic ilerlemez ve
 // yetkilendirmeye ULASILMAZ: her istek bos bir 200 doner ve butun guvenlik
 // testleri sessizce gecer. Olculdu -- ilk halinde anonim istek bile 200 aldi.
@@ -42,10 +42,10 @@ class OrgChartControllerSecurityTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private OrgChartService orgChartService;
 
-    @MockBean
+    @MockitoBean
     private JwtService jwtService;
 
     private void serviceReturnsEmptyChart() {

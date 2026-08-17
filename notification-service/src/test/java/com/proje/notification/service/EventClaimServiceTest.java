@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -62,13 +62,13 @@ class EventClaimServiceTest {
     @Autowired
     private EmployeeEventListener listener;
 
-    @SpyBean
+    @MockitoSpyBean
     private ProcessedEventRepository processedEventRepository;
 
-    @MockBean
+    @MockitoBean
     private NotificationMailService mailService;
 
-    @MockBean
+    @MockitoBean
     private ManagerLookupService managerLookupService;
 
     private UUID written;

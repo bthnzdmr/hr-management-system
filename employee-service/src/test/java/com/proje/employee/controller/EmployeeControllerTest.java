@@ -16,7 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithAnonymousUser;
@@ -53,16 +53,16 @@ class EmployeeControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private EmployeeService employeeService;
 
     // Kimlik @WithMockUser ile atandigi icin token cozumlemeye gerek yok.
-    @MockBean
+    @MockitoBean
     private JwtService jwtService;
 
     // Controller kapsami bu bilesenden aliyor; @WebMvcTest yalnizca web
     // katmanini ayaga kaldirdigi icin sahtesi verilmeli.
-    @MockBean
+    @MockitoBean
     private AccessScopeResolver accessScopeResolver;
 
     private EmployeeCreateRequest validRequest() {
