@@ -77,6 +77,10 @@ Sistem iki işi yapar:
         └─────────────────────────────────────────────────┘
 ```
 
+Şemadaki portlar servislerin **kendi dinlediği** portlardır; hangilerinin
+tarayıcıdan açılabildiği bölüm 5'teki tablodadır. Notification Service `:8081`
+yalnızca konteyner ağının içindedir.
+
 ### Parçalar ve görevleri
 
 | Parça                    | Görevi                                                      | Durum    |
@@ -418,7 +422,8 @@ docker compose --profile full up -d --build
 ```
 
 Bu komut altyapıya ek olarak Eureka, Employee Service, Notification Service ve
-arayüzü de başlatır. Adresler aynıdır (`:5173`, `:8080`, `:8081`, `:8761`).
+arayüzü de başlatır. Adresler aynıdır (`:5173`, `:8080`, `:8761`). Notification
+Service'in dışarıya açık bir ucu yoktur; portu bilerek yayımlanmaz.
 
 Kod değiştiğinde imajın yeniden üretilmesi gerekir (`--build`); bu yüzden
 geliştirirken profilsiz kullanım daha hızlıdır.
