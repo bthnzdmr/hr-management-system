@@ -111,3 +111,34 @@ export function departmentColors(names: string[], mode: 'light' | 'dark') {
       .map((name, index) => [name, set[index] ?? NEUTRAL[mode]] as const),
   );
 }
+
+/**
+ * Kisileri departman balonlarinin altina toplar.
+ *
+ * Sema onceden butun kisileri TEK merkezden dagitiyordu; departman yalnizca
+ * renkten okunuyordu. Araya bir katman girince "kim hangi departmanda"
+ * konumdan okunuyor -- renk bir kodlama, konum ise yapinin kendisi.
+ *
+ * Raporlama zinciri KORUNUR: departman dugumu yalnizca o departmanin
+ * BASLARINI toplar, altlarindaki ekipler oldugu gibi dallanmaya devam eder.
+ * Baskan, departmanda olup yoneticisi ayni departmanda OLMAYAN kisidir --
+ * departman rafindaki hesabin aynisi.
+ */
+export function groupByDepartment(roots: OrgNode[]): OrgNode[] {
+  return departmentsOf(roots).map((department, index) => ({
+    // Negatif id: gercek personel id'leriyle CAKISMAZ ve arayuz bir dugumun
+    // kisi mi departman mi oldugunu buradan anlar.
+    id: -(index + 1),
+    firstName: department.name,
+    lastName: '',
+    jobTitle: `${department.headcount} people`,
+    departmentName: department.name,
+    depth: 0,
+    reports: scopeToDepartment(roots, department.name),
+  }));
+}
+
+/** Bir dugum gercek bir kisi mi, yoksa departman balonu mu? */
+export function isDepartmentNode(node: { id: number }): boolean {
+  return node.id < 0;
+}
