@@ -125,14 +125,18 @@ export function OrgChartPage() {
             `flexShrink: 0` ile butun satiri kapar ve cizim sifira sikisirdi;
             tam olarak bu yasandi.
 
-            Kirilma noktasi OLCULEREK secildi. Icerik `maxWidth: 1280` ve
-            kenar bosluklariyla sinirli, yani lg'de (1200 px) kullanilabilir
-            genislik 888 px. Uc sutun orada acilsaydi cizime 318 px kalirdi --
-            33 dugum icin okunmaz. xl'de acilinca cizim her iki durumda da
-            ~620-650 px: lg'de panel altta ve cizim 618, xl'de yan yana ve
-            cizim 646. */}
+            Panel ARTIK YANDA DEGIL, ALTTA -- her genislikte.
+
+            Olculdu: yan yana dizilis cizime `xl`'de yalnizca 646 px birakiyordu
+            ve bu, `lg`'deki 878 px'ten DAR. Yani genis ekran semayi
+            KUCULTUYORDU. Panel alta alininca cizim sutunun tamamini aliyor
+            (xl'de ~1216 px).
+
+            Bedeli: genis ekranda kisi ayrintisi icin asagi bakmak gerekiyor.
+            Semanin okunabilirligi bundan onceliklidir -- sema okunmuyorsa
+            yanindaki panelin bir anlami yok. */}
         <Stack
-          direction={{ xs: 'column', xl: 'row' }}
+          direction="column"
           spacing={2.5}
           sx={{ flexGrow: 1, minWidth: 0, alignItems: 'flex-start', alignSelf: 'stretch' }}
         >
@@ -171,8 +175,7 @@ export function OrgChartPage() {
         <Paper
           sx={{
             p: 2.5,
-            width: { xs: '100%', xl: 300 },
-            flexShrink: 0,
+            width: '100%',
             // Cizim uzun oldugunda panel ekranda kalir; secim yapip yukari
             // kaydirmak gerekmez.
             position: { xl: 'sticky' },
