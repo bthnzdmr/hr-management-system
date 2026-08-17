@@ -124,11 +124,21 @@ export function departmentColors(names: string[], mode: 'light' | 'dark') {
  * Baskan, departmanda olup yoneticisi ayni departmanda OLMAYAN kisidir --
  * departman rafindaki hesabin aynisi.
  */
+/**
+ * Departman balonlarinin id araligi.
+ *
+ * -1 SERBEST DEGIL: yerlesim kendi gorunmez merkezini o id ile isaretliyor
+ * (orgTree'deki `isHub`). Departmanlar -1'den baslayinca ilki merkez sanildi
+ * ve React "iki cocuk ayni anahtari tasiyor" dedi. Ayri bir aralik, iki
+ * sozlesmenin ayni sentinel'i paylasmasini engelliyor.
+ */
+const DEPARTMENT_ID_BASE = -1000;
+
 export function groupByDepartment(roots: OrgNode[]): OrgNode[] {
   return departmentsOf(roots).map((department, index) => ({
     // Negatif id: gercek personel id'leriyle CAKISMAZ ve arayuz bir dugumun
     // kisi mi departman mi oldugunu buradan anlar.
-    id: -(index + 1),
+    id: DEPARTMENT_ID_BASE - index,
     firstName: department.name,
     lastName: '',
     jobTitle: `${department.headcount} people`,
