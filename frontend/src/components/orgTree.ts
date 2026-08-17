@@ -37,7 +37,7 @@ export const NAME_SIZE = 26;
 export const TITLE_SIZE = 20;
 
 /** Daire ile isim arasi, ve iki satir arasi. */
-export const LABEL_GAP = 10;
+const LABEL_GAP = 10;
 export const LINE_GAP = 4;
 
 /** Harf basina yaklasik genislik orani; kirpma bununla hesaplanir. */

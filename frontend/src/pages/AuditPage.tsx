@@ -10,6 +10,9 @@ import { errorMessage } from '../api/client';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/EmptyState';
 import { formatDateTime } from '../utils/formatDate';
+// Ad bilerek `describeDetail`: `describe` test kosucusunun global adiyla
+// carpisir ve test dosyasinda vitest'in kendi `describe`'ini golgelerdi.
+import { describeDetail } from './auditDetail';
 
 /** Eylem -> etiket ve renk. Tek tanim: iki yerde tutulsa biri geride kalirdi. */
 const ACTIONS: { value: AuditAction; label: string; color: 'default' | 'success' | 'error' | 'warning' }[] = [
@@ -158,8 +161,12 @@ export function AuditPage() {
                           {entry.targetLabel ?? `${entry.targetType}${entry.targetId ? ` #${entry.targetId}` : ''}`}
                         </TableCell>
                         <TableCell>
+                          {/* Ham detay "active=true" gibi MAKINE ciktisiydi.
+                              Cevirme okuma aninda yapiliyor: depodaki kayit
+                              olgu olarak sadik kaliyor ve eski satirlar da
+                              duzeliyor. */}
                           <Typography variant="body2" color="text.secondary">
-                            {entry.detail ?? '—'}
+                            {describeDetail(entry.detail) ?? '—'}
                           </Typography>
                         </TableCell>
                       </TableRow>
