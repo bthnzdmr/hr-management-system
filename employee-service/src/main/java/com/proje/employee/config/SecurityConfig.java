@@ -210,6 +210,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/leave-requests/**")
                         .hasAnyRole("EMPLOYEE", "MANAGER", "HR_SPECIALIST")
 
+                        // Bakiye de IZIN VERISIDIR: ayni kitle, ayni gerekce.
+                        // SYSTEM_ADMIN ve PAYROLL_SPECIALIST burada YOK.
+                        //
+                        // Uc bilerek `/api/employees/**` ALTINDA DEGIL: orada
+                        // olsaydi genel personel okuma kuralina duser ve o iki
+                        // role de acilirdi -- maas ucunde yasanan tuzak.
+                        .requestMatchers(HttpMethod.GET, "/api/leave-balances/**")
+                        .hasAnyRole("EMPLOYEE", "MANAGER", "HR_SPECIALIST")
+
                         // Kural yazilmayan her sey reddedilir.
                         .anyRequest().authenticated())
 

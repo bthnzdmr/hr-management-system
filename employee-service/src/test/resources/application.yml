@@ -46,6 +46,9 @@ app:
     # sure sonra sayac sifirlanir.
     block-duration-seconds: ${LOGIN_BLOCK_DURATION_SECONDS:300}
 
+  leave:
+    default-annual-days: ${LEAVE_DEFAULT_ANNUAL_DAYS:20}
+
   password-reset:
     validity-minutes: 30
     invite-validity-hours: 24

@@ -7,6 +7,7 @@ import com.proje.employee.dto.LeaveRequestResponse;
 import com.proje.employee.entity.Employee;
 import com.proje.employee.entity.LeaveRequest;
 import com.proje.employee.entity.LeaveStatus;
+import com.proje.employee.entity.LeaveType;
 import com.proje.employee.entity.User;
 import com.proje.employee.exception.EmployeeNotFoundException;
 import com.proje.employee.exception.LeaveRequestNotFoundException;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
 
@@ -40,10 +42,15 @@ public class LeaveRequestService {
 
     private final LeaveRequestRepository leaveRequests;
     private final EmployeeRepository employees;
+    private final EmployeeVisibility visibility;
+    private final LeaveBalanceService balances;
 
-    public LeaveRequestService(LeaveRequestRepository leaveRequests, EmployeeRepository employees) {
+    public LeaveRequestService(LeaveRequestRepository leaveRequests, EmployeeRepository employees,
+                               EmployeeVisibility visibility, LeaveBalanceService balances) {
         this.leaveRequests = leaveRequests;
         this.employees = employees;
+        this.visibility = visibility;
+        this.balances = balances;
     }
 
     /** Yeni izin istegi. */
@@ -64,10 +71,49 @@ public class LeaveRequestService {
                     "Leave cannot be recorded for an employee who has left");
         }
 
+        requireBalanceCovers(request);
+
         LeaveRequest leave = new LeaveRequest(employee, author, request.type(),
                 request.startDate(), request.endDate(), request.note());
 
         return LeaveRequestResponse.from(persist(leave, employee));
+    }
+
+    /**
+     * Yillik izin hakki asilamaz.
+     *
+     * YALNIZCA `ANNUAL` sayilir: hastalik, ucretsiz ve ebeveyn izni ayri
+     * haklardir ve yillik bakiyeden dusmezler.
+     *
+     * Mevcut `EXCLUDE` kisiti yalnizca TARIH cakismasini engelliyordu; ayni
+     * kisi cakismayan tarihlerle hakkindan fazla izin isteyebiliyordu.
+     *
+     * Kontrol talep ANINDA yapiliyor, karar aninda degil: kullanicinin
+     * alamayacagi bir izni talep etmesine izin vermek, sonunda reddedilmek
+     * uzere bir karar uretmek olurdu. Ayni gerekceyle cakisan tarih de talep
+     * aninda reddediliyor.
+     *
+     * BILINEN SINIR: bu kontrol ile yazma arasinda bir pencere var -- iki es
+     * zamanli talep ikisi de "yeter" gorup gecebilir. Tarih cakismasinda bu
+     * pencere `EXCLUDE` kisitiyla kapatilmisti; burada karsiligi yok, cunku
+     * "toplam gun" bir satir kisiti olarak ifade edilemez. Asilma en fazla bir
+     * talep kadar olur ve karar asamasinda gorulur.
+     */
+    private void requireBalanceCovers(LeaveRequestCreateRequest request) {
+        if (request.type() != LeaveType.ANNUAL) {
+            return;
+        }
+
+        int requested = (int) (ChronoUnit.DAYS.between(request.startDate(), request.endDate()) + 1);
+        int available = balances
+                .balanceFor(request.employeeId(), request.startDate().getYear())
+                .availableDays();
+
+        if (requested > available) {
+            throw new LeaveRuleViolationException(
+                    "Not enough annual leave: " + requested + " day(s) requested, "
+                            + available + " remaining");
+        }
     }
 
     /**
@@ -279,26 +325,14 @@ public class LeaveRequestService {
                 && scope.employeeId().equals(owner.getManager().getId());
     }
 
-    /** Kapsamin gorebilecegi personel kimlikleri. */
+    /**
+     * Kapsamin gorebilecegi personel kimlikleri.
+     *
+     * Kural artik `EmployeeVisibility`de: bakiye ucu de ayni soruyu soruyor ve
+     * iki yere yazilan bir kuralin biri zamanla geride kalir.
+     */
     private Collection<Long> visibleEmployees(AccessScope scope) {
-        if (scope.isUnrestricted()) {
-            return null;
-        }
-
-        Long self = scope.employeeId();
-
-        if (!scope.includesDirectReports()) {
-            return List.of(self);
-        }
-
-        // Yonetici kendi kaydini ve DOGRUDAN astlarini gorur; torunlari degil.
-        // Ayni sizinti org chart ucunda bir kez kapatilmisti.
-        List<Long> reports = employees.findByManagerIdOrderByLastNameAsc(self).stream()
-                .map(Employee::getId)
-                .toList();
-
-        return java.util.stream.Stream.concat(java.util.stream.Stream.of(self), reports.stream())
-                .toList();
+        return visibility.visibleEmployeeIds(scope);
     }
 
     private <T> Collection<T> emptyToNull(Collection<T> values) {

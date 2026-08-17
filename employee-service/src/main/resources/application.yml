@@ -187,6 +187,15 @@ app:
     resend-cooldown-seconds: ${PASSWORD_RESET_RESEND_COOLDOWN_SECONDS:120}
     cleanup-interval-ms: ${PASSWORD_RESET_CLEANUP_INTERVAL_MS:3600000}
 
+  leave:
+    # Hak satiri OLMAYAN bir yil icin varsayilan yillik izin gunu.
+    #
+    # Bu bir KANUN degil bir YAPILANDIRMA: kidem kademelerini sisteme gomsaydik
+    # her ulkede ve her sirkette yanlis olurdu. Ik bir kisiye acikca hak
+    # verdiginde o satir bunun yerine gecer ve cevap hangi kaynagin
+    # kullanildigini soyler.
+    default-annual-days: ${LEAVE_DEFAULT_ANNUAL_DAYS:20}
+
   outbox:
     # Yayin gecikmesinin ust siniri: olay en gec bu sure sonra gonderilir.
     poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:2000}

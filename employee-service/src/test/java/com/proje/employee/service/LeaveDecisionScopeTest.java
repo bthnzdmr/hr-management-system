@@ -42,6 +42,14 @@ class LeaveDecisionScopeTest {
     @Mock
     private EmployeeRepository employees;
 
+    @Mock
+    private EmployeeVisibility visibility;
+
+    // Bu sinif KARAR kapsamini siniyor; bakiye kontrolu yalnizca talep
+    // ACARKEN calisiyor, dolayisiyla burada taklit yeterli.
+    @Mock
+    private LeaveBalanceService balances;
+
     private LeaveRequestService service;
     private Employee grace;
     private Employee ada;
@@ -49,12 +57,20 @@ class LeaveDecisionScopeTest {
 
     @BeforeEach
     void setUp() {
-        service = new LeaveRequestService(leaveRequests, employees);
+        service = new LeaveRequestService(leaveRequests, employees, visibility, balances);
 
         Department department = new Department("Software Development");
         grace = employee(212L, "Grace", "Hopper", department, null);
         ada = employee(218L, "Ada", "Lovelace", department, grace);
         decider = new User("grace@example.com", "hash", Set.of(Role.MANAGER));
+    }
+
+    /** Bakiye sorgusunu verilen kalan gunle taklit eder. */
+    private void havingAnnualBalance(int available) {
+        when(balances.balanceFor(any(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenReturn(new com.proje.employee.dto.LeaveBalanceResponse(
+                        1L, 2033, available, 0, 0, 0, available,
+                        com.proje.employee.dto.LeaveBalanceResponse.Source.DEFAULT));
     }
 
     private Employee employee(long id, String first, String last, Department dept, Employee manager) {
@@ -162,6 +178,9 @@ class LeaveDecisionScopeTest {
     void employeeRequestsOwnLeave() {
         when(employees.findById(ada.getId())).thenReturn(java.util.Optional.of(ada));
         when(leaveRequests.saveAndFlush(any())).thenAnswer(call -> call.getArgument(0));
+        // Yillik izin artik bakiyeye bakiyor; bu test KAPSAMI siniyor, o yuzden
+        // bakiye bol verilir ve kural yolun disinda tutulur.
+        havingAnnualBalance(20);
 
         var request = new com.proje.employee.dto.LeaveRequestCreateRequest(
                 ada.getId(), LeaveType.ANNUAL,
