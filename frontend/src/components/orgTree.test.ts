@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { layoutTree } from './orgTree';
 import type { OrgLayout, TreeNode } from './orgTree';
+import { groupByDepartment, isDepartmentNode } from './orgScope';
 import type { OrgNode } from '../api/orgChart';
 
 function node(id: number, reports: OrgNode[] = []): OrgNode {
@@ -61,7 +62,8 @@ describe('orgTree', () => {
 
     expect(layout.hub).toBe(true);
     expect(layout.links).toHaveLength(3);
-    expect(layout.links.map((link) => link.id)).toContain('-1-1');
+    // Gorunmez merkezin id'si 0; eksi degerler departman dugumlerine ait.
+    expect(layout.links.map((link) => link.id)).toContain('0-1');
   });
 
   it('marks the centre as the organisation only when it is not a person', () => {
@@ -70,6 +72,42 @@ describe('orgTree', () => {
 
     expect(single.hub).toBe(false);
     expect(many.hub).toBe(true);
+  });
+
+  it('keeps the scope itself at the centre when asked, even with one root', () => {
+    // Departman kapsaminda merkez DAIMA departmandir. Bu bayrak olmadan merkez
+    // yalnizca birden fazla baskani olan departmanlarda departmani gosteriyor,
+    // tek baskanlida oraya o KISI oturuyordu -- ayni ekran departmandan
+    // departmana farkli davraniyordu.
+    const one = layoutTree([node(1, [node(2)])], true) as OrgLayout;
+
+    expect(one.hub).toBe(true);
+    // Baskan artik merkezde degil, ilk halkada.
+    expect(radius(one, byId(one, 1))).toBeGreaterThan(0);
+  });
+
+  it('does not mistake the first department for the invisible centre', () => {
+    // `groupByDepartment` departman dugumlerine -(index+1) veriyor, yani ilk
+    // departmanin id'si -1. Gorunmez merkez de -1 kullandigi surece O DEPARTMAN
+    // merkez saniliyordu: ekranda birbirinin ayni iki merkez balonu cikiyor ve
+    // en kalabalik departman semadan tamamen kayboluyordu. Ekranda goruldu.
+    const roots: OrgNode[] = [{
+      ...node(1),
+      departmentName: 'Sales',
+      reports: [{ ...node(2), departmentName: 'Design' }],
+    }];
+
+    const layout = layoutTree(groupByDepartment(roots), true) as OrgLayout;
+
+    // Merkez TEK olmali...
+    expect(layout.nodes.filter((entry) => entry.node === null)).toHaveLength(1);
+    // ...ve iki departmanin ikisi de gercek dugum olarak durmali.
+    const departments = layout.nodes
+      .filter((entry) => entry.node !== null && isDepartmentNode(entry.node))
+      .map((entry) => entry.node!.departmentName)
+      .sort();
+
+    expect(departments).toEqual(['Design', 'Sales']);
   });
 
   it('keeps every node inside the canvas', () => {

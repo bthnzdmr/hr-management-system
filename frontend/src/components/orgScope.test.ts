@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { departmentColors, departmentsOf, findNode, scopeToDepartment } from './orgScope';
+import {
+  departmentColors, departmentInitials, departmentsOf, findNode, scopeToDepartment,
+} from './orgScope';
 import type { OrgNode } from '../api/orgChart';
 
 function node(id: number, department: string, reports: OrgNode[] = []): OrgNode {
@@ -95,23 +97,15 @@ describe('departmentColors', () => {
     expect(new Set([...colors.values()].map((s) => s.fill)).size).toBe(names.length);
   });
 
-  it('falls back to a neutral rather than inventing a sixth colour', () => {
-    // Bes renk bu kisitlarin TAVANI: altinci hue eklendiginde algisal ayrim
-    // 26'dan 17'ye, renk korlugunde 12,8'den 8,2'ye dusuyor. Yalan soyleyen
-    // bir renk, renksizlikten kotudur.
-    const names = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+  it('falls back to a neutral rather than inventing an eleventh colour', () => {
+    // Tavan BES idi ve canli veride alti departman cikinca en buyuk departman
+    // renksiz kaldi; tavan ona gore ona cikarildi. Ama tavanin kendisi duruyor:
+    // yalan soyleyen bir renk, renksizlikten kotudur.
+    const names = Array.from({ length: 12 }, (_, i) => `Dept ${String.fromCharCode(65 + i)}`);
     const colors = departmentColors(names, 'dark');
 
-    expect(colors.get('F')?.fill).toBe(colors.get('G')?.fill);
-    expect(colors.get('A')?.fill).not.toBe(colors.get('F')?.fill);
-  });
-
-  it('picks the text colour from the swatch, not from the theme', () => {
-    // Acik temada bazi zeminler koyu bazilari acik; tek bir metin rengi
-    // ikisinde birden tutmaz.
-    const light = departmentColors(['A', 'B'], 'light');
-
-    expect(light.get('A')?.ink).not.toBe(light.get('B')?.ink);
+    expect(colors.get('Dept K')?.fill).toBe(colors.get('Dept L')?.fill);
+    expect(colors.get('Dept A')?.fill).not.toBe(colors.get('Dept K')?.fill);
   });
 
   it('does not depend on the order it was given', () => {
@@ -131,5 +125,87 @@ describe('departmentColors', () => {
     const dark = departmentColors(['Sales'], 'dark').get('Sales');
 
     expect(light?.fill).not.toBe(dark?.fill);
+  });
+});
+
+/** WCAG bagil parlaklik. */
+function luminance(hex: string) {
+  const channels = [1, 3, 5]
+    .map((at) => parseInt(hex.slice(at, at + 2), 16) / 255)
+    .map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function contrast(a: string, b: string) {
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+
+  return (high + 0.05) / (low + 0.05);
+}
+
+describe('department colours', () => {
+  const many = (count: number) =>
+    Array.from({ length: count }, (_, index) => `Dept ${String.fromCharCode(65 + index)}`);
+
+  /** Kartin yuzeyi; daireler bunun uzerine ciziliyor. */
+  const SURFACE = { light: '#FFFFFF', dark: '#1E2631' } as const;
+
+  it.each(['light', 'dark'] as const)('stays readable on the %s surface', (mode) => {
+    // Kontrast TAHMIN edilecek bir sey degil. Olcum bir kenar betiginde
+    // kalsaydi paleti degistiren bir sonraki kisi onu calistirmayi hatirlamak
+    // zorunda olurdu; burada duruyor ve unutulamaz.
+    const colours = [...departmentColors(many(10), mode).values()];
+
+    expect(colours).toHaveLength(10);
+
+    for (const { fill, ink } of colours) {
+      // Halka bir GRAFIK OGESI: WCAG 1.4.11 esigi 3:1.
+      expect(contrast(fill, SURFACE[mode]), `${fill} on ${SURFACE[mode]}`)
+        .toBeGreaterThanOrEqual(3);
+      // Dolu diskin uzerindeki harf METIN: esik 4.5:1.
+      expect(contrast(ink, fill), `${ink} on ${fill}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('gives ten departments ten distinct colours', () => {
+    // Palet BES renkti ve altinci departman notr griye dusuyordu. Canli veride
+    // alti departman vardi ve alfabetik sirada sonuncu olan Software
+    // Development -- 49 kisinin 28'ini tasiyan EN BUYUK departman -- tam da bu
+    // yuzden renksiz kaliyordu.
+    const names = many(10);
+    const colours = departmentColors(names, 'dark');
+    const fills = names.map((name) => colours.get(name)!.fill);
+
+    expect(new Set(fills).size).toBe(10);
+    expect(fills).not.toContain('#8A94A3');
+  });
+
+  it('only falls back to the neutral past ten', () => {
+    // Notr bir eksiklik degil BEYAN: on kategorik renkten sonrasi zaten ayirt
+    // edilemez ve uydurma bir on birinci hue, edilebilirmis gibi gorunurdu.
+    const names = many(11);
+    const colours = departmentColors(names, 'dark');
+
+    expect(colours.get('Dept K')!.fill).toBe('#8A94A3');
+  });
+});
+
+describe('departmentInitials', () => {
+  it('takes one letter from each word', () => {
+    expect(departmentInitials('Software Development')).toBe('SD');
+    expect(departmentInitials('Human Resources')).toBe('HR');
+  });
+
+  it('takes two letters when the name is a single word', () => {
+    // Tek harf yetmezdi: "Sales" ve "Software Development" ayni "S" ile
+    // gorunur ve merkezdeki isaret hangi departmanda oldugunu soylemezdi.
+    expect(departmentInitials('Sales')).toBe('SA');
+    expect(departmentInitials('Accounting')).toBe('AC');
+    expect(departmentInitials('Marketing')).toBe('MA');
+  });
+
+  it('does not grow past three letters', () => {
+    // Isaret dairenin ICINE siğmali; uzun bir kisaltma tasar.
+    expect(departmentInitials('Research Development And Innovation')).toBe('RDA');
   });
 });

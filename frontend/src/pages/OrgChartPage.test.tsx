@@ -72,11 +72,19 @@ describe('OrgChartPage', () => {
     const { container } = renderPage();
 
     await screen.findByRole('tree', { name: /Organisation chart/ });
-    // <title> yalnizca gercek kisilerde var: yorunge halkalari ve gorunmez
-    // merkez sayilmaz. Daireleri saymak bunlari da yakalardi.
+
+    // Butun organizasyonda araya bir DEPARTMAN katmani giriyor, dolayisiyla
+    // <title> tasiyan dugumler yalnizca kisiler degil: merkez ve departman
+    // balonlari da adlarini tasir. Sayi yerine ADLARIN varligi iddia edilir --
+    // sayiyi sabitlemek katman sayisi degistiginde anlamsizca kirilirdi.
     const named = [...container.querySelectorAll('title')].map((t) => t.textContent);
-    expect(named).toHaveLength(3);
-    expect(named[0]).toContain('Test Root');
+
+    expect(named).toEqual(expect.arrayContaining([
+      'Whole organisation',
+      expect.stringContaining('Test Root'),
+      expect.stringContaining('Test Alpha'),
+      expect.stringContaining('Test Beta'),
+    ]));
   });
 
   it('narrows the map to a department and its own head', async () => {

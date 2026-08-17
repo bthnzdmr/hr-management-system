@@ -65,11 +65,28 @@ export function findNode(nodes: OrgNode[], id: number): OrgNode | null {
 }
 
 export function fullName(node: OrgNode) {
-  return `${node.firstName} ${node.lastName}`;
+  // Departman dugumlerinin soyadi yok; kirpilmasaydi adin sonunda bir bosluk
+  // kalir ve etiket genisligi hesabi bir harf sisirilirdi.
+  return `${node.firstName} ${node.lastName}`.trim();
 }
 
 export function initials(node: OrgNode) {
   return `${node.firstName.charAt(0)}${node.lastName.charAt(0)}`.toUpperCase();
+}
+
+/**
+ * Bir departmanin merkezde gosterilecek isareti.
+ *
+ * Tek kelimelik adlarda ilk iki harf alinir: "Sales" icin yalnizca "S" yazmak
+ * "Software Development"tan ayirt edilemezdi.
+ */
+export function departmentInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+
+  if (words.length === 0) return '?';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+
+  return words.slice(0, 3).map((word) => word.charAt(0)).join('').toUpperCase();
 }
 
 /** Departman renkleri. */
@@ -79,26 +96,67 @@ export interface Swatch {
   ink: string;
 }
 
+/**
+ * Departman renkleri: on hue, on departmana kadar.
+ *
+ * Once BES renk vardi ve altinci departman notr griye dusuyordu. Olculdu:
+ * canli veride alti departman var ve alfabetik sirada sonuncu olan
+ * "Software Development" -- 49 kisinin 28'ini tasiyan en buyuk departman --
+ * tesadufen renksiz kaliyordu.
+ *
+ * SIRA cember sirasi DEGIL. Renkler departmanlara alfabetik indise gore
+ * veriliyor, yani komsu indisler ekranda yan yana gelir; cember sirasiyla
+ * dizilseydi ilk iki departman kirmizi ve turuncu olurdu. Bu dizilimde ardisik
+ * iki renk arasinda en az 98 derece var.
+ *
+ * Degerler elle secilmedi, URETILDI ve olculdu (bkz. asagidaki oranlar):
+ * halka zemine karsi >= 3:1 (WCAG 1.4.11, grafik ogeleri) ve dolu diskin
+ * uzerindeki harf >= 4.5:1. Acik temada ilk deneme harfte 4.09 verdi ve
+ * dolgular bir kademe koyulastirildi.
+ *
+ * BILINEN SINIR: on kategorik renk, ayirt edilebilirligin ust sinirindadir ve
+ * bu set renk korlugune dayanikli DEGILDIR -- onceki bes renklik set
+ * Okabe-Ito'ydu, on hue'ya cikarken o ozellik korunamaz. Departman rafindaki
+ * ad ve semadaki etiket, rengi tek tasiyici olmaktan cikariyor.
+ */
 const DEPARTMENT_SWATCHES: Record<'light' | 'dark', Swatch[]> = {
+  // Zemin #FFFFFF: en kotu halka 5.40:1, en kotu harf 5.16:1
   light: [
-    { fill: '#458BB3', ink: '#141A22' },
-    { fill: '#07664C', ink: '#F8FAFC' },
-    { fill: '#97902E', ink: '#141A22' },
-    { fill: '#9A4705', ink: '#F8FAFC' },
-    { fill: '#8B5573', ink: '#F8FAFC' },
+    { fill: '#2E6CAB', ink: '#F8FAFC' },
+    { fill: '#915F27', ink: '#F8FAFC' },
+    { fill: '#20794A', ink: '#F8FAFC' },
+    { fill: '#B93187', ink: '#F8FAFC' },
+    { fill: '#6D6D1D', ink: '#F8FAFC' },
+    { fill: '#553ECC', ink: '#F8FAFC' },
+    { fill: '#377720', ink: '#F8FAFC' },
+    { fill: '#BD3C32', ink: '#F8FAFC' },
+    { fill: '#207477', ink: '#F8FAFC' },
+    { fill: '#A533C1', ink: '#F8FAFC' },
   ],
+  // Zemin #1E2631: en kotu halka 6.01:1, en kotu harf 6.89:1
   dark: [
-    { fill: '#56B4E9', ink: '#141A22' },
-    { fill: '#80CFB9', ink: '#141A22' },
-    { fill: '#C4BC3C', ink: '#141A22' },
-    { fill: '#D55E00', ink: '#141A22' },
-    { fill: '#CC79A7', ink: '#141A22' },
+    { fill: '#70A7DE', ink: '#141A22' },
+    { fill: '#D5964D', ink: '#141A22' },
+    { fill: '#2CBA6E', ink: '#141A22' },
+    { fill: '#E285C0', ink: '#141A22' },
+    { fill: '#BABA2C', ink: '#141A22' },
+    { fill: '#A79AE7', ink: '#141A22' },
+    { fill: '#52BA2C', ink: '#141A22' },
+    { fill: '#E28B85', ink: '#141A22' },
+    { fill: '#2CB5BA', ink: '#141A22' },
+    { fill: '#D187E3', ink: '#141A22' },
   ],
 };
 
-/** Renk yetmediginde kullanilan notr. */
+/**
+ * On birinci departmandan itibaren kullanilan notr.
+ *
+ * Bu bir eksiklik degil bir BEYAN: on kategorik renkten sonrasi zaten ayirt
+ * edilemez ve uydurma bir on birinci hue, ayirt edilebilirmis gibi gorunerek
+ * yaniltirdi.
+ */
 const NEUTRAL: Record<'light' | 'dark', Swatch> = {
-  light: { fill: '#6B7684', ink: '#F8FAFC' },
+  light: { fill: '#5A6472', ink: '#F8FAFC' },
   dark: { fill: '#8A94A3', ink: '#141A22' },
 };
 

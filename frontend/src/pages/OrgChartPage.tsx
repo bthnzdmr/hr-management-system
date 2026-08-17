@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Fade, Paper, Skeleton, Stack, Typography } from '@mui/material';
+import { Alert, Box, Fade, Paper, Skeleton, Stack } from '@mui/material';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { orgChartApi } from '../api/orgChart';
 import type { OrgChart, OrgNode } from '../api/orgChart';
@@ -8,7 +8,10 @@ import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/EmptyState';
 import { OrgBubbleMap, OrgOutline, useDepartmentColors } from '../components/OrgBubbleMap';
 import { DepartmentRail } from '../components/DepartmentRail';
-import { departmentsOf, scopeToDepartment } from '../components/orgScope';
+import {
+  departmentInitials, departmentsOf, groupByDepartment, isDepartmentNode, scopeToDepartment,
+} from '../components/orgScope';
+import type { Department } from '../components/orgScope';
 import { PersonPanel } from '../components/PersonPanel';
 
 export function OrgChartPage() {
@@ -51,7 +54,14 @@ export function OrgChartPage() {
   const scoped = useMemo(() => {
     if (!chart) return [];
 
-    return department === null ? chart.roots : scopeToDepartment(chart.roots, department);
+    // Butun organizasyonda araya bir DEPARTMAN katmani giriyor: merkezde
+    // kurum, cevresinde departmanlar, onlarin cevresinde calisanlar. Onceden
+    // butun kisiler tek merkezden dagiliyordu ve departman yalnizca RENKTEN
+    // okunuyordu; simdi "kim hangi departmanda" konumdan okunuyor -- renk bir
+    // kodlama, konum ise yapinin kendisi.
+    return department === null
+      ? groupByDepartment(chart.roots)
+      : scopeToDepartment(chart.roots, department);
   }, [chart, department]);
 
   /** Secim aç/kapa calisir. */
@@ -65,9 +75,35 @@ export function OrgChartPage() {
     setSelected(null);
   };
 
+  // Merkezdeki isaret KAPSAMI anlatir. Sabit "HR" yaziliydi ve departmana
+  // gecildiginde de ayni kaliyordu, yani merkez neyin merkezi oldugunu
+  // soylemiyordu.
+  //
+  // Bilinen catisma: "Human Resources" departmaninin bas harfleri de HR,
+  // dolayisiyla o departman secildiginde isaret ana gorunumdekiyle ayni
+  // gorunuyor. Kullanici ana kisimda HR'i acikca istedi; ayirt etmek gerekirse
+  // cozum burada.
+  const hub = useMemo(
+    () => (department === null
+      // "Human Resources" departmaninin bas harfleri de HR. Cakisma BICIMLE
+      // cozuluyor, harfle degil: merkez tek DOLU disk, departmanlar kalin
+      // halkali. Merkeze kadro sayisi yazmak da denendi -- ilgisiz gorundu.
+      ? { mark: 'HR', name: 'Whole organisation' }
+      : {
+        mark: departmentInitials(department),
+        name: department,
+        // Merkez dolu bir disk ve dolgusu departmanin rengi; harfler o rengin
+        // uzerinde okunacak sekilde secilmis `ink`.
+        swatch: colors.get(department),
+      }),
+    [department, colors],
+  );
+
   // Secilen kisinin merkezden kendisine kadar olan zinciri; panel bunu okur.
+  // Departman dugumleri ELENIR: onlar birer kisi degil ve panel onlari kisi
+  // gibi cizerdi -- yonetim zinciri yalnizca gercek kisilerden olusur.
   const chain = useMemo(
-    () => (selected ? pathTo(scoped, selected.id) : []),
+    () => (selected ? pathTo(scoped, selected.id).filter((node) => !isDepartmentNode(node)) : []),
     [scoped, selected],
   );
 
@@ -80,9 +116,12 @@ export function OrgChartPage() {
       <PageHeader
         eyebrow="Structure"
         title="Organisation map"
-        description={chart
-          ? `${chart.placed} ${chart.placed === 1 ? 'person' : 'people'}, laid out from the centre outwards — each ring is a level of management`
-          : 'How the organisation is put together'}
+        // Ayrac KAPALI: cerceveli uc panelin hemen ustune bir cizgi daha
+        // binince sayfa ust uste seritlere bolunmus gorunuyordu.
+        divider={false}
+        // Aciklama kisaldi ve DUZELDI: "her halka bir yonetim seviyesi"
+        // artik dogru degil, ilk halka departmanlarin.
+        description={chart ? summary(chart, department, departments) : ' '}
       />
 
       {/* Ulasilamayan kisiler UYARI degil BILGI olarak gosterilir.
@@ -125,12 +164,11 @@ export function OrgChartPage() {
             `flexShrink: 0` ile butun satiri kapar ve cizim sifira sikisirdi;
             tam olarak bu yasandi.
 
-            Kirilma noktasi OLCULEREK secildi. Icerik `maxWidth: 1280` ve
-            kenar bosluklariyla sinirli, yani lg'de (1200 px) kullanilabilir
-            genislik 888 px. Uc sutun orada acilsaydi cizime 318 px kalirdi --
-            33 dugum icin okunmaz. xl'de acilinca cizim her iki durumda da
-            ~620-650 px: lg'de panel altta ve cizim 618, xl'de yan yana ve
-            cizim 646. */}
+            Sayfa kabugun genislik sinirinin DISINDA (bkz. Layout'taki
+            FULL_BLEED), dolayisiyla olcum de degisti. 1920 px ekranda:
+            kenar cubugu daraltilmisken cizime 1218 px, acikken 1038 px
+            kaliyor -- ikisi de 36 dugumun ismini tasiyacak genislikte.
+            xl'in altinda panel altta duruyor ve cizim satirin tamamini alir. */}
         <Stack
           direction={{ xs: 'column', xl: 'row' }}
           spacing={2.5}
@@ -149,10 +187,10 @@ export function OrgChartPage() {
 
           {chart && chart.roots.length > 0 && (
             <Stack spacing={2}>
-              <Typography variant="caption" color="text.secondary">
-                Click anyone to see where they sit in the organisation
-              </Typography>
-
+              {/* Buradaki "Click anyone to see where they sit" ipucu KALDIRILDI:
+                  sagdaki panel bos haldeyken zaten birebir ayni seyi soyluyor
+                  ("Pick anyone in the chart to see where they sit...") ve iki
+                  yere yazilan bir cumlenin biri zamanla digerinden ayrilir. */}
               <Fade in key={department ?? 'all'}>
                 <Box>
                   <OrgBubbleMap
@@ -160,6 +198,16 @@ export function OrgChartPage() {
                     colors={colors}
                     selectedId={selected?.id ?? null}
                     onSelect={toggleSelect}
+                    // Departman balonuna tiklamak o departmana INER; rafta
+                    // yapilan secimin aynisi. Balonu bir kisi gibi secilebilir
+                    // yapmak paneli olmayan bir kisiyle doldururdu.
+                    onSelectDepartment={selectDepartment}
+                    hub={hub}
+                    // Merkez DAIMA kapsamin kendisi. Bayrak olmadan merkez
+                    // yalnizca birden fazla kok varken kapsami gosteriyor,
+                    // tek kokte oraya o kisi oturuyordu -- ayni ekran
+                    // departmandan departmana farkli davraniyordu.
+                    alwaysHub
                   />
                 </Box>
               </Fade>
@@ -199,6 +247,19 @@ export function OrgChartPage() {
       </Stack>
     </Stack>
   );
+}
+
+/** Basligin altindaki tek satirlik ozet; kapsam degistikce degisir. */
+function summary(chart: OrgChart, department: string | null, departments: Department[]) {
+  const count = department === null
+    ? chart.placed
+    : departments.find((entry) => entry.name === department)?.headcount ?? 0;
+
+  const people = `${count} ${count === 1 ? 'person' : 'people'}`;
+
+  return department === null
+    ? `${people} across ${departments.length} departments`
+    : `${people} in ${department}`;
 }
 
 /** Koklerden verilen kisiye giden yol; kisinin kendisi sonda. */
