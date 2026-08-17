@@ -125,16 +125,13 @@ class AuditSecretLeakTest {
     }
 
     @Test
-    @DisplayName("The account request keeps its password out of its own text form")
-    void userCreateRequestMasksPassword() {
-        // Yukaridaki tarama yapisal koruma; bu test somut kanit.
-        var request = new com.proje.employee.dto.UserCreateRequest(
-                "ada@example.com", "a-very-secret-password",
-                java.util.Set.of(com.proje.employee.entity.Role.EMPLOYEE), null);
-
-        assertThat(request.toString())
-                .doesNotContain("a-very-secret-password")
-                .contains("ada@example.com")
-                .contains("***");
+    @DisplayName("The account request carries no password at all")
+    void userCreateRequestCarriesNoPassword() {
+        // Onceki hali parolayi MASKELIYORDU; artik tasimiyor. Tasinmayan bir
+        // sir maskelenmeyi de gerektirmez -- ve hesabi acan kisi parolayi
+        // hicbir zaman ogrenemez.
+        assertThat(com.proje.employee.dto.UserCreateRequest.class.getRecordComponents())
+                .noneMatch(component -> component.getName().toLowerCase()
+                        .matches(".*(password|secret|token|credential).*"));
     }
 }

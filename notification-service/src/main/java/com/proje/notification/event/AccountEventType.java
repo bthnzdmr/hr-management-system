@@ -4,5 +4,6 @@ package com.proje.notification.event;
 // sozlesme JSON'dur, Java sinifi degil.
 public enum AccountEventType {
 
-    PASSWORD_RESET_REQUESTED
+    PASSWORD_RESET_REQUESTED,
+    INVITED
 }

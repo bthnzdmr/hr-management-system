@@ -72,7 +72,6 @@ export interface User {
 
 export interface UserCreateRequest {
   email: string;
-  password: string;
   roles: Role[];
   employeeId: number | null;
 }

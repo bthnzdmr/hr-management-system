@@ -179,6 +179,9 @@ app:
     # Kisa omur, jetonun outbox satirinda duz metin durmasinin penceresini de
     # kapatir: eski bir yedegi okuyan kisi yalnizca olu jeton bulur.
     validity-minutes: ${PASSWORD_RESET_VALIDITY_MINUTES:30}
+    # Davet daha uzun: sifirlamada kullanici o an bekliyor, davette kisi
+    # ise yeni basliyor olabilir ve maili ertesi gun acabilir.
+    invite-validity-hours: ${INVITE_VALIDITY_HOURS:24}
     # Ayni hesap icin yeni baglanti uretilmeden once beklenecek sure. Posta
     # kutusu bombalamayi engeller; ayri bir sayaca gerek birakmaz.
     resend-cooldown-seconds: ${PASSWORD_RESET_RESEND_COOLDOWN_SECONDS:120}

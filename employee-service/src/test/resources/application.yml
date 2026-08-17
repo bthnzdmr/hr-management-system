@@ -48,6 +48,7 @@ app:
 
   password-reset:
     validity-minutes: 30
+    invite-validity-hours: 24
     resend-cooldown-seconds: 120
     cleanup-interval-ms: 3600000
 

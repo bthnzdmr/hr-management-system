@@ -22,6 +22,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Set;
 
 @Service
@@ -31,17 +33,20 @@ public class UserService {
     private final EmployeeRepository employeeRepository;
     private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordResetService passwordResetService;
     private final UserMapper userMapper;
 
     public UserService(UserRepository userRepository,
                        EmployeeRepository employeeRepository,
                        RefreshTokenService refreshTokenService,
                        PasswordEncoder passwordEncoder,
+                       PasswordResetService passwordResetService,
                        UserMapper userMapper) {
         this.userRepository = userRepository;
         this.employeeRepository = employeeRepository;
         this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
+        this.passwordResetService = passwordResetService;
         this.userMapper = userMapper;
     }
 
@@ -61,9 +66,12 @@ public class UserService {
 
         rejectServiceRole(request.roles());
 
+        // Hicbir parolanin tutmadigi bir ozet. Hesap, sahibi davet
+        // baglantisini kullanana kadar giris YAPAMAZ -- ve o ana kadar
+        // parolayi kimse bilmez, acan kisi dahil.
         User user = new User(
                 request.email(),
-                passwordEncoder.encode(request.password()),
+                passwordEncoder.encode(unguessableSecret()),
                 request.roles());
 
         if (request.employeeId() != null) {
@@ -83,7 +91,26 @@ public class UserService {
             user.setEmployee(employee);
         }
 
-        return userMapper.toResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+
+        // Davet, hesabin kendisiyle AYNI transaction'da uretilir: hesap
+        // acilip davet uretilemezse ortada girilemeyen bir hesap kalirdi.
+        passwordResetService.invite(saved);
+
+        return userMapper.toResponse(saved);
+    }
+
+    /**
+     * Tahmin edilemez, hicbir yerde saklanmayan bir dizge.
+     *
+     * Amaci parola OLMAK degil, hicbir parolanin tutmamasini saglamak. Bos
+     * dizge veya sabit bir deger kullanilsaydi ayni "parolasiz" hesaplarin
+     * hepsi ayni ozeti tasir ve biri kirilirsa hepsi acilirdi.
+     */
+    private String unguessableSecret() {
+        byte[] bytes = new byte[32];
+        new SecureRandom().nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     /**

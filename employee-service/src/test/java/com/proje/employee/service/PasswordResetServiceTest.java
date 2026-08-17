@@ -25,6 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.Set;
 
@@ -62,7 +63,7 @@ class PasswordResetServiceTest {
     @BeforeEach
     void setUp() {
         service = new PasswordResetService(tokenRepository, userRepository, refreshTokenService,
-                passwordEncoder, outboxWriter, 30, 120,
+                passwordEncoder, outboxWriter, 30, 24, 120,
                 Clock.fixed(NOW, ZoneOffset.UTC));
 
         user = new User(EMAIL, "old-hash", Set.of(Role.EMPLOYEE));
@@ -195,6 +196,31 @@ class PasswordResetServiceTest {
         service.request(EMAIL);
 
         verify(outboxWriter, never()).write(any(EmployeeEvent.class));
+    }
+
+    @Test
+    @DisplayName("an invite outlives a reset link, because the recipient is not waiting")
+    void inviteLastsLonger() {
+        service.invite(user);
+
+        ArgumentCaptor<AccountEvent> captor = ArgumentCaptor.forClass(AccountEvent.class);
+        verify(outboxWriter).write(captor.capture());
+
+        assertThat(captor.getValue().eventType()).isEqualTo(AccountEventType.INVITED);
+        assertThat(captor.getValue().expiresAt()).isEqualTo(NOW.plus(24, ChronoUnit.HOURS));
+        assertThat(captor.getValue().resetToken()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("an invite is not silenced by the resend cooldown")
+    void inviteIgnoresCooldown() {
+        // Hiz siniri kullanicinin ISTEGI icindir; davet bir yonetici islemidir
+        // ve hesap yeni acilmistir. Susturulsaydi hesap girilemez kalirdi.
+        when(tokenRepository.findLatestUnusedIssuedAt(any())).thenReturn(NOW.minusSeconds(1));
+
+        service.invite(user);
+
+        verify(outboxWriter).write(any(AccountEvent.class));
     }
 
     private void givenUsableToken() {

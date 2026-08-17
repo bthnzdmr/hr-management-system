@@ -52,11 +52,14 @@ class UserServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private PasswordResetService passwordResetService;
+
     private final UserMapper userMapper = new UserMapper();
 
     private UserService service() {
         return new UserService(userRepository, employeeRepository, refreshTokenService,
-                passwordEncoder, userMapper);
+                passwordEncoder, passwordResetService, userMapper);
     }
 
     private User user(Long id, String email, Role role, boolean active) {
@@ -80,15 +83,16 @@ class UserServiceTest {
     @DisplayName("Stores the password as a hash, never as given")
     void storesHashedPassword() {
         when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
-        when(passwordEncoder.encode("correct horse battery")).thenReturn("bcrypt-hash");
+        when(passwordEncoder.encode(anyString())).thenReturn("bcrypt-hash");
         when(userRepository.save(any(User.class))).thenAnswer(call -> call.getArgument(0));
 
-        service().create(new UserCreateRequest(
-                "new@example.com", "correct horse battery", User.rolesOf(Role.EMPLOYEE), null));
+        service().create(new UserCreateRequest("new@example.com", User.rolesOf(Role.EMPLOYEE), null));
 
         ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(saved.capture());
         assertThat(saved.getValue().getPasswordHash()).isEqualTo("bcrypt-hash");
+        // Hesabi acan kisi parolayi BILMEZ: davet baglantisi sahibine gider.
+        verify(passwordResetService).invite(saved.getValue());
     }
 
     @Test
@@ -107,7 +111,7 @@ class UserServiceTest {
         when(userRepository.existsByEmail("taken@example.com")).thenReturn(true);
 
         assertThatThrownBy(() -> service().create(
-                new UserCreateRequest("taken@example.com", "a-long-password", User.rolesOf(Role.EMPLOYEE), null)))
+                new UserCreateRequest("taken@example.com", User.rolesOf(Role.EMPLOYEE), null)))
                 .isInstanceOf(EmailAlreadyExistsException.class);
 
         verify(userRepository, never()).save(any());
@@ -309,8 +313,7 @@ class UserServiceTest {
         when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
         when(employeeRepository.findById(42L)).thenReturn(Optional.of(left));
 
-        assertThatThrownBy(() -> service().create(new UserCreateRequest(
-                "new@example.com", "a-long-enough-password",
+        assertThatThrownBy(() -> service().create(new UserCreateRequest("new@example.com",
                 User.rolesOf(Role.EMPLOYEE), 42L)))
                 .isInstanceOf(UserRuleViolationException.class)
                 .hasMessageContaining("has left the company");
@@ -323,8 +326,7 @@ class UserServiceTest {
     void refusesServiceRoleOnCreate() {
         // Makine kimliginin rolu yapilandirmadir: bir insan hesabi servis
         // kimligine burunurse loglarda "bu istegi kim yapti" cevapsiz kalir.
-        UserCreateRequest request = new UserCreateRequest(
-                "someone@example.com", "a-long-enough-password",
+        UserCreateRequest request = new UserCreateRequest("someone@example.com",
                 java.util.Set.of(Role.EMPLOYEE, Role.SERVICE), null);
 
         assertThatThrownBy(() -> service().create(request))

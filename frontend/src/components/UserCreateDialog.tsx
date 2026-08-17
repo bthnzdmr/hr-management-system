@@ -26,11 +26,9 @@ interface Props {
 
 // Sunucudaki kuralin aynisi. Istemci dogrulamasi yalnizca kolayliktir; karari
 // sunucu verir ve bu deger orada da yazilidir.
-const MIN_PASSWORD_LENGTH = 12;
 
 export function UserCreateDialog({ open, onClose, onCreated, forEmployee }: Props) {
   const [email, setEmail] = useState(forEmployee?.email ?? '');
-  const [password, setPassword] = useState('');
   const [roles, setRoles] = useState<Role[]>(['EMPLOYEE']);
   const [employee, setEmployee] = useState<EmployeeOption | null>(
     forEmployee ? { id: forEmployee.id, label: forEmployee.label } : null,
@@ -47,7 +45,6 @@ export function UserCreateDialog({ open, onClose, onCreated, forEmployee }: Prop
     if (!open) return;
 
     setEmail(forEmployee?.email ?? '');
-    setPassword('');
     setRoles(['EMPLOYEE']);
     setEmployee(forEmployee ? { id: forEmployee.id, label: forEmployee.label } : null);
     setError(null);
@@ -55,7 +52,6 @@ export function UserCreateDialog({ open, onClose, onCreated, forEmployee }: Prop
 
   const reset = () => {
     setEmail(forEmployee?.email ?? '');
-    setPassword('');
     setRoles(['EMPLOYEE']);
     setEmployee(forEmployee ? { id: forEmployee.id, label: forEmployee.label } : null);
     setError(null);
@@ -69,7 +65,6 @@ export function UserCreateDialog({ open, onClose, onCreated, forEmployee }: Prop
     try {
       const created = await userApi.create({
         email,
-        password,
         roles,
         employeeId: employee?.id ?? null,
       });
@@ -103,12 +98,12 @@ export function UserCreateDialog({ open, onClose, onCreated, forEmployee }: Prop
               onChange={(event) => setEmail(event.target.value)}
             />
 
-            <TextField
-              label="Password" type="password" value={password} required fullWidth
-              slotProps={{ htmlInput: { minLength: MIN_PASSWORD_LENGTH } }}
-              onChange={(event) => setPassword(event.target.value)}
-              helperText={`At least ${MIN_PASSWORD_LENGTH} characters. Only the owner can change it later.`}
-            />
+            {/* Parola alani YOK ve bu kasitli: hesabi acan kisi parolayi
+                belirleseydi onunla giris yapip kullanicinin kimligine
+                burunebilir, denetim izinde de ayirt edilemezdi. */}
+            <Alert severity="info">
+              We email an invite link. Only the new user ever knows the password.
+            </Alert>
 
             {/* Coklu secim: ayni kisi hem Ik uzmani hem sistem yoneticisi
                 olabilir ve bunlar farkli islerdir. */}

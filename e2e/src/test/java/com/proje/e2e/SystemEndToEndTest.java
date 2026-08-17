@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -351,16 +353,46 @@ class SystemEndToEndTest {
     }
 
     /** Her cagri benzersiz bir hesap uretir: testler birbirinin verisine dokunmaz. */
+    /**
+     * Hesabi acar VE davet baglantisiyla parolayi belirler.
+     *
+     * Istek parola TASIMAZ: hesabi acan kisi parolayi belirleseydi onunla giris
+     * yapip kullanicinin kimligine burunebilirdi. Kara kutu olarak dogru yol,
+     * gercek bir kullanici gibi maildeki baglantiyi kullanmaktir.
+     */
     private String createAccount(String token, String email, String password, String role) {
         SystemClient.Response response = client.post(
                 SystemClient.API_URL + "/api/users", token,
                 """
-                {"email":"%s","password":"%s","roles":["%s"]}
-                """.formatted(email, password, role));
+                {"email":"%s","roles":["%s"]}
+                """.formatted(email, role));
 
         assertThat(response.status()).isEqualTo(201);
+
+        acceptInvite(email, password);
         return response.body().get("id").asText();
     }
+
+    private void acceptInvite(String email, String password) {
+        JsonNode mail = awaitMail(email, "choose a password");
+        Matcher found = INVITE_LINK.matcher(mail.at("/Content/Body").asText());
+
+        assertThat(found.find())
+                .describedAs("invite mail should carry a set-password link")
+                .isTrue();
+
+        SystemClient.Response set = client.post(
+                SystemClient.API_URL + "/api/auth/password-reset/confirm", null,
+                """
+                {"token":"%s","newPassword":"%s"}
+                """.formatted(found.group(1), password));
+
+        assertThat(set.status()).isEqualTo(204);
+    }
+
+    /** Mail govdesindeki davet/sifirlama baglantisindan jetonu ayiklar. */
+    private static final Pattern INVITE_LINK =
+            Pattern.compile("reset-password\\?token=([A-Za-z0-9_%-]+)");
 
     private SystemClient.Response signIn(String email, String password) {
         return client.post(SystemClient.API_URL + "/api/auth/login", null,
@@ -518,11 +550,12 @@ class SystemEndToEndTest {
         SystemClient.Response created = client.post(
                 SystemClient.API_URL + "/api/users", adminToken,
                 """
-                {"email":"%s","password":"a-long-enough-password","roles":["EMPLOYEE"],
-                 "employeeId":%s}
+                {"email":"%s","roles":["EMPLOYEE"],"employeeId":%s}
                 """.formatted(accountEmail, employeeId));
         assertThat(created.status()).isEqualTo(201);
 
+        // Parolayi kullanici kendisi belirler; hesap davete kadar giremez.
+        acceptInvite(accountEmail, "a-long-enough-password");
         assertThat(signIn(accountEmail, "a-long-enough-password").status()).isEqualTo(200);
 
         client.put(SystemClient.API_URL + "/api/employees/" + employeeId + "/status", adminToken,

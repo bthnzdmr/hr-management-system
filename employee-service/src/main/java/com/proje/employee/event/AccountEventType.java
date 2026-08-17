@@ -9,7 +9,8 @@ package com.proje.employee.event;
 // oraya teslim edilmemeli.
 public enum AccountEventType {
 
-    PASSWORD_RESET_REQUESTED("account.password-reset-requested");
+    PASSWORD_RESET_REQUESTED("account.password-reset-requested"),
+    INVITED("account.invited");
 
     private final String routingKey;
 

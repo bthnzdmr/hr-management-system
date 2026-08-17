@@ -52,7 +52,8 @@ public class RabbitConfig {
             "employee.reactivated");
 
     private static final List<String> ACCOUNT_ROUTING_KEYS = List.of(
-            "account.password-reset-requested");
+            "account.password-reset-requested",
+            "account.invited");
 
     @Bean
     TopicExchange employeeExchange() {

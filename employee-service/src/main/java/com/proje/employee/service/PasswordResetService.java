@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -51,6 +52,7 @@ public class PasswordResetService {
     private final OutboxWriter outboxWriter;
     private final SecureRandom random = new SecureRandom();
     private final Duration validity;
+    private final Duration inviteValidity;
     private final Duration resendCooldown;
 
     /** Zaman DISARIDAN verilir; gerekcesi LoginAttemptService'te olculdu. */
@@ -64,10 +66,11 @@ public class PasswordResetService {
                                 PasswordEncoder passwordEncoder,
                                 OutboxWriter outboxWriter,
                                 @Value("${app.password-reset.validity-minutes}") long validityMinutes,
+                                @Value("${app.password-reset.invite-validity-hours}") long inviteHours,
                                 @Value("${app.password-reset.resend-cooldown-seconds}") long cooldownSeconds) {
 
         this(tokenRepository, userRepository, refreshTokenService, passwordEncoder, outboxWriter,
-                validityMinutes, cooldownSeconds, Clock.systemUTC());
+                validityMinutes, inviteHours, cooldownSeconds, Clock.systemUTC());
     }
 
     /** Testler icin: zamani kontrol edilebilir kilar. */
@@ -77,6 +80,7 @@ public class PasswordResetService {
                          PasswordEncoder passwordEncoder,
                          OutboxWriter outboxWriter,
                          long validityMinutes,
+                         long inviteHours,
                          long cooldownSeconds,
                          Clock clock) {
 
@@ -86,6 +90,9 @@ public class PasswordResetService {
         this.passwordEncoder = passwordEncoder;
         this.outboxWriter = outboxWriter;
         this.validity = Duration.ofMinutes(validityMinutes);
+        // Davet daha uzun omurlu: sifirlamada kullanici o an bekliyor, davette
+        // ise kisi ise yeni basliyor olabilir ve maili ertesi gun acabilir.
+        this.inviteValidity = Duration.ofHours(inviteHours);
         this.resendCooldown = Duration.ofSeconds(cooldownSeconds);
         this.clock = clock;
     }
@@ -122,18 +129,8 @@ public class PasswordResetService {
             return;
         }
 
-        String token = randomToken();
-        tokenRepository.save(new PasswordResetToken(hash(token), user, now, now.plus(validity)));
-
         // Mail, mevcut boru hattindan gider: bu servis SMTP'yi hic tanimaz.
-        outboxWriter.write(new AccountEvent(
-                UUID.randomUUID().toString(),
-                AccountEventType.PASSWORD_RESET_REQUESTED,
-                now,
-                user.getId(),
-                user.getEmail(),
-                token,
-                now.plus(validity)));
+        issue(user, AccountEventType.PASSWORD_RESET_REQUESTED, validity);
 
         log.info("Password reset issued for user {}", user.getId());
     }
@@ -171,6 +168,29 @@ public class PasswordResetService {
         refreshTokenService.revokeAllFor(user.getId(), "password reset");
 
         log.info("Password reset completed for user {}", user.getId());
+    }
+
+    /**
+     * Yeni acilan hesaba "parolani belirle" baglantisi uretir.
+     *
+     * Hesap acmakla AYNI transaction'da cagrilir; hiz sinirine takilmaz cunku
+     * ortada kullanici istegi degil bir yonetici islemi var ve hesap yeni.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void invite(User user) {
+        issue(user, AccountEventType.INVITED, inviteValidity);
+        log.info("Invite issued for user {}", user.getId());
+    }
+
+    private void issue(User user, AccountEventType type, Duration ttl) {
+        Instant now = clock.instant();
+        String token = randomToken();
+
+        tokenRepository.save(new PasswordResetToken(hash(token), user, now, now.plus(ttl)));
+
+        outboxWriter.write(new AccountEvent(
+                UUID.randomUUID().toString(), type, now,
+                user.getId(), user.getEmail(), token, now.plus(ttl)));
     }
 
     private String randomToken() {

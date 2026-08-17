@@ -528,7 +528,7 @@ Taban adres: `http://localhost:8080`
 | `POST` | `/api/departments` | Yeni departman; ad büyük-küçük harf duyarsız benzersiz | `HR_SPECIALIST` | `201` + `Location` |
 | `PUT` | `/api/departments/{id}/status` | Aç / kapat (tekrarı etkisiz). İçinde aktif personel varken kapatılamaz | `HR_SPECIALIST` | `200` |
 | `GET` | `/api/users` | Hesap listesi (parola özeti **dönmez**) | `SYSTEM_ADMIN` | `200` |
-| `POST` | `/api/users` | Hesap oluştur; `employeeId` ile personele bağlanır | `SYSTEM_ADMIN` | `201` |
+| `POST` | `/api/users` | Hesap oluştur; **parola almaz**, kullanıcıya davet maili gider | `SYSTEM_ADMIN` | `201` |
 | `PUT` | `/api/users/{id}/roles` | Rol kümesini komple değiştir | `SYSTEM_ADMIN` | `200` |
 | `PUT` | `/api/users/{id}/status` | Hesabı aç/kapat; kapatınca oturumlar biter | `SYSTEM_ADMIN` | `200` |
 | `PUT` | `/api/users/me/password` | Kendi parolasını değiştir | giriş yapmış | `204` |

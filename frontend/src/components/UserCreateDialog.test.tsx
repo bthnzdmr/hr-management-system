@@ -29,6 +29,16 @@ function renderDialog(forEmployee: typeof alice, open = true) {
 describe('UserCreateDialog', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it('never asks the creator to choose a password', () => {
+    // Gorevler ayriligi: parolayi hesabi acan kisi belirleseydi onunla giris
+    // yapip kullanicinin kimligine burunebilir ve denetim izinde bu ayirt
+    // edilemezdi. Alan kaldirildi, dolayisiyla bu ekranda YOK olmali.
+    renderDialog(alice);
+
+    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/invite link/i)).toBeInTheDocument();
+  });
+
   it('fills the form from the employee it was opened for', () => {
     renderDialog(alice);
 

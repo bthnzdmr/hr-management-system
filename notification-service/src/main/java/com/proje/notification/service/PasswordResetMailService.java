@@ -1,6 +1,7 @@
 package com.proje.notification.service;
 
 import com.proje.notification.event.AccountEvent;
+import com.proje.notification.event.AccountEventType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -33,13 +34,20 @@ public class PasswordResetMailService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(fromAddress);
         message.setTo(event.email());
-        message.setSubject("Reset your password");
+        message.setSubject(subject(event));
         message.setText(body(event));
 
         // CC YOK: yoneticinin bu maili gormesi, parolayi sifirlayabilecek
         // ikinci bir kisi demektir. Personel bildirimlerindeki CC bir
         // zenginlestirmeydi; burada bir aciktir.
         mailSender.send(message);
+    }
+
+    private String subject(AccountEvent event) {
+        return switch (event.eventType()) {
+            case INVITED -> "Your account is ready -- choose a password";
+            case PASSWORD_RESET_REQUESTED -> "Reset your password";
+        };
     }
 
     private String body(AccountEvent event) {
@@ -49,6 +57,24 @@ public class PasswordResetMailService {
                 + URLEncoder.encode(event.resetToken(), StandardCharsets.UTF_8);
 
         long minutes = Duration.between(Instant.now(), event.expiresAt()).toMinutes();
+        long hours = Duration.between(Instant.now(), event.expiresAt()).toHours();
+
+        if (event.eventType() == AccountEventType.INVITED) {
+            return """
+                    Hello,
+
+                    An account has been created for you in the HR system.
+                    Choose your password to sign in for the first time:
+
+                    %s
+
+                    The link works once and expires in about %d hours.
+
+                    Nobody else knows this password -- not even the person who
+                    created the account.
+
+                    HR System""".formatted(link, Math.max(hours, 1));
+        }
 
         return """
                 Hello,
