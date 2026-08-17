@@ -93,6 +93,29 @@ describe('Layout', () => {
     expect(screen.queryByRole('link', { name: 'New employee' })).not.toBeInTheDocument();
   });
 
+  it('collapses the navigation to a rail without losing it', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderShell(['HR_SPECIALIST', 'SYSTEM_ADMIN']);
+
+    expect(screen.getByText('ada@example.com')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Collapse navigation' }));
+
+    expect(localStorage.getItem('hr.navCollapsed')).toBe('true');
+    // Metin DOM'dan cikar...
+    expect(screen.queryByText('ada@example.com')).not.toBeInTheDocument();
+    // ...ama gezinme kalir. Bir ikonun tek basina erisilebilir adi YOKTUR:
+    // ad acikca verilmeseydi ekran okuyucu yalnizca "link" derdi ve menu
+    // daraltilmis hale getirmek onu kullanilamaz kilardi.
+    expect(screen.getByRole('link', { name: 'Accounts' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Employees' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Expand navigation' }));
+
+    expect(localStorage.getItem('hr.navCollapsed')).toBe('false');
+    expect(screen.getByText('ada@example.com')).toBeInTheDocument();
+  });
+
   it('switches the theme and remembers the choice', async () => {
     const user = userEvent.setup({ delay: null });
     renderShell(['EMPLOYEE']);

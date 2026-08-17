@@ -8,6 +8,14 @@ interface Props {
   description?: ReactNode;
   /** Sagda duran eylemler; yetki kontrolu cagiran sayfaya aittir. */
   actions?: ReactNode;
+  /**
+   * Alttaki ayrac cizgisi.
+   *
+   * Liste sayfalarinda basligi icerikten ayirmasi gerekiyor, ama tuvali olan
+   * bir sayfada cerceveli panellerin hemen ustune bir cizgi daha binince sayfa
+   * ust uste seritlere bolunmus gorunuyor.
+   */
+  divider?: boolean;
 }
 
 /**
@@ -22,7 +30,7 @@ interface Props {
  * yalnizca bosluk olsaydi sayfa nerede baslayip nerede devam ettigini
  * soylemezdi.
  */
-export function PageHeader({ eyebrow, title, description, actions }: Props) {
+export function PageHeader({ eyebrow, title, description, actions, divider = true }: Props) {
   return (
     <Box
       sx={{
@@ -31,8 +39,8 @@ export function PageHeader({ eyebrow, title, description, actions }: Props) {
         alignItems: { xs: 'stretch', sm: 'flex-end' },
         justifyContent: 'space-between',
         gap: 2,
-        pb: 2.5,
-        borderBottom: 1,
+        pb: divider ? 2.5 : 0,
+        borderBottom: divider ? 1 : 0,
         borderColor: 'divider',
       }}
     >
