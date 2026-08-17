@@ -3,6 +3,8 @@ import { Layout } from './components/Layout';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { CapabilityRoute } from './auth/CapabilityRoute';
 import { LoginPage } from './pages/LoginPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { EmployeeListPage } from './pages/EmployeeListPage';
 import { LeaveListPage } from './pages/LeaveListPage';
 import { EmployeeDetailPage } from './pages/EmployeeDetailPage';
@@ -32,6 +34,10 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      {/* Kabugun DISINDA: parolasini unutan kisi tanimi geregi giris
+          yapamaz, korumali bir rotanin arkasinda olsalardi ulasilamazlardi. */}
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>

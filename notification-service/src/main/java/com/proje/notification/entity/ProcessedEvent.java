@@ -39,8 +39,10 @@ public class ProcessedEvent implements Persistable<UUID> {
     @Column(name = "event_type", nullable = false, length = 30, updatable = false)
     private String eventType;
 
-    @Column(name = "employee_id", nullable = false, updatable = false)
-    private Long employeeId;
+    // Olayin OZNESI: personel olaylarinda personel id'si, hesap olaylarinda
+    // kullanici id'si. "employee_id" adi ikincisi icin yalan olurdu.
+    @Column(name = "subject_id", nullable = false, updatable = false)
+    private Long subjectId;
 
     @Column(name = "processed_at", nullable = false, updatable = false)
     private Instant processedAt;
@@ -48,10 +50,10 @@ public class ProcessedEvent implements Persistable<UUID> {
     protected ProcessedEvent() {
     }
 
-    public ProcessedEvent(UUID eventId, String eventType, Long employeeId) {
+    public ProcessedEvent(UUID eventId, String eventType, Long subjectId) {
         this.eventId = eventId;
         this.eventType = eventType;
-        this.employeeId = employeeId;
+        this.subjectId = subjectId;
     }
 
     @PrePersist
@@ -84,8 +86,8 @@ public class ProcessedEvent implements Persistable<UUID> {
         return eventType;
     }
 
-    public Long getEmployeeId() {
-        return employeeId;
+    public Long getSubjectId() {
+        return subjectId;
     }
 
     public Instant getProcessedAt() {

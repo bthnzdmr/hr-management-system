@@ -52,13 +52,13 @@ class EmployeeEventListenerTest {
     @DisplayName("Sends a mail and records the event when it is seen for the first time")
     void processesNewEvent() {
         UUID eventId = UUID.randomUUID();
-        when(eventClaimService.claim(any())).thenReturn(true);
+        when(eventClaimService.claim(any(), any(), any())).thenReturn(true);
 
         listener.onEmployeeEvent(event(eventId), null);
 
         // Sahiplenme ayri bir bean'e tasindi (EventClaimService); dinleyicinin
         // sorumlulugu artik yalnizca ORKESTRASYON.
-        verify(eventClaimService).claim(any());
+        verify(eventClaimService).claim(any(), any(), any());
         verify(mailService).send(any(), any());
     }
 
@@ -66,7 +66,7 @@ class EmployeeEventListenerTest {
     @DisplayName("Sends no second mail when the same event is delivered again")
     void ignoresAlreadyProcessedEvent() {
         UUID eventId = UUID.randomUUID();
-        when(eventClaimService.claim(any())).thenReturn(false);
+        when(eventClaimService.claim(any(), any(), any())).thenReturn(false);
 
         listener.onEmployeeEvent(event(eventId), null);
 
@@ -77,7 +77,7 @@ class EmployeeEventListenerTest {
     @DisplayName("Writes the record to the database before sending the mail")
     void writesRecordBeforeSendingMail() {
         UUID eventId = UUID.randomUUID();
-        when(eventClaimService.claim(any())).thenReturn(true);
+        when(eventClaimService.claim(any(), any(), any())).thenReturn(true);
 
         listener.onEmployeeEvent(event(eventId), null);
 
@@ -85,7 +85,7 @@ class EmployeeEventListenerTest {
         // yazilamazsa tekrar teslimde IKINCI MAIL giderdi -- gonderilmis mail
         // geri alinamaz.
         InOrder order = inOrder(eventClaimService, mailService);
-        order.verify(eventClaimService).claim(any());
+        order.verify(eventClaimService).claim(any(), any(), any());
         order.verify(mailService).send(any(), any());
     }
 
@@ -95,7 +95,7 @@ class EmployeeEventListenerTest {
         // Yaris durumu: iki tuketici de existsById kontrolunu gecti, biri once
         // kaydetti. Kaybeden taraf maili HENUZ gondermemis olmalidir.
         UUID eventId = UUID.randomUUID();
-        when(eventClaimService.claim(any())).thenReturn(false);
+        when(eventClaimService.claim(any(), any(), any())).thenReturn(false);
 
         listener.onEmployeeEvent(event(eventId), null);
 
@@ -106,7 +106,7 @@ class EmployeeEventListenerTest {
     @DisplayName("Lets a mail failure propagate so the message is redelivered")
     void propagatesMailFailure() {
         UUID eventId = UUID.randomUUID();
-        when(eventClaimService.claim(any())).thenReturn(true);
+        when(eventClaimService.claim(any(), any(), any())).thenReturn(true);
         doThrow(new RuntimeException("smtp down")).when(mailService).send(any(), any());
 
         assertThatThrownBy(() -> listener.onEmployeeEvent(event(eventId), null))
@@ -121,7 +121,7 @@ class EmployeeEventListenerTest {
         // almazsa iki servisin loglari birlestirilemez -- ki bu servisin bugune
         // kadar yazdigi HER satir bos kimlikle basiliyordu.
         UUID eventId = UUID.randomUUID();
-        when(eventClaimService.claim(any())).thenReturn(true);
+        when(eventClaimService.claim(any(), any(), any())).thenReturn(true);
 
         AtomicReference<String> seen = new AtomicReference<>();
         doAnswer(invocation -> {
@@ -141,7 +141,7 @@ class EmployeeEventListenerTest {
         // benzersiz bir deger: "izlenemez" olmaktansa farkli bir anahtarla
         // izlenebilir olmak iyidir.
         UUID eventId = UUID.randomUUID();
-        when(eventClaimService.claim(any())).thenReturn(true);
+        when(eventClaimService.claim(any(), any(), any())).thenReturn(true);
 
         AtomicReference<String> seen = new AtomicReference<>();
         doAnswer(invocation -> {
@@ -160,7 +160,7 @@ class EmployeeEventListenerTest {
         // Iplik havuzdan geliyor: temizlenmezse iki ayri isin loglari
         // birbirine karisir ve iz yanlis yere baglanir.
         UUID eventId = UUID.randomUUID();
-        when(eventClaimService.claim(any())).thenReturn(true);
+        when(eventClaimService.claim(any(), any(), any())).thenReturn(true);
 
         listener.onEmployeeEvent(event(eventId), "abc-123");
 

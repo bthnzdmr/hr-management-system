@@ -24,23 +24,31 @@ public class OutboxWriter {
     // Cagiranin transaction'ina katilir; kendi transaction'ini acmaz. Olay kaydi
     // ile is verisi ayni commit'te yazilir, atomiklik buradan gelir.
     public void write(EmployeeEvent event) {
+        write(event.eventId(), event.eventType().name(), event.eventType().routingKey(), event);
+    }
+
+    public void write(AccountEvent event) {
+        write(event.eventId(), event.eventType().name(), event.eventType().routingKey(), event);
+    }
+
+    private void write(String eventId, String type, String routingKey, Object payload) {
         // MDC BURADA dolu: bu metot istegin ipliginde calisir. Relay ise
         // zamanlayici ipliginde calisir ve oranin MDC'si bos olur -- kimlik
         // bu yuzden satira yazilir, sonra okunur.
         outboxRepository.save(new OutboxEvent(
-                UUID.fromString(event.eventId()),
-                event.eventType().name(),
-                event.eventType().routingKey(),
-                serialize(event),
+                UUID.fromString(eventId),
+                type,
+                routingKey,
+                serialize(eventId, payload),
                 MDC.get(CorrelationIdFilter.MDC_KEY)));
     }
 
-    private String serialize(EmployeeEvent event) {
+    private String serialize(String eventId, Object event) {
         try {
             return objectMapper.writeValueAsString(event);
         } catch (JsonProcessingException e) {
             // Yutulmaz: olay kaydedilemiyorsa is verisi de yazilmamalidir.
-            throw new IllegalStateException("Event could not be serialized: " + event.eventId(), e);
+            throw new IllegalStateException("Event could not be serialized: " + eventId, e);
         }
     }
 }

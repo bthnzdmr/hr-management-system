@@ -30,6 +30,12 @@ public class RabbitConfig {
     public static final String DLX = "employee.dlx";
     public static final String DLQ = "employee.notification.dlq";
 
+    // Hesap olaylari AYRI bir kuyruga gider: farkli govde sekli, farkli is.
+    // Ayni kuyrukta olsalardi tek bir dinleyici iki ayri JSON semasini
+    // cozmek zorunda kalirdi.
+    public static final String ACCOUNT_QUEUE = "account.notification.queue";
+    public static final String ACCOUNT_DLQ = "account.notification.dlq";
+
     // Yalnizca ISLEYEBILDIGIMIZ olay tiplerine abone olunur.
     //
     // Onceden "employee.#" jokeri vardi ve yorumunda "yeni olay tipi eklenince
@@ -44,6 +50,9 @@ public class RabbitConfig {
             "employee.updated",
             "employee.deactivated",
             "employee.reactivated");
+
+    private static final List<String> ACCOUNT_ROUTING_KEYS = List.of(
+            "account.password-reset-requested");
 
     @Bean
     TopicExchange employeeExchange() {
@@ -79,6 +88,32 @@ public class RabbitConfig {
         return new Declarables(ROUTING_KEYS.stream()
                 .map(key -> BindingBuilder.bind(notificationQueue).to(employeeExchange).with(key))
                 .toList());
+    }
+
+    @Bean
+    Queue accountQueue() {
+        return QueueBuilder.durable(ACCOUNT_QUEUE)
+                .deadLetterExchange(DLX)
+                .deadLetterRoutingKey(ACCOUNT_DLQ)
+                .build();
+    }
+
+    @Bean
+    Queue accountDeadLetterQueue() {
+        return QueueBuilder.durable(ACCOUNT_DLQ).build();
+    }
+
+    @Bean
+    Declarables accountBindings(Queue accountQueue, TopicExchange employeeExchange) {
+        return new Declarables(ACCOUNT_ROUTING_KEYS.stream()
+                .map(key -> BindingBuilder.bind(accountQueue).to(employeeExchange).with(key))
+                .toList());
+    }
+
+    @Bean
+    Binding accountDeadLetterBinding(Queue accountDeadLetterQueue,
+                                     DirectExchange deadLetterExchange) {
+        return BindingBuilder.bind(accountDeadLetterQueue).to(deadLetterExchange).with(ACCOUNT_DLQ);
     }
 
     @Bean

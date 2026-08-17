@@ -205,6 +205,8 @@ services:
       SQL_FORMAT: ${SQL_FORMAT:-false}
       LOGIN_MAX_ATTEMPTS: ${LOGIN_MAX_ATTEMPTS:-5}
       LOGIN_BLOCK_DURATION_SECONDS: ${LOGIN_BLOCK_DURATION_SECONDS:-300}
+      PASSWORD_RESET_VALIDITY_MINUTES: ${PASSWORD_RESET_VALIDITY_MINUTES:-30}
+      PASSWORD_RESET_RESEND_COOLDOWN_SECONDS: ${PASSWORD_RESET_RESEND_COOLDOWN_SECONDS:-120}
     depends_on:
       postgres:
         condition: service_healthy
@@ -265,6 +267,9 @@ services:
       # etkisiz kalir -- projede bir kez yasanmis tuzak.
       PROCESSED_EVENT_RETENTION_DAYS: ${PROCESSED_EVENT_RETENTION_DAYS:-30}
       PROCESSED_EVENT_CLEANUP_INTERVAL_MS: ${PROCESSED_EVENT_CLEANUP_INTERVAL_MS:-3600000}
+      # Sifirlama mailindeki baglantinin gosterdigi arayuz adresi. Bu servis
+      # mailin ICERIGINI kurdugu icin adresi BURASI bilir, employee-service degil.
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:5173}
     depends_on:
       postgres:
         condition: service_healthy

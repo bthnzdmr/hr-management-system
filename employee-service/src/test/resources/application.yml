@@ -46,6 +46,11 @@ app:
     # sure sonra sayac sifirlanir.
     block-duration-seconds: ${LOGIN_BLOCK_DURATION_SECONDS:300}
 
+  password-reset:
+    validity-minutes: 30
+    resend-cooldown-seconds: 120
+    cleanup-interval-ms: 3600000
+
   jwt:
     secret: dGVzdC1vbmx5LWtleS1ub3QtYS1yZWFsLXNlY3JldC0zMisNCg==
     validity-minutes: 15

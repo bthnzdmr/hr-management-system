@@ -2,9 +2,12 @@ package com.proje.employee.controller;
 
 import com.proje.employee.config.JwtService;
 import com.proje.employee.dto.LoginRequest;
+import com.proje.employee.dto.PasswordResetConfirmRequest;
 import com.proje.employee.dto.LoginResponse;
+import com.proje.employee.dto.PasswordResetRequest;
 import com.proje.employee.dto.RefreshRequest;
 import com.proje.employee.service.LoginAttemptService;
+import com.proje.employee.service.PasswordResetService;
 import com.proje.employee.service.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -38,17 +41,20 @@ public class AuthController {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final LoginAttemptService loginAttemptService;
+    private final PasswordResetService passwordResetService;
     private final long validityMinutes;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtService jwtService,
                           RefreshTokenService refreshTokenService,
                           LoginAttemptService loginAttemptService,
+                          PasswordResetService passwordResetService,
                           @Value("${app.jwt.validity-minutes:15}") long validityMinutes) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.loginAttemptService = loginAttemptService;
+        this.passwordResetService = passwordResetService;
         this.validityMinutes = validityMinutes;
     }
 
@@ -114,6 +120,37 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@Valid @RequestBody RefreshRequest request) {
         refreshTokenService.revoke(request.refreshToken());
+
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Sifirlama baglantisi ister.
+     *
+     * Hesap olsa da olmasa da 202 doner. 404 donseydi saldirgan elindeki
+     * e-posta listesini deneyip hangilerinin bu sistemde hesabi oldugunu
+     * cikarirdi -- hedefli oltalama icin hazir bir liste.
+     */
+    @PostMapping("/password-reset")
+    @Operation(summary = "Parola sifirlama baglantisi iste")
+    @ApiResponse(responseCode = "202",
+            description = "Istek alindi. Cevap hesabin VAR OLUP OLMADIGINI soylemez")
+    public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+        passwordResetService.request(request.email());
+
+        return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping("/password-reset/confirm")
+    @Operation(summary = "Yeni parolayi belirle")
+    @ApiResponse(responseCode = "204", description = "Parola degistirildi, butun oturumlar kapatildi")
+    @ApiResponse(responseCode = "400",
+            description = "Baglanti gecersiz, suresi dolmus ya da kullanilmis. "
+                    + "Hangisi oldugu SOYLENMEZ")
+    public ResponseEntity<Void> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest request) {
+
+        passwordResetService.confirm(request);
 
         return ResponseEntity.noContent().build();
     }

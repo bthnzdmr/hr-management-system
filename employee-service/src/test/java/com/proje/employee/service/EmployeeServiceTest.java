@@ -370,7 +370,7 @@ class EmployeeServiceTest {
 
         assertThat(ada.isActive()).isTrue();
         assertThat(ada.getTerminatedAt()).isNull();
-        verify(outboxWriter, never()).write(any());
+        verify(outboxWriter, never()).write(any(EmployeeEvent.class));
     }
 
     @Test
@@ -466,7 +466,7 @@ class EmployeeServiceTest {
 
         // Hicbir sey yazilmamis olmali: reddedilen bir istek yarim kayit birakmaz.
         verify(employeeRepository, never()).save(any());
-        verify(outboxWriter, never()).write(any());
+        verify(outboxWriter, never()).write(any(EmployeeEvent.class));
     }
 
     @Test
@@ -536,7 +536,7 @@ class EmployeeServiceTest {
 
         employeeService.changeStatus(1L, false, TerminationReason.RESIGNED);
 
-        verify(outboxWriter, never()).write(any());
+        verify(outboxWriter, never()).write(any(EmployeeEvent.class));
     }
 
     @Test
@@ -572,7 +572,7 @@ class EmployeeServiceTest {
         assertThatThrownBy(() -> employeeService.create(createRequest(1L, null)))
                 .isInstanceOf(EmailAlreadyExistsException.class);
 
-        verify(outboxWriter, never()).write(any());
+        verify(outboxWriter, never()).write(any(EmployeeEvent.class));
     }
 
     private EmployeeEvent capturePublishedEvent() {

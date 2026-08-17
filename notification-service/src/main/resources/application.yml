@@ -82,6 +82,11 @@ spring:
             read-timeout: 3000
 
 app:
+  # Sifirlama baglantisinin gosterdigi arayuz adresi. Varsayilani gelistirme
+  # icindir; gercek bir dagitimda MUTLAKA verilir, aksi halde kullaniciya
+  # calismayan bir baglanti gider.
+  base-url: ${APP_BASE_URL:http://localhost:5173}
+
   processed-event:
     # Saklama suresi, bir mesajin broker'da bekleyebilecegi en uzun sureden
     # GUVENLE uzun secilir: satir erken silinirse gec teslim edilen bir olay

@@ -1,7 +1,6 @@
 package com.proje.notification.service;
 
 import com.proje.notification.entity.ProcessedEvent;
-import com.proje.notification.event.EmployeeEvent;
 import com.proje.notification.repository.ProcessedEventRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -44,10 +43,10 @@ public class EventClaimService {
      * @return olay ilk kez bu tuketici tarafindan sahiplenildiyse true
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean claim(EmployeeEvent event) {
+    public boolean claim(UUID eventId, String eventType, Long subjectId) {
         // Hizli yol: mukerrer teslimlerin buyuk cogunlugu burada elenir ve
         // istisna maliyeti hic odenmez.
-        if (processedEventRepository.existsById(event.eventId())) {
+        if (processedEventRepository.existsById(eventId)) {
             return false;
         }
 
@@ -64,8 +63,7 @@ public class EventClaimService {
         // Disari birakilinca Spring ic transaction'i normal sekilde geri alir
         // ve OZGUN istisnayi firlatir; cagiran onu transaction sinirinin
         // DISINDA yakalar.
-        processedEventRepository.saveAndFlush(new ProcessedEvent(
-                event.eventId(), event.eventType().name(), event.employeeId()));
+        processedEventRepository.saveAndFlush(new ProcessedEvent(eventId, eventType, subjectId));
         return true;
     }
 

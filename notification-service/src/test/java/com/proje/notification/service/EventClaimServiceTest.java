@@ -94,7 +94,7 @@ class EventClaimServiceTest {
     void claimsNewEvent() {
         written = UUID.randomUUID();
 
-        assertThat(eventClaimService.claim(event(written))).isTrue();
+        assertThat(eventClaimService.claim(written, "CREATED", 42L)).isTrue();
         assertThat(processedEventRepository.findById(written)).isPresent();
     }
 
@@ -102,9 +102,9 @@ class EventClaimServiceTest {
     @DisplayName("Refuses to claim an event that is already recorded")
     void refusesSecondClaim() {
         written = UUID.randomUUID();
-        eventClaimService.claim(event(written));
+        eventClaimService.claim(written, "CREATED", 42L);
 
-        assertThat(eventClaimService.claim(event(written))).isFalse();
+        assertThat(eventClaimService.claim(written, "CREATED", 42L)).isFalse();
     }
 
     @Test

@@ -89,7 +89,8 @@ public class EmployeeEventListener {
      */
     private boolean claimed(EmployeeEvent event) {
         try {
-            return eventClaimService.claim(event);
+            return eventClaimService.claim(
+                    event.eventId(), event.eventType().name(), event.employeeId());
         } catch (DataIntegrityViolationException e) {
             // Yaris: baska bir tuketici ayni olayi biz kontrol ettikten sonra
             // kaydetti. Mail HENUZ gonderilmedi, dogru davranis atlamaktir.

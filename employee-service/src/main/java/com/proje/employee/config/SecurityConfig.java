@@ -98,6 +98,11 @@ public class SecurityConfig {
                         // suresi doldugu icin buraya geliniyor.
                         .requestMatchers("/api/auth/refresh").permitAll()
                         .requestMatchers("/api/auth/logout").permitAll()
+                        // Parolasini unutan kullanici tanimi geregi giris
+                        // yapamaz; bu iki uc kimlik dogrulamasi isteseydi
+                        // erisilemez olurdu.
+                        .requestMatchers("/api/auth/password-reset").permitAll()
+                        .requestMatchers("/api/auth/password-reset/confirm").permitAll()
                         // Actuator uclari AYRI BIR PORTTA (9090) ve o port
                         // compose'da yayimlanmiyor: koruma AG SEVIYESINDEDIR.
                         //

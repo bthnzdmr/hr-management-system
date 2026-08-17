@@ -35,14 +35,15 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
 
-  # Uc @Scheduled is var (OutboxRelay, RefreshTokenCleanup, OutboxCleanup) ve Spring'in
+  # Dort @Scheduled is var (OutboxRelay, RefreshTokenCleanup, OutboxCleanup,
+  # PasswordResetTokenCleanup) ve Spring'in
   # varsayilan zamanlayici havuzu TEK ipliktir. Relay en kotu durumda
   # batch-size x confirm-timeout kadar (20 x 5sn = 100sn) o ipligi tutar ve
   # o sure boyunca jeton temizligi hic calisamaz.
   task:
     scheduling:
       pool:
-        size: 3
+        size: 4
 
   application:
     name: employee-service
@@ -173,6 +174,15 @@ app:
     # Pencere hem SAYIM hem BLOKE suresidir: son basarisiz denemeden bu kadar
     # sure sonra sayac sifirlanir.
     block-duration-seconds: ${LOGIN_BLOCK_DURATION_SECONDS:300}
+
+  password-reset:
+    # Kisa omur, jetonun outbox satirinda duz metin durmasinin penceresini de
+    # kapatir: eski bir yedegi okuyan kisi yalnizca olu jeton bulur.
+    validity-minutes: ${PASSWORD_RESET_VALIDITY_MINUTES:30}
+    # Ayni hesap icin yeni baglanti uretilmeden once beklenecek sure. Posta
+    # kutusu bombalamayi engeller; ayri bir sayaca gerek birakmaz.
+    resend-cooldown-seconds: ${PASSWORD_RESET_RESEND_COOLDOWN_SECONDS:120}
+    cleanup-interval-ms: ${PASSWORD_RESET_CLEANUP_INTERVAL_MS:3600000}
 
   outbox:
     # Yayin gecikmesinin ust siniri: olay en gec bu sure sonra gonderilir.

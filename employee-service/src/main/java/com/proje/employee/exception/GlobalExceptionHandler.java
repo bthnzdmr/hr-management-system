@@ -54,6 +54,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "Invalid password", ex.getMessage());
     }
 
+    @ExceptionHandler(InvalidPasswordResetTokenException.class)
+    public ProblemDetail handleInvalidPasswordResetToken(InvalidPasswordResetTokenException ex) {
+        // 400, 401 degil: arayuzdeki interceptor 401'i "oturum bitti" sayip
+        // kullaniciyi disari atardi -- oysa burada henuz bir oturum yok.
+        return problem(HttpStatus.BAD_REQUEST, "Invalid reset link", ex.getMessage());
+    }
+
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ProblemDetail handleEmailExists(EmailAlreadyExistsException ex) {
         return problem(HttpStatus.CONFLICT, "Email already registered", ex.getMessage());

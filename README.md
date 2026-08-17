@@ -494,6 +494,8 @@ Taban adres: `http://localhost:8080`
 | `POST` | `/api/auth/login` | Token alma (erişim + yenileme) | herkese açık | `200` |
 | `POST` | `/api/auth/refresh` | Yeni erişim jetonu; yenileme jetonu da döner | herkese açık | `200` |
 | `POST` | `/api/auth/logout` | Yenileme jetonunu iptal eder | herkese açık | `204` |
+| `POST` | `/api/auth/password-reset` | Sıfırlama bağlantısı ister; hesap yoksa da aynı cevap | herkese açık | `202` |
+| `POST` | `/api/auth/password-reset/confirm` | Bağlantıdaki jetonla yeni parolayı belirler | herkese açık | `204` |
 | `GET` | `/api/dashboard` | Kadro, devir oranı, organizasyon yapısı (tek istek) | `HR_SPECIALIST`, `SYSTEM_ADMIN` | `200` |
 | `GET` | `/api/employees` | Sayfalı liste. `?page=0&size=20&sort=lastName,asc&search=liskov&active=true` | giriş yapmış | `200` |
 | `GET` | `/api/employees/{id}` | Tek kayıt | giriş yapmış | `200` |

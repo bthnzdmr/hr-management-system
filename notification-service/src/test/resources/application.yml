@@ -30,6 +30,7 @@ eureka:
 # bu yuzden kodun okudugu her anahtar burada da tanimli olmak zorundadir.
 # Aksi halde ilk @SpringBootTest "Could not resolve placeholder" ile patlar.
 app:
+  base-url: http://localhost:5173
   processed-event:
     retention-days: 30
     cleanup-interval-ms: 3600000
