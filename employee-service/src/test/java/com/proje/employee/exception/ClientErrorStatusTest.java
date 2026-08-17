@@ -23,6 +23,10 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -47,6 +51,31 @@ class ClientErrorStatusTest {
 
     @MockBean
     private AccessScopeResolver accessScopeResolver;
+
+    @Test
+    @WithMockUser(roles = "HR_SPECIALIST")
+    @DisplayName("An unexpected failure leaks nothing about the internals")
+    void unexpectedFailureLeaksNothing() throws Exception {
+        // Catch-all handler bu kod tabanindaki en guvenlik-kritik yakalayici:
+        // sizdirmamasi GEREKEN tek yer orasi ve hicbir test onu tutmuyordu.
+        // Mesaj bilerek gercekci: gercek bir istisna mesaji tam boyle olurdu.
+        when(employeeService.getAll(ArgumentMatchers.any(), ArgumentMatchers.any(),
+                ArgumentMatchers.any(), ArgumentMatchers.any()))
+                .thenThrow(new IllegalStateException(
+                        "could not prepare statement [FATAL: password authentication "
+                                + "failed for user \"hr_admin\"] at com.proje.employee."
+                                + "repository.EmployeeRepository.findAll(EmployeeRepository.java:42)"));
+
+        mockMvc.perform(get("/api/employees"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.title").value("Internal server error"))
+                .andExpect(jsonPath("$.detail").value("An unexpected error occurred"))
+                // Istisnanin ICERIGINDEN hicbir sey cevaba gecmemeli.
+                .andExpect(content().string(not(containsString("password authentication"))))
+                .andExpect(content().string(not(containsString("com.proje"))))
+                .andExpect(content().string(not(containsString("hr_admin"))))
+                .andExpect(content().string(not(containsString(".java:"))));
+    }
 
     @Test
     @WithMockUser(roles = "HR_SPECIALIST")
