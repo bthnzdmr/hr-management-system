@@ -134,8 +134,20 @@ export function groupByDepartment(roots: OrgNode[]): OrgNode[] {
     jobTitle: `${department.headcount} people`,
     departmentName: department.name,
     depth: 0,
-    reports: scopeToDepartment(roots, department.name),
+    // Alt agacin TAMAMI bir halka disari kayar. Kaydirilmasaydi departman
+    // balonu ile onun baskani AYNI halkaya duserdi ve semanin en temel
+    // degismezi -- her seviye kendi halkasinda -- bozulurdu.
+    reports: scopeToDepartment(roots, department.name).map((head) => shift(head, 1)),
   }));
+}
+
+/** Dugumun ve butun altinin derinligini kaydirir. */
+function shift(node: OrgNode, by: number): OrgNode {
+  return {
+    ...node,
+    depth: node.depth + by,
+    reports: node.reports.map((report) => shift(report, by)),
+  };
 }
 
 /** Bir dugum gercek bir kisi mi, yoksa departman balonu mu? */

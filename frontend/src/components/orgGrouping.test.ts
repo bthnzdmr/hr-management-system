@@ -47,3 +47,19 @@ describe('groupByDepartment', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+describe('depth', () => {
+  it('pushes the whole subtree one ring outwards', () => {
+    // Kaydirilmasaydi departman balonu ile baskani ayni halkaya duserdi.
+    const chief: OrgNode = {
+      ...person(1, 'Sales'), depth: 0,
+      reports: [{ ...person(2, 'Sales'), depth: 1 }],
+    };
+
+    const [sales] = groupByDepartment([chief]);
+
+    expect(sales.depth).toBe(0);
+    expect(sales.reports[0].depth).toBe(1);
+    expect(sales.reports[0].reports[0].depth).toBe(2);
+  });
+});
