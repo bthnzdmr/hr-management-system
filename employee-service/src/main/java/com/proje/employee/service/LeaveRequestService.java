@@ -163,7 +163,7 @@ public class LeaveRequestService {
     }
 
     @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
-            includeArguments = false)
+            includeArguments = false, summary = "approved")
     @Transactional
     public LeaveRequestResponse approve(Long id, User decider, AccessScope scope) {
         LeaveRequest leave = load(id);
@@ -175,7 +175,7 @@ public class LeaveRequestService {
     }
 
     @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
-            includeArguments = false)
+            includeArguments = false, summary = "rejected")
     @Transactional
     public LeaveRequestResponse reject(Long id, String note, User decider, AccessScope scope) {
         LeaveRequest leave = load(id);
@@ -187,7 +187,7 @@ public class LeaveRequestService {
     }
 
     @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
-            includeArguments = false)
+            includeArguments = false, summary = "withdrawn")
     @Transactional
     public LeaveRequestResponse cancel(Long id, AccessScope scope) {
         LeaveRequest leave = load(id);

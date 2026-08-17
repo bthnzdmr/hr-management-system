@@ -1,6 +1,7 @@
 package com.proje.employee.audit;
 
 import com.proje.employee.config.CorrelationIdFilter;
+import com.proje.employee.entity.TerminationReason;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -62,6 +63,18 @@ class AuditAspectTest {
             return "ok";
         }
 
+        @Auditable(action = AuditAction.EMPLOYEE_STATUS_CHANGED, targetType = "EMPLOYEE")
+        String changeStatus(Long id, boolean active, TerminationReason reason) {
+            return "ok";
+        }
+
+        /** Ayni eylemin iki ayri metodu: sonuc yalnizca ozette yazilidir. */
+        @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
+                includeArguments = false, summary = "approved")
+        String approve(Long id) {
+            return "ok";
+        }
+
         /** toString'i OLMAYAN bir nesne alan denetimli metot. */
         @Auditable(action = AuditAction.LEAVE_REQUESTED, targetType = "LEAVE_REQUEST")
         String withEntity(Long id, OpaqueEntity author) {
@@ -111,6 +124,28 @@ class AuditAspectTest {
         assertThat(entry.getTargetType()).isEqualTo("USER");
         assertThat(entry.getTargetId()).isEqualTo("7");
         assertThat(entry.getDetail()).contains("HR_SPECIALIST");
+    }
+
+    @Test
+    @DisplayName("Labels each value so the trail says what changed")
+    void labelsArguments() {
+        // Etiketsizken kayit "false, RESIGNED" goruntusundeydi: NEYIN false
+        // oldugu okunamiyordu ve iz ancak metodun imzasi bilinerek anlasiliyordu.
+        service().changeStatus(7L, false, TerminationReason.RESIGNED);
+
+        assertThat(captured().getDetail())
+                .isEqualTo("active=false, reason=RESIGNED");
+    }
+
+    @Test
+    @DisplayName("Records which decision was taken, not merely that one was")
+    void recordsTheDecisionItself() {
+        // approve/reject/cancel ucu de LEAVE_DECIDED'dir ve sonuc argumanlarda
+        // YOKTUR -- karar metodun kendisidir. Ozet olmadan iz "birisi bir karar
+        // verdi" demekten oteye gecmiyordu.
+        service().approve(7L);
+
+        assertThat(captured().getDetail()).isEqualTo("approved");
     }
 
     @Test

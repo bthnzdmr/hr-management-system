@@ -2,6 +2,7 @@ package com.proje.employee.audit;
 
 import com.proje.employee.config.CorrelationIdFilter;
 import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
 import org.slf4j.Logger;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Denetim izini yazan aspect.
@@ -61,7 +63,7 @@ public class AuditAspect {
                     auditable.action(),
                     auditable.targetType(),
                     targetId(joinPoint, result),
-                    auditable.includeArguments() ? detail(joinPoint) : null,
+                    detail(joinPoint, auditable),
                     MDC.get(CorrelationIdFilter.MDC_KEY)));
         } catch (RuntimeException e) {
             // Denetim kaydi is islemini DUSURMEMELI: kayit yazilamiyorsa
@@ -131,14 +133,34 @@ public class AuditAspect {
      * (password=***), cunku toString her yerde cagrilir: log, istisna mesaji,
      * denetim kaydi. Sirri hic uretmeyen bir temsil onu her yerde korur.
      */
-    private String detail(JoinPoint joinPoint) {
-        String summary = Arrays.stream(joinPoint.getArgs())
-                .filter(arg -> arg != null && !(arg instanceof Long) && !(arg instanceof String))
-                .filter(AuditAspect::readable)
-                .map(Object::toString)
+    private String detail(JoinPoint joinPoint, Auditable auditable) {
+        if (!auditable.includeArguments()) {
+            return auditable.summary().isBlank() ? null : auditable.summary();
+        }
+
+        // Parametre ADLARI da yazilir. Etiketsizken kayit "false, RESIGNED"
+        // goruntusundeydi ve neyin false oldugu okunamiyordu.
+        String[] names = ((MethodSignature) joinPoint.getSignature()).getParameterNames();
+        Object[] args = joinPoint.getArgs();
+
+        String rendered = IntStream.range(0, args.length)
+                .filter(i -> args[i] != null && !(args[i] instanceof Long)
+                        && !(args[i] instanceof String))
+                .filter(i -> readable(args[i]))
+                .mapToObj(i -> label(names, i) + args[i])
                 .collect(Collectors.joining(", "));
 
-        return summary.isBlank() ? null : summary;
+        if (!auditable.summary().isBlank()) {
+            return rendered.isBlank() ? auditable.summary() : auditable.summary() + ": " + rendered;
+        }
+        return rendered.isBlank() ? null : rendered;
+    }
+
+    /** Parametre adlari derleyici ayarina bagli; yoksa etiketsiz yazilir. */
+    private static String label(String[] names, int index) {
+        return names != null && index < names.length && names[index] != null
+                ? names[index] + "="
+                : "";
     }
 
     /**

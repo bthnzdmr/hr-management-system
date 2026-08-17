@@ -35,4 +35,13 @@ public @interface Auditable {
      * olamaz -- kaydi okuyabilen herkes ucreti de okurdu.
      */
     boolean includeArguments() default true;
+
+    /**
+     * Argumanlardan URETILEMEYEN sabit ozet.
+     *
+     * Ayni eylemi uc ayri metot yapiyorsa (approve/reject/cancel hepsi
+     * LEAVE_DECIDED'dir) iz "birisi bir karar verdi" demekten oteye gecmez.
+     * Sonuc argumanlarda da yoktur: karar metodun KENDISIDIR.
+     */
+    String summary() default "";
 }
