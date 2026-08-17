@@ -1,5 +1,6 @@
 import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import type { LeaveRequest, LeaveStatus } from '../api/leaveRequests';
+import { formatDay } from '../utils/formatDate';
 
 interface Props {
   leave: LeaveRequest;
@@ -42,7 +43,7 @@ export function LeaveCard({
       <Typography variant="caption" color="text.secondary">
         {leave.startDate === leave.endDate
           ? leave.startDate
-          : `${leave.startDate} → ${leave.endDate}`}
+          : `${formatDay(leave.startDate)} → ${formatDay(leave.endDate)}`}
         {leave.decidedBy ? ` · decided by ${leave.decidedBy}` : ` · recorded by ${leave.recordedBy}`}
       </Typography>
 

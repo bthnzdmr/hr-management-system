@@ -16,6 +16,7 @@ import { UserCreateDialog } from '../components/UserCreateDialog';
 import { SalaryDialog } from '../components/SalaryDialog';
 import { useSnackbar } from '../components/SnackbarProvider';
 import type { Employee } from '../types/api';
+import { formatDay } from '../utils/formatDate';
 
 interface Loaded {
   employee: Employee;
@@ -201,7 +202,7 @@ export function EmployeeDetailPage() {
                 <Field label="Department" value={employee.departmentName} />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <Field label="Hire date" value={employee.hireDate} />
+                <Field label="Hire date" value={formatDay(employee.hireDate)} />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <Box>

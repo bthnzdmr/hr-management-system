@@ -9,6 +9,7 @@ import type { AuditAction, AuditEntry } from '../api/audit';
 import { errorMessage } from '../api/client';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/EmptyState';
+import { formatDateTime } from '../utils/formatDate';
 
 /** Eylem -> etiket ve renk. Tek tanim: iki yerde tutulsa biri geride kalirdi. */
 const ACTIONS: { value: AuditAction; label: string; color: 'default' | 'success' | 'error' | 'warning' }[] = [
@@ -143,7 +144,7 @@ export function AuditPage() {
                     {rows.map((entry) => (
                       <TableRow key={entry.id} hover>
                         <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                          {entry.occurredAt.replace('T', ' ').slice(0, 19)}
+                          {formatDateTime(entry.occurredAt)}
                         </TableCell>
                         <TableCell>{entry.actor}</TableCell>
                         <TableCell>

@@ -20,6 +20,7 @@ import { useSnackbar } from '../components/SnackbarProvider';
 import { LeaveCard } from '../components/LeaveCard';
 import { RejectLeaveDialog } from '../components/RejectLeaveDialog';
 import { useBusyRows } from '../hooks/useBusyRows';
+import { formatDay } from '../utils/formatDate';
 
 /** Durum -> etiket ve renk. Tek tanim: iki yerde tutulsa biri geride kalirdi. */
 const STATUS_LABELS: Record<LeaveStatus, { label: string; color: 'default' | 'success' | 'error' | 'warning' }> = {
@@ -331,7 +332,7 @@ export function LeaveListPage() {
                         <TableCell sx={{ whiteSpace: 'nowrap' }}>
                           {leave.startDate === leave.endDate
                             ? leave.startDate
-                            : `${leave.startDate} → ${leave.endDate}`}
+                            : `${formatDay(leave.startDate)} → ${formatDay(leave.endDate)}`}
                         </TableCell>
                         <TableCell>{leave.days}</TableCell>
                         <TableCell>
