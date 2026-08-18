@@ -161,6 +161,39 @@ class SystemEndToEndTest {
     }
 
     @Test
+    @DisplayName("Copies the manager in, proving the cross-service call really ran")
+    void copiesTheManagerIn() {
+        // BU TESTIN VARLIK SEBEBI olculdu. httpclient5 tek basina yukseltilince
+        // calisma zamaninda NoClassDefFoundError firladi, Eureka kaydi
+        // tazelenemedi ve Feign yoneticiyi bulamadi. Sonuc TAMAMEN SESSIZDI:
+        // mail yine gitti, yalnizca CC bostu.
+        //
+        // Paketteki diger mail testleri bunu goremezdi cunku hicbiri yonetici
+        // ATAMIYOR -- yani zenginlestirme yolu hic surulmuyordu ve "mail geldi"
+        // ile "servisler arasi cagri calisti" ayni sey saniliyordu.
+        String token = signIn();
+
+        String managerEmail = "e2e.chief." + UUID.randomUUID() + "@example.com";
+        String managerId = createEmployee(token, managerEmail);
+
+        String reportEmail = "e2e.report." + UUID.randomUUID() + "@example.com";
+        SystemClient.Response created = client.post(
+                SystemClient.API_URL + "/api/employees", token,
+                """
+                {"firstName":"E2E","lastName":"Report","email":"%s","departmentId":1,
+                 "managerId":%s,"jobTitle":"Engineer","hireDate":"2024-08-01"}
+                """.formatted(reportEmail, managerId));
+
+        assertThat(created.status()).isEqualTo(201);
+
+        JsonNode mail = awaitMail(reportEmail, "Welcome to the team");
+
+        // Yoneticinin adresi CC'de: bunu yazabilmek icin tuketicinin
+        // employee-service'e Feign ile gidip kaydi okumus olmasi gerekir.
+        assertThat(mail.at("/Content/Headers/Cc").toString()).contains(managerEmail);
+    }
+
+    @Test
     @DisplayName("Rejects a second employee with an email that is already registered")
     void rejectsDuplicateEmail() {
         String token = signIn();
