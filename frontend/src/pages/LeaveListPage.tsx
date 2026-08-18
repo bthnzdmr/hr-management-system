@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Alert, Button, Chip, Paper, Skeleton, Stack, Table, TableBody, TableCell,
+  Alert, Box, Button, Chip, IconButton, Paper, Skeleton, Stack, Table, TableBody, TableCell,
   TableContainer, TableHead, TablePagination, TableRow, ToggleButton, ToggleButtonGroup,
-  Typography, useMediaQuery, useTheme,
+  Typography, alpha, useMediaQuery, useTheme,
 } from '@mui/material';
 import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { leaveRequestApi } from '../api/leaveRequests';
 import type { LeaveRequest, LeaveStatus } from '../api/leaveRequests';
 import { employeeApi } from '../api/employees';
@@ -22,6 +24,8 @@ import { LeaveCard } from '../components/LeaveCard';
 import { RejectLeaveDialog } from '../components/RejectLeaveDialog';
 import { useBusyRows } from '../hooks/useBusyRows';
 import { formatDay } from '../utils/formatDate';
+import { LeaveCalendar } from '../components/LeaveCalendar';
+import { currentMonth, monthWindow, shiftMonth } from '../components/leaveTimeline';
 
 /** Durum -> etiket ve renk. Tek tanim: iki yerde tutulsa biri geride kalirdi. */
 const STATUS_LABELS: Record<LeaveStatus, { label: string; color: 'default' | 'success' | 'error' | 'warning' }> = {
@@ -44,6 +48,71 @@ const FILTERS: { value: 'PENDING' | 'ALL'; label: string }[] = [
   { value: 'ALL', label: 'All requests' },
 ];
 
+const VIEWS: { value: 'list' | 'calendar'; label: string }[] = [
+  { value: 'list', label: 'List' },
+  { value: 'calendar', label: 'Calendar' },
+];
+
+/**
+ * Ay adlari SABIT bir dizide; `Intl` kullanilmiyor.
+ *
+ * Yerel ayara bakilsaydi ayni ekran her makinede farkli basardi ve test
+ * edilemezdi -- tarih ve ucret bicimlendirmesinde ayni karar iki kez verildi.
+ */
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+
+function monthLabel(month: string): string {
+  const [year, index] = month.split('-').map(Number);
+
+  return `${MONTHS[index - 1]} ${year}`;
+}
+
+/**
+ * Bugun, YEREL takvime gore.
+ *
+ * `toISOString()` KULLANILMAZ: o degeri UTC'ye cevirir ve negatif ofsetli bir
+ * saat diliminde "bugun" ekranda bir onceki gun olarak isaretlenirdi -- ayni
+ * tuzak `formatDay`'de bir kez olculdu.
+ */
+function todayIso(): string {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/** Aciklama kutucugu: serit BICIMININ ne anlama geldigini soyler. */
+function Legend({ variant, label }: { variant: 'approved' | 'pending'; label: string }) {
+  const pending = variant === 'pending';
+
+  return (
+    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+      <Box
+        sx={{
+          width: 24,
+          height: 14,
+          borderRadius: 0.75,
+          border: 1,
+          borderStyle: pending ? 'dashed' : 'solid',
+          bgcolor: (theme) => pending
+            ? alpha(theme.palette.warning.main, 0.16)
+            : alpha(theme.palette.primary.main, 0.22),
+          borderColor: (theme) => pending ? theme.palette.warning.main : theme.palette.primary.main,
+        }}
+      />
+      <Typography variant="caption" color="text.secondary">{label}</Typography>
+    </Stack>
+  );
+}
+
+/**
+ * Takvim bir sayfa DEGIL bir aydir: o ayin butun izinleri gorunmelidir.
+ * Sunucunun tavani 100 ve asilirsa sessizce kirpmak yerine uyari basiliyor --
+ * eksik oldugunu soylemeyen bir takvim, eksik takvimden kotudur.
+ */
+const CALENDAR_LIMIT = 100;
+
 export function LeaveListPage() {
   const { canEditEmployees, canDecideLeave, canRequestLeave } = useAuth();
   const theme = useTheme();
@@ -61,7 +130,12 @@ export function LeaveListPage() {
   const from = params.get('from') ?? '';
   const until = params.get('until') ?? '';
   const page = Number(params.get('page')) || 0;
-  const filtered = employeeId !== undefined || from !== '' || until !== '';
+  const view: 'list' | 'calendar' = params.get('view') === 'calendar' ? 'calendar' : 'list';
+  // Ay adres cubugunda: takvimin belirli bir ayi baglanti olarak paylasilabilir.
+  const month = /^\d{4}-\d{2}$/.test(params.get('month') ?? '')
+    ? (params.get('month') as string)
+    : currentMonth();
+  const filtered = employeeId !== undefined || (view === 'list' && (from !== '' || until !== ''));
 
   const [rows, setRows] = useState<LeaveRequest[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -135,16 +209,26 @@ export function LeaveListPage() {
 
     setError(null);
 
+    // Takvimde AY bir penceredir, listedeki tarih araligi ise bir suzgec.
+    // Ikisi ayri kavram oldugu icin takvim listenin from/until degerlerini
+    // ezmez; yalnizca kisi suzgeci ortaktir.
+    const window = view === 'calendar' ? monthWindow(month) : null;
+
     try {
       const data = await leaveRequestApi.list({
-        status: filter === 'PENDING' ? ['PENDING'] : undefined,
+        // Takvim "kim yerinde degil" sorusunu cevaplar: reddedilmis ve iptal
+        // edilmis izinler devamsizlik degildir ve SUNUCUDA eleniyor -- yoksa
+        // 100'luk butceyi cizilmeyecek satirlar yerdi.
+        status: view === 'calendar'
+          ? ['APPROVED', 'PENDING']
+          : filter === 'PENDING' ? ['PENDING'] : undefined,
         // Adi degil ID'yi bekler: liste, secim kutusunun adi cozmesini
         // beklemeden yuklenmelidir.
         employeeId,
-        from,
-        until,
-        page,
-        size,
+        from: window ? window.from : from,
+        until: window ? window.until : until,
+        page: window ? 0 : page,
+        size: window ? CALENDAR_LIMIT : size,
       });
 
       if (requestId.current !== id) return;
@@ -157,7 +241,7 @@ export function LeaveListPage() {
       setError(errorMessage(cause));
       setRows([]);
     }
-  }, [filter, employeeId, from, until, page, size]);
+  }, [filter, employeeId, from, until, page, size, view, month]);
 
   useEffect(() => {
     void load();
@@ -193,7 +277,20 @@ export function LeaveListPage() {
    * bosalan bir listeye cikis yolu birakmamak personel listesinde bir kez
    * olculmustu.
    */
-  const empty = filtered
+  const empty = view === 'calendar'
+    ? {
+      title: `Nobody is off in ${monthLabel(month)}`,
+      description: 'Approved and pending leave appears here as a bar per person.',
+      // Cikis yolu AYI degistirmektir; filtreyi temizlemek bos ayi doldurmaz.
+      //
+      // Ad ustteki ok dugmesiyle AYNI olamaz: ayni ekranda ayni erisilebilir
+      // adi tasiyan iki denetim, ekran okuyucuda ayirt edilemez. Ay adini
+      // yazmak hem tekilestiriyor hem nereye gidildigini soyluyor.
+      action: <Button onClick={() => setFilters({ month: shiftMonth(month, 1) })}>
+        Show {monthLabel(shiftMonth(month, 1))}
+      </Button>,
+    }
+    : filtered
     ? {
       title: 'No leave matches these filters',
       description: 'Nobody in your scope has leave in that range.',
@@ -230,22 +327,81 @@ export function LeaveListPage() {
 
       <Paper sx={{ p: { xs: 2, md: 2.5 } }}>
         <Stack spacing={2}>
-          <ToggleButtonGroup
-            exclusive
-            size="small"
-            value={filter}
-            onChange={(_, next) => {
-              if (next === null) return;
-              setFilters({ status: next === 'ALL' ? 'ALL' : undefined });
-            }}
-            aria-label="Filter requests"
+          <Stack
+            direction="row"
+            spacing={1.5}
+            sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}
           >
-            {FILTERS.map((option) => (
-              <ToggleButton key={option.value} value={option.value}>
-                {option.label}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+            {view === 'list' ? (
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={filter}
+                onChange={(_, next) => {
+                  if (next === null) return;
+                  setFilters({ status: next === 'ALL' ? 'ALL' : undefined });
+                }}
+                aria-label="Filter requests"
+              >
+                {FILTERS.map((option) => (
+                  <ToggleButton key={option.value} value={option.value}>
+                    {option.label}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            ) : (
+              <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                <IconButton
+                  size="small"
+                  aria-label="Previous month"
+                  onClick={() => setFilters({ month: shiftMonth(month, -1) })}
+                >
+                  <ChevronLeftIcon />
+                </IconButton>
+
+                {/* Ay adi bir BASLIK degil canli bir deger: `aria-live` ile
+                    okunur, yoksa ok tuslariyla gezinen biri ayin degistigini
+                    hic duymazdi. */}
+                <Typography variant="subtitle2" aria-live="polite" sx={{ minWidth: 140, textAlign: 'center' }}>
+                  {monthLabel(month)}
+                </Typography>
+
+                <IconButton
+                  size="small"
+                  aria-label="Next month"
+                  onClick={() => setFilters({ month: shiftMonth(month, 1) })}
+                >
+                  <ChevronRightIcon />
+                </IconButton>
+
+                {month !== currentMonth() && (
+                  <Button size="small" onClick={() => setFilters({ month: undefined })}>
+                    This month
+                  </Button>
+                )}
+              </Stack>
+            )}
+
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={view}
+              onChange={(_, next) => {
+                if (next === null) return;
+                // Gorunum degisince sayfa ve ay sifirlanir: listenin 3.
+                // sayfasindan takvime gecip geri donmek bos bir liste
+                // gosterirdi.
+                setFilters({ view: next === 'calendar' ? 'calendar' : undefined, month: undefined });
+              }}
+              aria-label="View"
+            >
+              {VIEWS.map((option) => (
+                <ToggleButton key={option.value} value={option.value}>
+                  {option.label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Stack>
 
           {/* Uc suzgec de AYNI boyda ve esit genislikte.
               Onceden kisi secici varsayilan `medium`, tarih alanlari `small`
@@ -276,22 +432,28 @@ export function LeaveListPage() {
               helperText="Leave it empty to see everyone in your scope"
               size="small"
             />
-            <DateField
-              label="From"
-              value={from}
-              onChange={(next) => setFilters({ from: next })}
-              size="small"
-              // Bos bir yardim satiri: yer AYRILIR, yoksa bu kutu digerlerinden
-              // bir satir kisa kalir.
-              helperText=" "
-            />
-            <DateField
-              label="Until"
-              value={until}
-              onChange={(next) => setFilters({ until: next })}
-              size="small"
-              helperText="Overlapping leave, not only leave starting here"
-            />
+            {/* Takvimde tarih araligi GOSTERILMEZ: pencereyi ay belirliyor ve
+                iki ayri tarih denetimi birbiriyle celisirdi. */}
+            {view === 'list' && (
+              <>
+                <DateField
+                  label="From"
+                  value={from}
+                  onChange={(next) => setFilters({ from: next })}
+                  size="small"
+                  // Bos bir yardim satiri: yer AYRILIR, yoksa bu kutu digerlerinden
+                  // bir satir kisa kalir.
+                  helperText=" "
+                />
+                <DateField
+                  label="Until"
+                  value={until}
+                  onChange={(next) => setFilters({ until: next })}
+                  size="small"
+                  helperText="Overlapping leave, not only leave starting here"
+                />
+              </>
+            )}
           </Stack>
 
           {rows === null && (
@@ -314,7 +476,25 @@ export function LeaveListPage() {
             />
           )}
 
-          {rows !== null && rows.length > 0 && (
+          {rows !== null && rows.length > 0 && view === 'calendar' && (
+            <>
+              {total > rows.length && (
+                <Alert severity="warning">
+                  Showing {rows.length} of {total} leave records for this month. Filter by
+                  person to see the rest.
+                </Alert>
+              )}
+
+              <LeaveCalendar leaves={rows} month={month} today={todayIso()} />
+
+              <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                <Legend variant="approved" label="Approved" />
+                <Legend variant="pending" label="Pending" />
+              </Stack>
+            </>
+          )}
+
+          {rows !== null && rows.length > 0 && view === 'list' && (
             <>
               {isNarrow ? (
                 <Stack spacing={1.25}>
