@@ -43,6 +43,16 @@ receivers:
   - name: mail
     email_configs:
       - to: "ops@hr.local"
+        # OLCULEN EKSIK: bu satir yoktu ve e-posta alicisinin varsayilani
+        # `false`. Yani uyari acildiginda mail gidiyor, KAPANDIGINDA hicbir sey
+        # gitmiyordu. `ManagerLookupFailing` uctan uca denendiginde tam olarak
+        # bu goruldu: FIRING maili geldi, uyari Prometheus'ta cozuldu ve
+        # posta kutusunda hicbir iz kalmadi.
+        #
+        # Bedeli somut: uyariyi alan kisi bitip bitmedigini bilemez. Ya olmayan
+        # bir arizayi kovalar ya da zamanla butun uyarilari gormezden gelir --
+        # bu dosyanin var olma sebebi olan hastaligin ta kendisi.
+        send_resolved: true
         # Konu satirinda uyarinin ADI ve kac tane oldugu: posta kutusunda
         # acmadan ayirt edilebilmeli.
         headers:
