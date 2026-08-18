@@ -52,6 +52,33 @@ groups:
             Broker erisilemez olabilir ya da relay durmus olabilir. Olaylar
             kaybolmaz, yayinlanmaz.
 
+  - name: enrichment
+    rules:
+      # OLCULEN OLAY: httpclient5 tek basina yukseltilince Feign kirildi,
+      # Eureka kaydi tazelenemedi ve yonetici aramasi her seferinde basarisiz
+      # oldu. Mail YINE GITTI, yalnizca CC bostu -- yani ariza tamamen
+      # sessizdi. Log'da WARN vardi ve kimse bakmiyordu; konteynerler de
+      # `healthy` raporluyordu cunku saglik kontrolu Feign'i yoklamiyor.
+      #
+      # Esik SIFIR DEGIL: dagitim sirasinda employee-service yeniden
+      # baslarken birkac cagri dusebilir ve bu normaldir. Kuyruk birikme
+      # kuralindaki gerekcenin aynisi -- gurultulu uyari, gormezden gelinen
+      # uyaridir.
+      #
+      # Hic cagri yapilmiyorsa bu kural SESSIZDIR ve bu dogrudur: tuketicinin
+      # tamamen durmasini TargetDown ve NotificationQueueBacklog yakalar.
+      - alert: ManagerLookupFailing
+        expr: sum(increase(hr_manager_lookup_total{outcome="failed"}[30m])) > 3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Yonetici aramasi basarisiz ({{ $value | printf \"%.0f\" }} kez / 30 dk)"
+          description: >
+            Bildirim mailleri yoneticiye CC atilmadan gidiyor. Servisler arasi
+            cagri (Feign) ya da servis kesfi bozulmus olabilir; mail teslimi
+            etkilenmedigi icin bu ariza kendini baska turlu belli etmez.
+
   - name: availability
     rules:
       # Cekme modelinin asil kazanci: kazima basarisiz olur ve BU KENDISI bir
