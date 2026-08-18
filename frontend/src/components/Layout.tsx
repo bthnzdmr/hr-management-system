@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   AppBar,
@@ -8,6 +8,7 @@ import {
   Drawer,
   IconButton,
   List,
+  LinearProgress,
   ListItemButton,
   ListItemIcon,
   ListItemText,
@@ -538,8 +539,17 @@ export function Layout() {
 
               key={location.pathname} ayni zamanda "hic sifirlanmiyor" yarisini
               cozer: baska bir sayfaya gecmek siniri yeniden kurar. */}
+          {/* Suspense sinirin ICINDE ve kabugun ICINDE: sayfalar tembel
+              yuklendigi icin gecis sirasinda bir bekleme ani var ve o an
+              menu ile cikis dugmesi EKRANDA KALMALI. Disariya konsaydi her
+              sayfa gecisinde butun kabuk yanip sonerdi.
+
+              Yedek icerik bir cark degil ince bir cizgi: 100 ms surecek bir
+              is icin donen bir cark, yavasligi gizlemek yerine gorunur kilar. */}
           <ErrorBoundary key={location.pathname}>
-            <Outlet />
+            <Suspense fallback={<LinearProgress aria-label="Loading the page" />}>
+              <Outlet />
+            </Suspense>
           </ErrorBoundary>
         </Box>
       </Box>

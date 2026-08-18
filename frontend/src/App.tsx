@@ -1,22 +1,58 @@
+import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { Layout } from './components/Layout';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { CapabilityRoute } from './auth/CapabilityRoute';
 import { LoginPage } from './pages/LoginPage';
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
-import { ResetPasswordPage } from './pages/ResetPasswordPage';
-import { EmployeeListPage } from './pages/EmployeeListPage';
-import { LeaveListPage } from './pages/LeaveListPage';
-import { EmployeeDetailPage } from './pages/EmployeeDetailPage';
-import { EmployeeFormPage } from './pages/EmployeeFormPage';
-import { UserListPage } from './pages/UserListPage';
-import { AuditPage } from './pages/AuditPage';
-import { ChangePasswordPage } from './pages/ChangePasswordPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { OrgChartPage } from './pages/OrgChartPage';
-import { DepartmentListPage } from './pages/DepartmentListPage';
-import { NotFoundPage } from './pages/NotFoundPage';
 import { useAuth } from './auth/AuthContext';
+
+/**
+ * Sayfalar TEMBEL yuklenir; her rota kendi parcasina gider ve ancak
+ * ziyaret edilince iner.
+ *
+ * Onceden butun uygulama TEK bir dosyaydi (960 kB): giris ekranini acan biri
+ * organizasyon haritasini, d3'u, tarih secicilerini, panoyu ve denetim
+ * ekranini da indiriyordu -- oysa o ekranda iki kutu ve bir dugme var.
+ *
+ * `LoginPage` BILEREK istekli birakildi. Ilk boyamada gorunen tek ekran o;
+ * tembellestirmek, kullaniciyi karsilayan seyin onune fazladan bir gidis
+ * donus koyardi. Kabuk (Layout) da istekli: zaten her korumali sayfada var.
+ *
+ * `lazy` yalnizca VARSAYILAN disa aktarimi (default export) alir; bu sayfalar
+ * adlandirilmis disa aktarim kullaniyor, o yuzden her biri modulden secilip
+ * `default` olarak sarmalaniyor.
+ */
+// Kabuk da tembel: giris yapmamis bir ziyaretci kenar cubugunu, cekmeceyi ve
+// menuleri hic gormeyecek. Kimlik dogrulanmis kullanici icin bedeli yok --
+// kabuk ile sayfa parcasi ayni anda, paralel iniyor.
+const Layout = lazy(() =>
+  import('./components/Layout').then((m) => ({ default: m.Layout })));
+
+const ForgotPasswordPage = lazy(() =>
+  import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() =>
+  import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
+const EmployeeListPage = lazy(() =>
+  import('./pages/EmployeeListPage').then((m) => ({ default: m.EmployeeListPage })));
+const LeaveListPage = lazy(() =>
+  import('./pages/LeaveListPage').then((m) => ({ default: m.LeaveListPage })));
+const EmployeeDetailPage = lazy(() =>
+  import('./pages/EmployeeDetailPage').then((m) => ({ default: m.EmployeeDetailPage })));
+const EmployeeFormPage = lazy(() =>
+  import('./pages/EmployeeFormPage').then((m) => ({ default: m.EmployeeFormPage })));
+const UserListPage = lazy(() =>
+  import('./pages/UserListPage').then((m) => ({ default: m.UserListPage })));
+const AuditPage = lazy(() =>
+  import('./pages/AuditPage').then((m) => ({ default: m.AuditPage })));
+const ChangePasswordPage = lazy(() =>
+  import('./pages/ChangePasswordPage').then((m) => ({ default: m.ChangePasswordPage })));
+const DashboardPage = lazy(() =>
+  import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const OrgChartPage = lazy(() =>
+  import('./pages/OrgChartPage').then((m) => ({ default: m.OrgChartPage })));
+const DepartmentListPage = lazy(() =>
+  import('./pages/DepartmentListPage').then((m) => ({ default: m.DepartmentListPage })));
+const NotFoundPage = lazy(() =>
+  import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
 
 /**
  * Kok adres, kullanicinin gerceklestirebilecegi ilk ekrana gider.
@@ -32,6 +68,12 @@ function LandingRedirect() {
 
 export default function App() {
   return (
+    // Kabuk DISINDAKI tembel rotalar (parola unutma ve sifirlama) icin sinir.
+    // Kabugun icindekiler Layout'taki Suspense'e dusuyor; ic ice Suspense'te
+    // en yakini kazanir, dolayisiyla ikisi cakismiyor. Burada yedek icerik
+    // BOS: bu ekranlarda henuz bir kabuk yok, bos bir sayfada beliren tek bir
+    // cubuk yalnizca dikkat dagitirdi.
+    <Suspense fallback={null}>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       {/* Kabugun DISINDA: parolasini unutan kisi tanimi geregi giris
@@ -86,5 +128,6 @@ export default function App() {
           sessizce listeye gidiyordu ve yazim hatasi hic fark edilmiyordu. */}
       <Route path="/" element={<LandingRedirect />} />
     </Routes>
+    </Suspense>
   );
 }
