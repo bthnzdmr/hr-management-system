@@ -78,6 +78,31 @@ jobs:
           name: surefire-${{ matrix.service }}
           path: ${{ matrix.service }}/target/surefire-reports/
 
+      # Kapsam ozeti is ozetine yazilir: rapor indirilmeden GORULEBILMELI,
+      # yoksa kimse acmaz ve olcum yapilmamis sayilir.
+      - name: Summarise coverage
+        if: always()
+        run: |
+          csv="${{ matrix.service }}/target/site/jacoco/jacoco.csv"
+          [ -f "$csv" ] || exit 0
+          awk -F, 'NR>1 {im+=$4; ic+=$5; bm+=$6; bc+=$7}
+            END {
+              printf "### %s\n\n", "${{ matrix.service }}"
+              printf "| Olcut | Kapsam |\n|---|---|\n"
+              printf "| Talimat | %.1f%% |\n", 100*ic/(ic+im)
+              printf "| Dal | %.1f%% |\n", (bc+bm)>0 ? 100*bc/(bc+bm) : 0
+            }' "$csv" >> "$GITHUB_STEP_SUMMARY"
+
+      # ESIK YOK: kapsam yaniltici bir olcuttur ve bir sayiyi kapiya baglamak
+      # insanlari iddiasiz test yazmaya iter. Rapor SAKLANIR ki kor noktalar
+      # gozden gecirilebilsin.
+      - name: Upload the coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: ${{ matrix.service }}/target/site/jacoco/
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

@@ -25,6 +25,8 @@
         <spring-cloud.version>2025.0.0</spring-cloud.version>
         <!-- Guvenlik taramasi eklentisi; parent tarafindan yonetilmiyor. -->
         <dependency-check.version>12.1.3</dependency-check.version>
+        <!-- Kapsam olcumu. Boot 3.5 bunu surum tablosunda tutmuyor. -->
+        <jacoco.version>0.8.15</jacoco.version>
         <!-- Override GERI KONDU: 10.1.55'te dort CVSS 9.1 var (CVE-2026-53434,
              CVE-2026-55276, CVE-2026-59083, CVE-2026-59084) ve son ikisi ancak
              10.1.57'de kapaniyor.
@@ -161,6 +163,35 @@
                     </formats>
                 </configuration>
             </plugin>
+
+            <!-- Test kapsami. Esik YOK; gerekce employee-service/pom.xml'de. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>instrument</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <excludes>
+                        <exclude>**/*Application.class</exclude>
+                        <exclude>**/event/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
