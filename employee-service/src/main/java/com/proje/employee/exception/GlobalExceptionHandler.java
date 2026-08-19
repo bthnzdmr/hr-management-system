@@ -211,8 +211,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "One of the paging or sorting parameters is not valid");
     }
 
-    // Cakisan izin: kural veritabaninda yasiyor, burada yalnizca kullanicinin
-    // anlayacagi hale ceviriliyor.
     /**
      * Aktarma tavani asildi: 409.
      *
@@ -220,10 +218,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * o, gelen GOVDENIN buyuklugu icindir.
      */
     @ExceptionHandler(ExportTooLargeException.class)
-    ProblemDetail handleExportTooLarge(ExportTooLargeException ex) {
+    public ProblemDetail handleExportTooLarge(ExportTooLargeException ex) {
         return problem(HttpStatus.CONFLICT, "Export too large", ex.getMessage());
     }
 
+    // Cakisan izin: kural veritabaninda yasiyor, burada yalnizca kullanicinin
+    // anlayacagi hale ceviriliyor.
     @ExceptionHandler(OverlappingLeaveException.class)
     public ProblemDetail handleOverlappingLeave(OverlappingLeaveException ex) {
         return problem(HttpStatus.CONFLICT, "Overlapping leave", ex.getMessage());
