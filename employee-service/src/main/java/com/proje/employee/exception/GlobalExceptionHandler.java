@@ -1,5 +1,6 @@
 package com.proje.employee.exception;
 
+import com.proje.employee.export.ExportTooLargeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -212,6 +213,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     // Cakisan izin: kural veritabaninda yasiyor, burada yalnizca kullanicinin
     // anlayacagi hale ceviriliyor.
+    /**
+     * Aktarma tavani asildi: 409.
+     *
+     * 400 DEGIL -- istek gecerli, cakisan sey mevcut veri hacmi. 413 de degil:
+     * o, gelen GOVDENIN buyuklugu icindir.
+     */
+    @ExceptionHandler(ExportTooLargeException.class)
+    ProblemDetail handleExportTooLarge(ExportTooLargeException ex) {
+        return problem(HttpStatus.CONFLICT, "Export too large", ex.getMessage());
+    }
+
     @ExceptionHandler(OverlappingLeaveException.class)
     public ProblemDetail handleOverlappingLeave(OverlappingLeaveException ex) {
         return problem(HttpStatus.CONFLICT, "Overlapping leave", ex.getMessage());

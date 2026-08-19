@@ -40,5 +40,8 @@ public enum AuditAction {
     LEAVE_DECIDED,
 
     /** Ik bir personelin yillik izin hakkini ELLE belirledi. */
-    LEAVE_ENTITLEMENT_SET
+    LEAVE_ENTITLEMENT_SET,
+
+    /** Personel listesi CSV olarak disari aktarildi. */
+    EMPLOYEES_EXPORTED
 }

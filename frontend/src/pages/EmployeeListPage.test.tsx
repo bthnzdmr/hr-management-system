@@ -7,10 +7,16 @@ import { configureStore } from '@reduxjs/toolkit';
 import { EmployeeListPage } from './EmployeeListPage';
 import employeesReducer from '../store/employeesSlice';
 import { AuthProvider } from '../auth/AuthContext';
+import { exportApi, saveBlob } from '../api/exports';
 import { SnackbarProvider } from '../components/SnackbarProvider';
 import { tokenStorage } from '../api/client';
 import { employeeApi } from '../api/employees';
 import type { Employee, Role } from '../types/api';
+
+vi.mock('../api/exports', () => ({
+  exportApi: { employees: vi.fn() },
+  saveBlob: vi.fn(),
+}));
 
 vi.mock('../api/employees', () => ({
   employeeApi: {
@@ -88,6 +94,10 @@ describe('EmployeeListPage', () => {
     vi.mocked(employeeApi.list).mockResolvedValue(pageOf([makeEmployee()]));
     vi.mocked(employeeApi.getDirectReports).mockResolvedValue([]);
     vi.mocked(employeeApi.changeStatus).mockResolvedValue(makeEmployee({ active: false }));
+    vi.mocked(exportApi.employees).mockResolvedValue({
+      blob: new Blob(['Id,Name'], { type: 'text/csv' }),
+      filename: 'employees-2026-08-19.csv',
+    });
   });
 
   it('lists the employees returned by the server', async () => {
@@ -340,4 +350,64 @@ describe('EmployeeListPage', () => {
     expect(screen.queryByText(/report to this employee/i)).not.toBeInTheDocument();
   });
 
+
+  it('offers no export to a role the export endpoint refuses', async () => {
+    // Sunucu aktarmayi yalnizca Ik'ya aciyor; kosulsuz bir dugme digerlerini
+    // kacinilmaz bir 403'e goturur ve sebebi ekranda yazmazdi.
+    renderPage(['EMPLOYEE']);
+
+    await screen.findByText('Grace Hopper');
+    expect(screen.queryByRole('button', { name: 'Export CSV' })).not.toBeInTheDocument();
+  });
+
+  it('exports with exactly the filters shown on screen', async () => {
+    // Kullanicinin GORDUGU ile INDIRDIGI ayni olmali. Suzgecler
+    // tasinmasaydi dosya sessizce baska bir seyi anlatirdi -- ve kimse
+    // fark etmezdi, cunku dosya gecerli gorunur.
+    renderPage(['HR_SPECIALIST']);
+
+    await screen.findByText('Grace Hopper');
+    await userEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    await waitFor(() => {
+      expect(exportApi.employees).toHaveBeenCalledWith({ search: '', active: undefined });
+    });
+    expect(saveBlob).toHaveBeenCalled();
+  });
+
+  it('carries the status filter into the export', async () => {
+    renderPage(['HR_SPECIALIST']);
+
+    await screen.findByText('Grace Hopper');
+    await userEvent.click(screen.getByRole('button', { name: 'Active' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    await waitFor(() => {
+      expect(exportApi.employees).toHaveBeenCalledWith({ search: '', active: true });
+    });
+  });
+
+  it('reports a refused export instead of downloading nothing', async () => {
+    // Tavan asildiginda sunucu 409 doner. Sessizce yutulsaydi kullanici
+    // dugmeye bastigini ve hicbir sey olmadigini gorurdu.
+    // Duz bir Error KULLANILMAZ: errorMessage yalnizca Axios hatalarindan
+    // sunucu mesajini okur, digerlerinde genel bir metne duser. Gercekci
+    // olmayan bir kurgu, "sunucunun sebebi kullaniciya ULASIYOR mu" sorusunu
+    // hic sormazdi.
+    vi.mocked(exportApi.employees).mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        status: 409,
+        data: { title: 'Export too large', detail: 'This export would contain 5001 rows, more than the limit of 5000. Narrow the search first.' },
+      },
+    });
+
+    renderPage(['HR_SPECIALIST']);
+
+    await screen.findByText('Grace Hopper');
+    await userEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    expect(await screen.findByText(/more than the limit of 5000/)).toBeInTheDocument();
+    expect(saveBlob).not.toHaveBeenCalled();
+  });
 });

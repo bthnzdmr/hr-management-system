@@ -231,6 +231,17 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/leave-entitlements/**")
                         .hasRole("HR_SPECIALIST")
 
+                        // Toplu disari aktarma YALNIZCA Ik'ya ait.
+                        //
+                        // Kapsam zaten satirlari sinirliyor -- bir yonetici
+                        // yalnizca dogrudan astlarini aktarabilirdi. Yine de
+                        // dar tutuldu: TOPLU veri bireysel veriden farklidir
+                        // ve ayni gerekceyle gosterge paneli de sinirlanmisti.
+                        // Gevsetmek kolaydir; sizmis bir dizini geri almak
+                        // degil.
+                        .requestMatchers(HttpMethod.GET, "/api/exports/**")
+                        .hasRole("HR_SPECIALIST")
+
                         // Kural yazilmayan her sey reddedilir.
                         .anyRequest().authenticated())
 

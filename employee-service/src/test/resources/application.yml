@@ -49,6 +49,11 @@ app:
   leave:
     default-annual-days: ${LEAVE_DEFAULT_ANNUAL_DAYS:20}
 
+  # Aktarma tavani. Uretim yapilandirmasindaki degerle ayni olmasi SART
+  # DEGIL -- burada sinanan sey ayarin BAGLI oldugudur, degeri degil.
+  export:
+    max-rows: 5000
+
   password-reset:
     validity-minutes: 30
     invite-validity-hours: 24

@@ -213,6 +213,7 @@ services:
       # Fark edilmemesinin sebebi varsayilanin da 20 olmasi.
       LEAVE_DEFAULT_ANNUAL_DAYS: ${LEAVE_DEFAULT_ANNUAL_DAYS:-20}
       LEAVE_CARRY_OVER_CAP: ${LEAVE_CARRY_OVER_CAP:-5}
+      EXPORT_MAX_ROWS: ${EXPORT_MAX_ROWS:-5000}
     depends_on:
       postgres:
         condition: service_healthy

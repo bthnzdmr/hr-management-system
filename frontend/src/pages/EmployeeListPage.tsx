@@ -6,6 +6,7 @@ import {
   TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography, useMediaQuery, useTheme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import DownloadIcon from '@mui/icons-material/Download';
 import BlockIcon from '@mui/icons-material/Block';
 import ClearIcon from '@mui/icons-material/Clear';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
@@ -26,11 +27,13 @@ import { useSearchShortcut } from '../hooks/useSearchShortcut';
 import { useDensity } from '../hooks/useDensity';
 import { InitialsAvatar } from '../components/InitialsAvatar';
 import { PageHeader } from '../components/PageHeader';
+import { exportApi, saveBlob } from '../api/exports';
 import { EmptyState } from '../components/EmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmployeeCard } from '../components/EmployeeCard';
 import { useSnackbar } from '../components/SnackbarProvider';
 import { employeeApi } from '../api/employees';
+import { errorMessage } from '../api/client';
 import { formatDay } from '../utils/formatDate';
 import { TERMINATION_REASONS, TERMINATION_REASON_LABELS } from '../types/api';
 import type { Employee, TerminationReason } from '../types/api';
@@ -133,6 +136,30 @@ export function EmployeeListPage() {
   );
 
   const isLoading = status === 'loading';
+  const [exporting, setExporting] = useState(false);
+
+  /**
+   * Aktarma listeyi AYNI suzgeclerle indirir.
+   *
+   * Mesgul bayragi var cunku dosya buyudukce istek uzar ve ikinci bir tiklama
+   * ikinci bir aktarma daha baslatirdi -- denetim izinde de iki satir birakirdi.
+   */
+  const exportCsv = async () => {
+    setExporting(true);
+
+    try {
+      const { blob, filename } = await exportApi.employees({
+        search,
+        active: activeFilter === 'all' ? undefined : activeFilter === 'active',
+      });
+      saveBlob(blob, filename);
+    } catch (cause) {
+      notify(errorMessage(cause), 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const isFiltered = search.trim() !== '' || activeFilter !== 'all';
 
   // "/" aramaya odaklanir, Escape kutuyu temizler.
@@ -206,13 +233,25 @@ export function EmployeeListPage() {
         // Yazma yetkisi yoksa dugme hic gosterilmez. Bu bir guvenlik onlemi
         // degil, kullaniciya kacinilmaz bir 403 yasatmama tercihidir.
         actions={canEditEmployees && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/employees/new')}
-          >
-            New employee
-          </Button>
+          <Stack direction="row" spacing={1}>
+            {/* Aktarma listedeki suzgecleri AYNEN tasir: kullanicinin gordugu
+                ile indirdigi ayni olmali. */}
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={exportCsv}
+              disabled={exporting}
+            >
+              Export CSV
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/employees/new')}
+            >
+              New employee
+            </Button>
+          </Stack>
         )}
       />
 
