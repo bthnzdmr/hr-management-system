@@ -85,12 +85,19 @@ jobs:
         run: |
           csv="${{ matrix.service }}/target/site/jacoco/jacoco.csv"
           [ -f "$csv" ] || exit 0
+          # Sutun indisleri jacoco.csv basligindan dogrulandi:
+          # 4=INSTRUCTION_MISSED 5=INSTRUCTION_COVERED 6=BRANCH_MISSED 7=BRANCH_COVERED
+          #
+          # Ucluler PARANTEZ ICINDE: awk, printf argumani icindeki ciplak `>`
+          # isaretini CIKTI YONLENDIRMESI sanar ve soz dizimi hatasi verir.
+          # Ilk hali oyleydi ve bu adim CI'da ilk kosuda duserdi; yerelde
+          # calistirilarak yakalandi.
           awk -F, 'NR>1 {im+=$4; ic+=$5; bm+=$6; bc+=$7}
             END {
               printf "### %s\n\n", "${{ matrix.service }}"
               printf "| Olcut | Kapsam |\n|---|---|\n"
-              printf "| Talimat | %.1f%% |\n", 100*ic/(ic+im)
-              printf "| Dal | %.1f%% |\n", (bc+bm)>0 ? 100*bc/(bc+bm) : 0
+              printf "| Talimat | %.1f%% |\n", ((ic+im)>0 ? 100*ic/(ic+im) : 0)
+              printf "| Dal | %.1f%% |\n", ((bc+bm)>0 ? 100*bc/(bc+bm) : 0)
             }' "$csv" >> "$GITHUB_STEP_SUMMARY"
 
       # ESIK YOK: kapsam yaniltici bir olcuttur ve bir sayiyi kapiya baglamak
