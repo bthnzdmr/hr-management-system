@@ -393,11 +393,24 @@ Backend'in bu kaynağa CORS izni vermesi gerekir (`CORS_ALLOWED_ORIGINS`).
 Arayüz **rol değil yetenek** sorar: "düzenle düğmesini göstereyim mi?" Rol modeli
 değiştiğinde her ekranı tek tek değiştirmek gerekmesin diye.
 
-Arayüzde bulunanlar: gösterge paneli, yan menülü uygulama kabuğu, açık/koyu tema
-(seçim tarayıcıda saklanır, seçim yoksa işletim sisteminin tercihi izlenir), ada ve
-e-postaya göre arama, aktif/pasif filtresi, sütun sıralama, yönetici sütunu,
-astların listelendiği detay sayfası, yöneticiyi ID yerine adıyla seçtiren arama
-kutusu ve hesap yönetimi.
+Arayüzde bulunanlar: gösterge paneli, organizasyon haritası, yan menülü uygulama
+kabuğu (daraltılabilir), açık/koyu tema (seçim tarayıcıda saklanır, seçim yoksa
+işletim sisteminin tercihi izlenir), ada ve e-postaya göre arama, aktif/pasif
+filtresi, sütun sıralama, yönetici sütunu, astların listelendiği detay sayfası,
+yöneticiyi ID yerine adıyla seçtiren arama kutusu, denetim izi ekranı ve hesap
+yönetimi.
+
+**İzin ekranı iki görünümlüdür.** Liste, karar bekleyenleri ve geçmişi gösterir;
+**takvim** ise kişi × gün şeridi olarak "bu ay kim yok" sorusunu tek bakışta
+cevaplar. Bir izin *aralıktır* ve ay ızgarasında altı ayrı hücreye bölünürdü.
+Görünüm, ay ve süzgeçler adres çubuğunda yaşar, yani paylaşılabilir.
+
+**Yöneticinin kendi ekranı var** (`My team`): ekibi, karar bekleyen izinleri ve o
+ayın takvimi. Giriş yapınca oraya düşer. Yeni bir yetki açmaz — gösterdiği her
+şey zaten `TEAM` kapsamının içindedir.
+
+**Sayfalar tembel yüklenir.** Her rota kendi paketine ayrılmıştır; giriş ekranı
+organizasyon haritasını ve tarih seçicilerini indirmez.
 
 **Mobil:** Dar ekranda personel listesi tablo yerine **kart** gösterir — yedi sütun
 telefonda yatay kaydırma gerektiriyordu. İki görünüm CSS ile gizlenmez, yalnızca
@@ -511,6 +524,7 @@ Taban adres: `http://localhost:8080`
 | `POST` | `/api/auth/password-reset/confirm` | Bağlantıdaki jetonla yeni parolayı belirler | herkese açık | `204` |
 | `GET` | `/api/dashboard` | Kadro, devir oranı, organizasyon yapısı (tek istek) | `HR_SPECIALIST`, `SYSTEM_ADMIN` | `200` |
 | `GET` | `/api/employees` | Sayfalı liste. `?page=0&size=20&sort=lastName,asc&search=liskov&active=true` | giriş yapmış | `200` |
+| `GET` | `/api/employees/me` | Çağıranın **kendi** personel kaydı. Hesap bir personele bağlı değilse `404` | giriş yapmış | `200` |
 | `GET` | `/api/employees/{id}` | Tek kayıt | giriş yapmış | `200` |
 | `GET` | `/api/employees/{id}/direct-reports` | Doğrudan bağlı personel | giriş yapmış | `200` |
 | `POST` | `/api/employees` | Yeni kayıt | `HR_SPECIALIST` | `201` + `Location` |
@@ -519,10 +533,11 @@ Taban adres: `http://localhost:8080`
 | `GET` | `/api/employees/{id}/salary` | Maaş bilgisi. `PAYROLL_SPECIALIST` herkesinkini, diğerleri **yalnızca kendi** kayıtlarınınkini görür | `PAYROLL_SPECIALIST`, `EMPLOYEE`, `MANAGER` | `200` |
 | `PUT` | `/api/employees/{id}/salary` | Maaş güncelleme | `PAYROLL_SPECIALIST` | `200` |
 | `GET` | `/api/org-chart` | Aktif personelin ağaç yapısı; erişilemeyenler sayılıp bildirilir | `HR_SPECIALIST`, `SYSTEM_ADMIN` | `200` |
-| `GET` | `/api/leave-requests` | Sayfalı izin listesi. `?status=PENDING&employeeId=42&from=2026-03-01&until=2026-03-07` — tarih aralığı **örtüşmeye** bakar | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `200` |
+| `GET` | `/api/leave-requests` | Sayfalı izin listesi. `?status=PENDING&employeeId=42&departmentId=3&from=2026-03-01&until=2026-03-07` — tarih aralığı **örtüşmeye** bakar; süzgeçler kapsamı daraltır, genişletmez | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `200` |
 | `GET` | `/api/leave-requests/{id}` | Tek izin kaydı | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `200` |
 | `POST` | `/api/leave-requests` | Herkes **kendi adına** talep açar; başkası adına yalnızca İK. Çakışan tarih `409` | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `201` + `Location` |
 | `PUT` | `/api/leave-requests/{id}/decision` | Onay / ret / iptal. Yönetici yalnızca **doğrudan astının**, kendi isteğine **hiç** karar veremez | `MANAGER`, `HR_SPECIALIST` | `200` |
+| `GET` | `/api/leave-balances/{employeeId}` | Yıllık izin bakiyesi (hak ediş, devir, kullanılan, ayrılmış). Kapsam dışındaki kişi için `404`. Uç bilerek `/api/employees/**` **altında değil** | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `200` |
 | `GET` | `/api/audit` | Denetim izi; aktör, eylem, hedef ve tarihe göre süzülür. Arayüzde **Activity** ekranı | `SYSTEM_ADMIN` | `200` |
 | `GET` | `/api/departments` | Aktif departmanlar, isme göre sıralı | giriş yapmış | `200` |
 | `POST` | `/api/departments` | Yeni departman; ad büyük-küçük harf duyarsız benzersiz | `HR_SPECIALIST` | `201` + `Location` |
