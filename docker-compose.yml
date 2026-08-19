@@ -368,7 +368,7 @@ services:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
       - "--storage.path=/alertmanager"
     volumes:
-      - .\ops\alertmanager\alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./ops/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager-data:/alertmanager
     ports:
       # Prometheus ve Grafana gibi sabit: metrik profili e2e yiginda
