@@ -92,8 +92,12 @@ public class DemoLeaveSeeder {
                     Decision.APPROVED, "Summer break"),
             new Leave("mary.jackson@demo.example.com", LeaveType.UNPAID, 15, 4,
                     Decision.PENDING, "Personal matters"),
+            // BEKLEYEN ve Grace Hopper'in astlarindan biri: demo yonetici
+            // hesabinin ekraninda karar verilecek bir sey OLMALI. Olculdu --
+            // once bu satir da onayliydi ve "My team" ekrani bos aciliyordu,
+            // yani rolun cekirdek yetenegi gosterilemiyordu.
             new Leave("alan.kay@demo.example.com", LeaveType.ANNUAL, 19, 5,
-                    Decision.APPROVED, null),
+                    Decision.PENDING, "Conference"),
             new Leave("john.backus@demo.example.com", LeaveType.ANNUAL, 24, 3,
                     Decision.PENDING, null),
             // Reddedilen ve iptal edilen kayitlar BILEREK var: takvimin onlari

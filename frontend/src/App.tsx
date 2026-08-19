@@ -31,6 +31,8 @@ const ForgotPasswordPage = lazy(() =>
   import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() =>
   import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
+const MyTeamPage = lazy(() =>
+  import('./pages/MyTeamPage').then((m) => ({ default: m.MyTeamPage })));
 const EmployeeListPage = lazy(() =>
   import('./pages/EmployeeListPage').then((m) => ({ default: m.EmployeeListPage })));
 const LeaveListPage = lazy(() =>
@@ -61,9 +63,19 @@ const NotFoundPage = lazy(() =>
  * kacinilmaz bir yonlendirme yer.
  */
 function LandingRedirect() {
-  const { canViewDashboard } = useAuth();
+  const { canViewDashboard, canManageTeam } = useAuth();
 
-  return <Navigate to={canViewDashboard ? '/dashboard' : '/employees'} replace />;
+  if (canViewDashboard) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Yonetici artik genel listeye DUSMUYOR: kendi ekrani var ve giriste
+  // gormesi gereken sey uzerinde bekleyen istekler.
+  if (canManageTeam) {
+    return <Navigate to="/my-team" replace />;
+  }
+
+  return <Navigate to="/employees" replace />;
 }
 
 export default function App() {
@@ -85,6 +97,14 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/employees" element={<EmployeeListPage />} />
           <Route path="/leave" element={<LeaveListPage />} />
+
+          {/* Yoneticinin kendi ekrani. Yeni bir YETKI acmiyor: icindeki her
+              istek zaten kapsamla sinirli ve sunucu ayni kurallari uyguluyor.
+              Rota yine de korunuyor -- kacinilmaz olarak bos gelecek bir
+              ekrani gostermenin anlami yok. */}
+          <Route element={<CapabilityRoute requires="manageTeam" />}>
+            <Route path="/my-team" element={<MyTeamPage />} />
+          </Route>
 
           {/* Detay okumadir: her oturum acmis kullaniciya acik. Duzenleme
               ekrani olmadan USER'in tiklayacagi hicbir sey yoktu. */}

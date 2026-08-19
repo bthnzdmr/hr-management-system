@@ -37,6 +37,15 @@ export const employeeApi = {
 
   getById: (id: number) => api.get<Employee>(`${BASE}/${id}`).then((r) => r.data),
 
+  /**
+   * Cagiranin kendi personel kaydi.
+   *
+   * Arayuz bunu kendi basina bilemez: hesap e-postasi ile personel
+   * e-postasi ayni olmak zorunda degil. Hesabi bir personele bagli
+   * olmayanlar (servis hesabi, dis denetci) 404 alir.
+   */
+  getMe: () => api.get<Employee>(`${BASE}/me`).then((r) => r.data),
+
   getDirectReports: (id: number) =>
     api.get<Employee[]>(`${BASE}/${id}/direct-reports`).then((r) => r.data),
 

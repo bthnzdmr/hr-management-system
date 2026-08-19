@@ -29,13 +29,33 @@ public class AccessScopeResolver {
 
     @Transactional(readOnly = true)
     public AccessScope resolve(Principal principal) {
-        User user = userRepository.findByEmail(principal.getName())
+        return AccessScope.forUser(user(principal));
+    }
+
+    /**
+     * Cagiranin KENDI personel kimligi; hesap bir personele bagli degilse null.
+     *
+     * KAPSAMDAN AYRI bir soru ve ayri bir metot olmasinin sebebi olculdu:
+     * `AccessScope.visibleEmployeeId()` GORUNURLUGU anlatir ve sinirsiz
+     * kapsamda bilerek `null`'dir -- kisiyi kisitlayacak bir filtre yoktur.
+     * Kimlik icin onu kullanmak, personele bagli bir Ik uzmaninin KENDI
+     * kaydini goremmesine yol aciyordu (olculdu: 404).
+     *
+     * Gorunurluk ile kimlik farkli sorulardir; ayni alandan cevaplanamaz.
+     */
+    @Transactional(readOnly = true)
+    public Long selfEmployeeId(Principal principal) {
+        User user = user(principal);
+
+        return user.getEmployee() == null ? null : user.getEmployee().getId();
+    }
+
+    private User user(Principal principal) {
+        return userRepository.findByEmail(principal.getName())
                 // Token gecerli ama hesap silinmis. Bu bir ISTEMCI durumudur
                 // (eskimis kimlik bilgisi), sunucu arizasi degil: 401 doner.
                 // Onceden IllegalStateException ile 500 donuyordu ve izleme
                 // kirleniyordu -- olmayan bir arizayi bildiren alarm.
                 .orElseThrow(() -> new StaleCredentialsException(principal.getName()));
-
-        return AccessScope.forUser(user);
     }
 }

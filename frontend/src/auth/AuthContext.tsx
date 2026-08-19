@@ -31,6 +31,8 @@ interface AuthContextValue {
   canDecideLeave: boolean;
   canSeeLeave: boolean;
   canRequestLeave: boolean;
+  /** Kendi ekibini yoneten kisiye ait ekran. */
+  canManageTeam: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => void;
 }
@@ -164,6 +166,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Herkes KENDI adina talep acar; baskasi adina acmak Ik'ya aittir ve
         // o kurali sunucu uygular -- burasi yalnizca dugmeyi gosterir.
         canRequestLeave: hasRole('EMPLOYEE') || hasRole('MANAGER') || hasRole('HR_SPECIALIST'),
+        // Rol sorulur, "asti var mi" DEGIL: ikincisini bilmek bir istek
+        // gerektirir ve menunun cizilmesi o cevabi beklerdi. Asti olmayan bir
+        // yonetici sayfayi bos ama anlamli bir haliyle gorur.
+        canManageTeam: hasRole('MANAGER'),
         login,
         logout,
       };

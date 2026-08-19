@@ -31,6 +31,7 @@ import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined';
+import SupervisorAccountOutlinedIcon from '@mui/icons-material/SupervisorAccountOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -52,7 +53,7 @@ interface NavItem {
   to: string;
   icon: typeof GroupsOutlinedIcon;
   /** Hangi yetenek gerekiyor; yoksa herkese acik. */
-  requires?: 'editEmployees' | 'manageAccounts' | 'viewDashboard' | 'seeLeave';
+  requires?: 'editEmployees' | 'manageAccounts' | 'viewDashboard' | 'seeLeave' | 'manageTeam';
 }
 
 /**
@@ -74,6 +75,8 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
     heading: 'Workspace',
     items: [
       { label: 'Overview', to: '/dashboard', icon: InsightsOutlinedIcon, requires: 'viewDashboard' },
+      // Yoneticinin giris ekrani; genel listenin USTUNDE cunku gunluk isi o.
+      { label: 'My team', to: '/my-team', icon: SupervisorAccountOutlinedIcon, requires: 'manageTeam' },
       { label: 'Employees', to: '/employees', icon: GroupsOutlinedIcon },
       { label: 'Leave', to: '/leave', icon: EventBusyOutlinedIcon, requires: 'seeLeave' },
       { label: 'Structure', to: '/org-chart', icon: AccountTreeOutlinedIcon, requires: 'viewDashboard' },
@@ -112,7 +115,7 @@ const FULL_BLEED = new Set<string>(['/org-chart']);
 
 export function Layout() {
   const { user, canEditEmployees, canManageAccounts, canViewDashboard,
-    canSeeLeave, logout } = useAuth();
+    canSeeLeave, canManageTeam, logout } = useAuth();
   const { mode, toggle } = useColorMode();
   const theme = useTheme();
   const location = useLocation();
@@ -133,6 +136,7 @@ export function Layout() {
     manageAccounts: canManageAccounts,
     viewDashboard: canViewDashboard,
     seeLeave: canSeeLeave,
+    manageTeam: canManageTeam,
   };
 
   // Bos bolum basligi gosterilmez: yalnizca personel gorebilen birine

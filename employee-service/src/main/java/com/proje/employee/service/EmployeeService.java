@@ -90,6 +90,33 @@ public class EmployeeService {
                 .map(employeeMapper::toResponse);
     }
 
+    /**
+     * Cagiranin kendi personel kaydi.
+     *
+     * Kapsam kontrolu YAPILMAZ ve gerekmez: donen kayit tanimi geregi
+     * cagiranin kendisi ve kimse kendi kaydinin disinda kalmaz. Kimlik
+     * SUNUCUDA cozuluyor, istemciden DEGIL; istemcinin gonderdigi bir id'ye
+     * guvenmek, "kendi kaydim" ucunu baskasinin kaydini okumanin yoluna
+     * cevirirdi.
+     *
+     * Kimlik `AccessScope`ten OKUNAMAZ: o alan gorunurlugu anlatir ve
+     * sinirsiz kapsamda bilerek bostur. Ilk uygulamada oyle yazilmisti ve
+     * personele bagli bir Ik uzmani kendi kaydinda 404 aliyordu.
+     *
+     * Hesabin personel kaydi olmayabilir (servis hesabi, dis denetci); o
+     * durumda 404 doner.
+     */
+    @Transactional(readOnly = true)
+    public EmployeeResponse getMe(Long self) {
+        if (self == null) {
+            throw EmployeeNotFoundException.forCaller();
+        }
+
+        return employeeRepository.findById(self)
+                .map(employeeMapper::toResponse)
+                .orElseThrow(() -> new EmployeeNotFoundException(self));
+    }
+
     @Transactional(readOnly = true)
     public EmployeeResponse getById(Long id, AccessScope scope) {
         Employee employee = employeeRepository.findById(id)

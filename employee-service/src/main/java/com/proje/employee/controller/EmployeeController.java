@@ -78,6 +78,34 @@ public class EmployeeController {
         return employeeService.getAll(search, active, accessScopeResolver.resolve(caller), pageable);
     }
 
+    /**
+     * Cagiranin KENDI personel kaydi.
+     *
+     * NEDEN BIR UC: arayuz "bu listedeki hangisi benim" sorusunu kendi basina
+     * cevaplayamiyor. Hesap e-postasi ile personel e-postasi ayni olmak
+     * zorunda degil (olculdu: `manager@example.com` hesabi `Grace Hopper`
+     * kaydina bagli) ve listeden CIKARSAMAK -- "digerlerinin yoneticisi olan
+     * kayit benim" -- arayuzde ikinci bir kural yasatirdi.
+     *
+     * NEDEN JETONDA DEGIL: personel kimligini token'a yazmak bir kez
+     * tartisilip REDDEDILDI; o bilgi jetonun omru boyunca donar ve kisi baska
+     * bir personele baglandiginda eski deger tasinmaya devam ederdi. Bedeli
+     * bir sorgu, kazanci daima guncel olmasi.
+     *
+     * Kimlik `AccessScope`ten DEGIL ayri bir cozumleyiciden geliyor: kapsam
+     * gorunurlugu anlatir ve sinirsiz kapsamda bos kalir.
+     *
+     * Literal yol `{id}` sablonundan ONCE tanimli: Spring MVC sabit yolu
+     * onceler, aksi halde "me" bir Long'a cozulmeye calisilir ve 400 donerdi.
+     */
+    @GetMapping("/me")
+    @Operation(summary = "Kendi personel kaydim",
+            description = "Hesabi bir personele bagli olmayan kullanici icin 404 doner.")
+    @ApiResponse(responseCode = "404", description = "Hesap hicbir personele bagli degil")
+    public EmployeeResponse getMe(Principal caller) {
+        return employeeService.getMe(accessScopeResolver.selfEmployeeId(caller));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Tek personel",
             description = """
