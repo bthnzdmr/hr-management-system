@@ -87,7 +87,7 @@ class LeaveRequestQueryCountTest {
     @Test
     @DisplayName("Loading a page of leave requests stays at a constant query count")
     void listingLeaveDoesNotScaleWithPageSize() {
-        var page = leaveRequestRepository.search(null, null, LeaveRequestRepository.BEGINNING_OF_TIME, LeaveRequestRepository.END_OF_TIME,
+        var page = leaveRequestRepository.search(null, null, null, LeaveRequestRepository.BEGINNING_OF_TIME, LeaveRequestRepository.END_OF_TIME,
                 PageRequest.of(0, PAGE_SIZE));
 
         // Iliskilere DOKUNULUR: cevap uretiminde hepsi okunuyor. Dokunmasaydik

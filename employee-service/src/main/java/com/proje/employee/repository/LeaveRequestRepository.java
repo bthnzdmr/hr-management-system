@@ -31,12 +31,14 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             LEFT JOIN FETCH l.createdBy
             WHERE (:statuses IS NULL OR l.status IN :statuses)
               AND (:employeeIds IS NULL OR e.id IN :employeeIds)
+              AND (:departmentId IS NULL OR e.department.id = :departmentId)
               AND l.startDate <= :until AND l.endDate >= :from
             """,
             countQuery = """
             SELECT count(l) FROM LeaveRequest l
             WHERE (:statuses IS NULL OR l.status IN :statuses)
               AND (:employeeIds IS NULL OR l.employee.id IN :employeeIds)
+              AND (:departmentId IS NULL OR l.employee.department.id = :departmentId)
               AND l.startDate <= :until AND l.endDate >= :from
             """)
     /**
@@ -51,6 +53,7 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
      */
     Page<LeaveRequest> search(@Param("statuses") Collection<LeaveStatus> statuses,
                              @Param("employeeIds") Collection<Long> employeeIds,
+                             @Param("departmentId") Long departmentId,
                              @Param("from") LocalDate from,
                              @Param("until") LocalDate until,
                              Pageable pageable);
@@ -58,4 +61,14 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     /** Tek kayit; kapsam kontrolu icin personel de yuklenir. */
     @Query("SELECT l FROM LeaveRequest l LEFT JOIN FETCH l.employee LEFT JOIN FETCH l.decidedBy LEFT JOIN FETCH l.createdBy WHERE l.id = :id")
     Optional<LeaveRequest> findByIdWithEmployee(@Param("id") Long id);
+
+    /**
+     * Ornek verinin daha once tohumlanip tohumlanmadigini soyler.
+     *
+     * `Containing` sart: tohumlanan notlarin bir kismi kullaniciya anlamli bir
+     * metin de tasiyor ve isaret parantez icinde sonuna ekleniyor. Tam
+     * esitlik arasaydik yalnizca notsuz kayitlar bulunur, tohum her acilista
+     * tekrar calisir ve dislama kisiti uygulamayi dusururdu.
+     */
+    boolean existsByNoteContaining(String fragment);
 }

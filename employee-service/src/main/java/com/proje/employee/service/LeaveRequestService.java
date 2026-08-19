@@ -162,6 +162,7 @@ public class LeaveRequestService {
 
     @Transactional(readOnly = true)
     public Page<LeaveRequestResponse> list(Collection<LeaveStatus> statuses, Long employeeId,
+                                           Long departmentId,
                                            LocalDate from, LocalDate until,
                                            AccessScope scope, Pageable pageable) {
         // Rolu olan ama personel kaydi olmayan hesap kimseyi goremez.
@@ -177,7 +178,11 @@ public class LeaveRequestService {
             return Page.empty(pageable);
         }
 
-        return leaveRequests.search(emptyToNull(statuses), visible,
+        // Departman suzgeci de kapsami DARALTIR, genisletmez: gorulebilir
+        // kimlikler listesiyle VE'lenir. Kapsam disindaki bir departman
+        // istenirse sonuc bos doner, hata degil -- ayni gerekce kisi
+        // suzgecinde de gecerliydi.
+        return leaveRequests.search(emptyToNull(statuses), visible, departmentId,
                         from == null ? LeaveRequestRepository.BEGINNING_OF_TIME : from,
                         until == null ? LeaveRequestRepository.END_OF_TIME : until,
                         pageable)

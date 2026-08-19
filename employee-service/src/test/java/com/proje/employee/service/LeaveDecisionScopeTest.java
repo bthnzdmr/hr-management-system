@@ -164,13 +164,13 @@ class LeaveDecisionScopeTest {
         // Suzgec bir GORUNURLUK araci degildir. Kapsam disindaki bir kisi
         // istendiginde bos sayfa doner -- hata degil: hata, o kaydin
         // VARLIGINI dogrulardi.
-        var result = service.list(null, 9999L, null, null,
+        var result = service.list(null, 9999L, null, null, null,
                 new AccessScope(AccessScope.Kind.SELF, ada.getId(), false),
                 PageRequest.of(0, 20));
 
         assertThat(result).isEmpty();
         // Sorgu HIC atilmamali: kapsam disindaki kimlik veritabanina bile gitmez.
-        verify(leaveRequests, never()).search(any(), any(), any(), any(), any());
+        verify(leaveRequests, never()).search(any(), any(), any(), any(), any(), any());
     }
 
     @Test

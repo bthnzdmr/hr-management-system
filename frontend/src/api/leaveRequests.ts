@@ -43,6 +43,8 @@ export const leaveRequestApi = {
   list: (params: {
     status?: LeaveStatus[];
     employeeId?: number;
+    /** Kapsami DARALTIR, genisletmez; kuralin kendisi sunucuda. */
+    departmentId?: number;
     /** Aralik ORTUSMEYE bakar: "bu hafta kim izinli" sorusunun cevabi budur. */
     from?: string;
     until?: string;
@@ -53,6 +55,7 @@ export const leaveRequestApi = {
       params: {
         status: params.status?.length ? params.status : undefined,
         employeeId: params.employeeId,
+        departmentId: params.departmentId,
         from: params.from || undefined,
         until: params.until || undefined,
         page: params.page,

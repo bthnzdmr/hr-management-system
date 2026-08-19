@@ -69,7 +69,7 @@ class SortSideChannelTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Invalid sort field"));
 
-        verify(leaveRequestService, never()).list(any(), any(), any(), any(), any(), any());
+        verify(leaveRequestService, never()).list(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -88,7 +88,7 @@ class SortSideChannelTest {
     @WithMockUser(roles = "HR_SPECIALIST")
     @DisplayName("Still allows sorting leave requests by their own dates")
     void allowsSortingByOwnFields() throws Exception {
-        when(leaveRequestService.list(any(), any(), any(), any(), any(), any())).thenReturn(Page.empty());
+        when(leaveRequestService.list(any(), any(), any(), any(), any(), any(), any())).thenReturn(Page.empty());
 
         mockMvc.perform(get("/api/leave-requests").param("sort", "startDate,asc"))
                 .andExpect(status().isOk());
@@ -129,6 +129,6 @@ class SortSideChannelTest {
         mockMvc.perform(get("/api/leave-requests"))
                 .andExpect(status().isForbidden());
 
-        verify(leaveRequestService, never()).list(any(), any(), any(), any(), any(), any());
+        verify(leaveRequestService, never()).list(any(), any(), any(), any(), any(), any(), any());
     }
 }

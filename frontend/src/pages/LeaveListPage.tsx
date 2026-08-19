@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Alert, Box, Button, Chip, IconButton, Paper, Skeleton, Stack, Table, TableBody, TableCell,
-  TableContainer, TableHead, TablePagination, TableRow, ToggleButton, ToggleButtonGroup,
-  Typography, alpha, useMediaQuery, useTheme,
+  Alert, Box, Button, Chip, IconButton, MenuItem, Paper, Skeleton, Stack, Table, TableBody,
+  TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, ToggleButton,
+  ToggleButtonGroup, Typography, alpha, useMediaQuery, useTheme,
 } from '@mui/material';
 import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -11,6 +11,8 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { leaveRequestApi } from '../api/leaveRequests';
 import type { LeaveRequest, LeaveStatus } from '../api/leaveRequests';
 import { employeeApi } from '../api/employees';
+import { departmentApi } from '../api/departments';
+import type { Department } from '../types/api';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { PageHeader } from '../components/PageHeader';
@@ -127,6 +129,7 @@ export function LeaveListPage() {
   const [params, setParams] = useSearchParams();
   const filter: 'PENDING' | 'ALL' = params.get('status') === 'ALL' ? 'ALL' : 'PENDING';
   const employeeId = Number(params.get('employee')) || undefined;
+  const departmentId = Number(params.get('department')) || undefined;
   const from = params.get('from') ?? '';
   const until = params.get('until') ?? '';
   const page = Number(params.get('page')) || 0;
@@ -135,7 +138,8 @@ export function LeaveListPage() {
   const month = /^\d{4}-\d{2}$/.test(params.get('month') ?? '')
     ? (params.get('month') as string)
     : currentMonth();
-  const filtered = employeeId !== undefined || (view === 'list' && (from !== '' || until !== ''));
+  const filtered = employeeId !== undefined || departmentId !== undefined
+    || (view === 'list' && (from !== '' || until !== ''));
 
   const [rows, setRows] = useState<LeaveRequest[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -146,6 +150,12 @@ export function LeaveListPage() {
   const [rejecting, setRejecting] = useState<LeaveRequest | null>(null);
   /** URL yalnizca id tasir; secim kutusunun gosterecegi ad buradan cozulur. */
   const [person, setPerson] = useState<EmployeeOption | null>(null);
+  /**
+   * Departmanlar referans verisi: az sayida ve nadiren degisir, bir kez
+   * cekilir. Basarisiz olursa suzgec bos kalir ve SESSIZ kalir -- izin
+   * listesini bir yardimci suzgec yuzunden hataya dusurmek yanlis olurdu.
+   */
+  const [departments, setDepartments] = useState<Department[]>([]);
   /** Karar bekleyen SATIR; global bir bayrak butun satirlari kilitlerdi. */
   const busyRows = useBusyRows();
 
@@ -200,6 +210,16 @@ export function LeaveListPage() {
     };
   }, [employeeId, person?.id]);
 
+  useEffect(() => {
+    let active = true;
+
+    departmentApi.list()
+      .then((list) => { if (active) setDepartments(list); })
+      .catch(() => { /* Suzgec gorunmez kalir; liste yine calisir. */ });
+
+    return () => { active = false; };
+  }, []);
+
   /** Her istege bir sira numarasi. */
   const requestId = useRef(0);
 
@@ -225,6 +245,7 @@ export function LeaveListPage() {
         // Adi degil ID'yi bekler: liste, secim kutusunun adi cozmesini
         // beklemeden yuklenmelidir.
         employeeId,
+        departmentId,
         from: window ? window.from : from,
         until: window ? window.until : until,
         page: window ? 0 : page,
@@ -241,7 +262,7 @@ export function LeaveListPage() {
       setError(errorMessage(cause));
       setRows([]);
     }
-  }, [filter, employeeId, from, until, page, size, view, month]);
+  }, [filter, employeeId, departmentId, from, until, page, size, view, month]);
 
   useEffect(() => {
     void load();
@@ -294,7 +315,9 @@ export function LeaveListPage() {
     ? {
       title: 'No leave matches these filters',
       description: 'Nobody in your scope has leave in that range.',
-      action: <Button onClick={() => setFilters({ employee: undefined, from: undefined, until: undefined })}>
+      action: <Button onClick={() => setFilters({
+        employee: undefined, department: undefined, from: undefined, until: undefined,
+      })}>
         Clear filters
       </Button>,
     }
@@ -432,6 +455,28 @@ export function LeaveListPage() {
               helperText="Leave it empty to see everyone in your scope"
               size="small"
             />
+
+            {/* Departman suzgeci HER IKI gorunumde de var: bu bir suzgec, ay
+                gibi bir pencere degil. Liste bos kaldiginda gizlenmiyor --
+                suzgec GORUNUR kalmali, yoksa kullanicinin temizleyecegi bir
+                sey olmaz; ayni ders kisi suzgecinde bir kez ogrenildi. */}
+            <TextField
+              select
+              size="small"
+              label="Department"
+              value={departments.length ? String(departmentId ?? '') : ''}
+              onChange={(event) =>
+                setFilters({ department: event.target.value || undefined })}
+              helperText=" "
+              disabled={departments.length === 0}
+            >
+              <MenuItem value="">All departments</MenuItem>
+              {departments.map((department) => (
+                <MenuItem key={department.id} value={String(department.id)}>
+                  {department.name}
+                </MenuItem>
+              ))}
+            </TextField>
             {/* Takvimde tarih araligi GOSTERILMEZ: pencereyi ay belirliyor ve
                 iki ayri tarih denetimi birbiriyle celisirdi. */}
             {view === 'list' && (

@@ -65,6 +65,9 @@ public class LeaveRequestController {
     public Page<LeaveRequestResponse> list(
             @RequestParam(required = false) List<LeaveStatus> status,
             @RequestParam(required = false) Long employeeId,
+            // Departman suzgeci: "bu ay muhendislikte kim yok" sorusu kisi
+            // suzgeciyle cevaplanamiyordu. Kapsami DARALTIR, genisletmez.
+            @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false)
@@ -75,7 +78,7 @@ public class LeaveRequestController {
 
         SortWhitelist.check(pageable, SORTABLE);
 
-        return leaveRequestService.list(status, employeeId, from, until,
+        return leaveRequestService.list(status, employeeId, departmentId, from, until,
                 accessScopeResolver.resolve(caller), pageable);
     }
 
