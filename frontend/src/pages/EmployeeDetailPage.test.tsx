@@ -5,6 +5,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { EmployeeDetailPage } from './EmployeeDetailPage';
 import { SnackbarProvider } from '../components/SnackbarProvider';
 import { employeeApi } from '../api/employees';
+import { leaveBalanceApi } from '../api/leaveBalances';
+import { leaveEntitlementApi } from '../api/leaveEntitlements';
 import type { Employee } from '../types/api';
 
 vi.mock('../api/employees', () => ({
@@ -16,12 +18,21 @@ vi.mock('../api/employees', () => ({
   },
 }));
 
+vi.mock('../api/leaveBalances', () => ({
+  leaveBalanceApi: { get: vi.fn() },
+}));
+
+vi.mock('../api/leaveEntitlements', () => ({
+  leaveEntitlementApi: { set: vi.fn() },
+}));
+
+const canEditEmployees = vi.fn(() => false);
 const canSeeSalaries = vi.fn(() => false);
 const canSeeLeave = vi.fn(() => true);
 
 vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({
-    canEditEmployees: false,
+    canEditEmployees: canEditEmployees(),
     canManageAccounts: false,
     canSeeSalaries: canSeeSalaries(),
     canSeeLeave: canSeeLeave(),
@@ -64,11 +75,16 @@ function renderPage() {
 describe('EmployeeDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    canEditEmployees.mockReturnValue(false);
     canSeeSalaries.mockReturnValue(false);
     canSeeLeave.mockReturnValue(true);
     vi.mocked(employeeApi.getById).mockResolvedValue(makeEmployee());
     vi.mocked(employeeApi.getDirectReports).mockResolvedValue([]);
     vi.mocked(employeeApi.getSalary).mockResolvedValue({ employeeId: 5, salary: 95000 });
+    vi.mocked(leaveBalanceApi.get).mockResolvedValue({
+      employeeId: 5, year: 2026, entitledDays: 14, carriedOverDays: 3,
+      usedDays: 4, reservedDays: 1, availableDays: 12, source: 'GRANTED',
+    });
   });
 
   it('links to this person leave history, already filtered', async () => {
@@ -160,5 +176,84 @@ describe('EmployeeDetailPage', () => {
 
     expect(await screen.findByText('Not set')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Set salary' })).toBeInTheDocument();
+  });
+
+  it('hides the leave entitlement entirely when the server refuses it', async () => {
+    // Ucret bolumundeki kararin aynisi: kurali SUNUCU uygular, arayuz sorar.
+    // Cevap gelmediyse bolum "gizli" degil, YOK.
+    vi.mocked(leaveBalanceApi.get).mockRejectedValue(new Error('forbidden'));
+
+    renderPage();
+
+    await screen.findByText('Staff Engineer · Software Development');
+    expect(screen.queryByText('Annual leave 2026')).not.toBeInTheDocument();
+  });
+
+  it('shows the entitlement, what is used and what remains', async () => {
+    renderPage();
+
+    expect(await screen.findByText('Annual leave 2026')).toBeInTheDocument();
+    expect(screen.getByText('Entitled')).toBeInTheDocument();
+    expect(screen.getByText('Remaining')).toBeInTheDocument();
+  });
+
+  it('offers no way to change the entitlement without the HR role', async () => {
+    // Okuyabilmek yazabilmek degildir: calisan kendi bakiyesini gorur,
+    // hakki belirleyen Ik'dir. Sunucu da PUT'u yalnizca Ik'ya aciyor.
+    renderPage();
+
+    await screen.findByText('Annual leave 2026');
+    expect(screen.queryByRole('button', { name: 'Adjust' })).not.toBeInTheDocument();
+  });
+
+  it('says "set" rather than "adjust" while the amount is only a default', async () => {
+    // Verilmis hak ile varsayilan ayni gorunmemeli: ikincisi bir KARAR degil,
+    // bir tahmindir ve dugme bunu soyluyor.
+    canEditEmployees.mockReturnValue(true);
+    vi.mocked(leaveBalanceApi.get).mockResolvedValue({
+      employeeId: 5, year: 2026, entitledDays: 20, carriedOverDays: 0,
+      usedDays: 0, reservedDays: 0, availableDays: 20, source: 'DEFAULT',
+    });
+
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: 'Set entitlement' })).toBeInTheDocument();
+  });
+
+  it('saves a new entitlement and shows the recomputed remaining days', async () => {
+    canEditEmployees.mockReturnValue(true);
+    vi.mocked(leaveEntitlementApi.set).mockResolvedValue({
+      employeeId: 5, year: 2026, entitledDays: 26, carriedOverDays: 0,
+      note: 'Long service award',
+    });
+
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Adjust' }));
+    await userEvent.type(screen.getByLabelText('Reason'), 'Long service award');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(leaveEntitlementApi.set).toHaveBeenCalledWith(5, 2026, {
+        entitledDays: 14, carriedOverDays: 3, note: 'Long service award',
+      });
+    });
+
+    // 26 hak + 0 devir - 4 kullanilan - 1 bekleyen = 21. Sayilar bilerek
+    // cakismiyor: ilk denemede hak ile kalan tesadufen esitti ve iddia HANGI
+    // alani okudugunu soyleyemiyordu.
+    expect(await screen.findByText('21')).toBeInTheDocument();
+  });
+
+  it('refuses to save without a reason', async () => {
+    // Gerekce sunucuda ZORUNLU. Burada da isteniyor ki kullanici sebebini
+    // sunucudan donen bir hatayla ogrenmesin.
+    canEditEmployees.mockReturnValue(true);
+
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Adjust' }));
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 });

@@ -14,6 +14,8 @@ import { useAuth } from '../auth/AuthContext';
 import { InitialsAvatar } from '../components/InitialsAvatar';
 import { UserCreateDialog } from '../components/UserCreateDialog';
 import { SalaryDialog } from '../components/SalaryDialog';
+import { LeaveEntitlementDialog } from '../components/LeaveEntitlementDialog';
+import { leaveBalanceApi, type LeaveBalance } from '../api/leaveBalances';
 import { useSnackbar } from '../components/SnackbarProvider';
 import type { Employee } from '../types/api';
 import { formatDay } from '../utils/formatDate';
@@ -23,6 +25,8 @@ interface Loaded {
   directReports: Employee[];
   /** null: ucret gorulebilir ama girilmemis. undefined: gorme yetkisi yok. */
   salary: number | null | undefined;
+  /** Uc 403 donduyse tanimsiz kalir ve bolum hic cizilmez. */
+  balance: LeaveBalance | undefined;
 }
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -43,6 +47,7 @@ export function EmployeeDetailPage() {
   const { notify } = useSnackbar();
   const [creatingLogin, setCreatingLogin] = useState(false);
   const [editingSalary, setEditingSalary] = useState(false);
+  const [editingEntitlement, setEditingEntitlement] = useState(false);
 
   const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,9 +75,12 @@ export function EmployeeDetailPage() {
       employeeApi.getById(employeeId),
       employeeApi.getDirectReports(employeeId),
       employeeApi.getSalary(employeeId).then((r) => r.salary).catch(() => undefined),
+      // Izin bakiyesi de ayni desende: kimin gorebilecegine sunucu karar
+      // veriyor, arayuz kurali tekrar yazmiyor.
+      leaveBalanceApi.get(employeeId).catch(() => undefined),
     ])
-      .then(([employee, directReports, salary]) => {
-        if (active) setData({ employee, directReports, salary });
+      .then(([employee, directReports, salary, balance]) => {
+        if (active) setData({ employee, directReports, salary, balance });
       })
       .catch((cause) => {
         if (active) setError(errorMessage(cause));
@@ -104,7 +112,7 @@ export function EmployeeDetailPage() {
     );
   }
 
-  const { employee, directReports, salary } = data;
+  const { employee, directReports, salary, balance } = data;
 
   return (
     <Stack spacing={2.5}>
@@ -247,6 +255,40 @@ export function EmployeeDetailPage() {
                 </Stack>
               </>
             )}
+
+            {balance !== undefined && (
+              <>
+                <Typography variant="subtitle2" sx={{ mt: 3 }} gutterBottom>
+                  Annual leave {balance.year}
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+                >
+                  <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap' }}>
+                    <Field label="Entitled" value={String(balance.entitledDays)} />
+                    <Field label="Carried over" value={String(balance.carriedOverDays)} />
+                    <Field label="Used" value={String(balance.usedDays)} />
+                    <Field label="Remaining" value={String(balance.availableDays)} />
+                  </Stack>
+
+                  {/* Verilmis hak ile varsayilan ayni gorunmemeli: ikincisi bir
+                      KARAR degil, bir tahmindir. */}
+                  {canEditEmployees && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setEditingEntitlement(true)}
+                    >
+                      {balance.source === 'GRANTED' ? 'Adjust' : 'Set entitlement'}
+                    </Button>
+                  )}
+                </Stack>
+              </>
+            )}
           </Paper>
         </Grid>
 
@@ -289,6 +331,38 @@ export function EmployeeDetailPage() {
           </Paper>
         </Grid>
       </Grid>
+        {balance !== undefined && (
+          <LeaveEntitlementDialog
+            open={editingEntitlement}
+            employeeId={employee.id}
+            employeeName={`${employee.firstName} ${employee.lastName}`}
+            current={balance}
+            onClose={() => setEditingEntitlement(false)}
+            onSaved={(entitledDays, carriedOverDays) => {
+              setEditingEntitlement(false);
+              // Kalan gun SUNUCUDA hesaplaniyor; burada tekrar hesaplamak ayni
+              // kurali iki yerde yasatirdi. Yeni degerler kullanimla birlikte
+              // yeniden turetiliyor.
+              setData((current) =>
+                current === null || current.balance === undefined
+                  ? current
+                  : {
+                      ...current,
+                      balance: {
+                        ...current.balance,
+                        entitledDays,
+                        carriedOverDays,
+                        availableDays:
+                          entitledDays + carriedOverDays
+                          - current.balance.usedDays - current.balance.reservedDays,
+                        source: 'GRANTED',
+                      },
+                    });
+              notify('Leave entitlement updated');
+            }}
+          />
+        )}
+
       {canSeeSalaries && (
         <SalaryDialog
           open={editingSalary}

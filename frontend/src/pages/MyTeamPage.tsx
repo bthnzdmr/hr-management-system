@@ -61,7 +61,7 @@ export function MyTeamPage() {
       // aralarinda bagimlilik yok.
       const [self, everyone, awaiting, off] = await Promise.all([
         employeeApi.getMe(),
-        employeeApi.list({ page: 0, size: 100, active: true }),
+        employeeApi.list({ page: 0, size: 100, sort: 'lastName,asc', active: true }),
         leaveRequestApi.list({ status: ['PENDING'], size: 50 }),
         leaveRequestApi.list({
           status: ['APPROVED', 'PENDING'],
@@ -226,7 +226,7 @@ export function MyTeamPage() {
                   >
                     {person.firstName} {person.lastName}
                   </Link>
-                  <Typography variant="caption" color="text.secondary" display="block">
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                     {person.jobTitle} · {person.departmentName}
                   </Typography>
                 </Box>
