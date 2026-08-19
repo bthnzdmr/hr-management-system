@@ -1,10 +1,12 @@
 package com.proje.employee.repository;
 
+import com.proje.employee.entity.Employee;
 import com.proje.employee.entity.LeaveEntitlement;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface LeaveEntitlementRepository extends JpaRepository<LeaveEntitlement, Long> {
@@ -48,4 +50,22 @@ public interface LeaveEntitlementRepository extends JpaRepository<LeaveEntitleme
 
         int getReserved();
     }
+
+    /**
+     * Verilen yil icin HENUZ hak satiri olmayan aktif personel.
+     *
+     * Tek sorgu: her personel icin ayri ayri "satiri var mi" diye sormak
+     * klasik N+1 olurdu ve tahakkuk isi butun kadroyu tariyor.
+     *
+     * Ayrilmis personel disarida: ayrilan birine yeni yil hakki tahakkuk
+     * ettirmek, olmayan bir alacak uretmek olurdu.
+     */
+    @Query("""
+            SELECT e FROM Employee e
+            WHERE e.active = true
+              AND NOT EXISTS (SELECT 1 FROM LeaveEntitlement le
+                              WHERE le.employee = e AND le.year = :year)
+            ORDER BY e.id
+            """)
+    List<Employee> findActiveWithoutEntitlement(@Param("year") int year);
 }

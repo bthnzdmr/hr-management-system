@@ -37,5 +37,8 @@ public enum AuditAction {
     LEAVE_REQUESTED,
 
     /** Izin istegi onaylandi, reddedildi veya geri cekildi. */
-    LEAVE_DECIDED
+    LEAVE_DECIDED,
+
+    /** Ik bir personelin yillik izin hakkini ELLE belirledi. */
+    LEAVE_ENTITLEMENT_SET
 }

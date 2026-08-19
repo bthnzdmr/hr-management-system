@@ -196,6 +196,27 @@ app:
     # kullanildigini soyler.
     default-annual-days: ${LEAVE_DEFAULT_ANNUAL_DAYS:20}
 
+    # Kullanilmayan gunlerin bir sonraki yila tasinma tavani. Tavansiz
+    # birakilsaydi bakiye yillarca birikir ve sirket icin gercek bir mali yuk
+    # olusurdu; sifir olsaydi `carried_over_days` kolonu olu kalirdi.
+    carry-over-cap: ${LEAVE_CARRY_OVER_CAP:5}
+
+    # Kidem merdiveni (Is Kanunu m.53). Burada ACIKCA duruyor cunku bu bir
+    # POLITIKA: Java varsayilani olarak gizlenseydi gozden gecirilemezdi.
+    #
+    # Bir yil dolmadan yillik izin hakki DOGMAZ, bu yuzden ilk basamak sifir.
+    # Yas kaynakli asgari (18 alti / 50 ustu icin 20 gun) UYGULANAMIYOR:
+    # dogum tarihi bilerek saklanmiyor. Eksik veri, yanlis veriden iyidir.
+    seniority-ladder:
+      - from-years: 0
+        days: 0
+      - from-years: 1
+        days: 14
+      - from-years: 5
+        days: 20
+      - from-years: 15
+        days: 26
+
   outbox:
     # Yayin gecikmesinin ust siniri: olay en gec bu sure sonra gonderilir.
     poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:2000}

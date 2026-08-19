@@ -219,6 +219,18 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/leave-balances/**")
                         .hasAnyRole("EMPLOYEE", "MANAGER", "HR_SPECIALIST")
 
+                        // Hakki BELIRLEMEK yalnizca Ik'ya ait. Yazilmasaydi
+                        // `anyRequest().authenticated()` agina duserdi ve giris
+                        // yapan HERKES kendi izin hakkini belirleyebilirdi --
+                        // izin ve departman uclarinda iki kez yasanan tuzak.
+                        //
+                        // MANAGER de yok: astinin hakkini belirlemek ile
+                        // iznine karar vermek ayri yetkilerdir; ikisi ayni
+                        // kiside olsaydi yonetici once hakki buyutup sonra
+                        // izni onaylayabilirdi.
+                        .requestMatchers(HttpMethod.PUT, "/api/leave-entitlements/**")
+                        .hasRole("HR_SPECIALIST")
+
                         // Kural yazilmayan her sey reddedilir.
                         .anyRequest().authenticated())
 

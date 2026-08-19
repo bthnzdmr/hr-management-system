@@ -53,6 +53,9 @@ class LeaveRequestQueryCountTest {
 
     @BeforeEach
     void setUp() {
+        // Hak satiri da personele bagli; silinmezse yabanci anahtar
+        // temizligi dusurur. Ayni tuzak V11 ile bir kez yasanmisti.
+        entityManager.createQuery("DELETE FROM LeaveEntitlement").executeUpdate();
         entityManager.createQuery("DELETE FROM LeaveRequest").executeUpdate();
         entityManager.createQuery("UPDATE User u SET u.employee = null").executeUpdate();
         userRepository.deleteAllInBatch();

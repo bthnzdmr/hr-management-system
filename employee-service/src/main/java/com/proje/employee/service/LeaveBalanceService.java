@@ -1,11 +1,11 @@
 package com.proje.employee.service;
 
+import com.proje.employee.config.LeavePolicy;
 import com.proje.employee.dto.LeaveBalanceResponse;
 import com.proje.employee.entity.LeaveEntitlement;
 import com.proje.employee.exception.EmployeeNotFoundException;
 import com.proje.employee.repository.EmployeeRepository;
 import com.proje.employee.repository.LeaveEntitlementRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,16 +25,16 @@ public class LeaveBalanceService {
     private final LeaveEntitlementRepository entitlementRepository;
     private final EmployeeRepository employeeRepository;
     private final EmployeeVisibility visibility;
-    private final int defaultAnnualDays;
+    private final LeavePolicy policy;
 
     public LeaveBalanceService(LeaveEntitlementRepository entitlementRepository,
                                EmployeeRepository employeeRepository,
                                EmployeeVisibility visibility,
-                               @Value("${app.leave.default-annual-days}") int defaultAnnualDays) {
+                               LeavePolicy policy) {
         this.entitlementRepository = entitlementRepository;
         this.employeeRepository = employeeRepository;
         this.visibility = visibility;
-        this.defaultAnnualDays = defaultAnnualDays;
+        this.policy = policy;
     }
 
     /**
@@ -69,7 +69,7 @@ public class LeaveBalanceService {
         Optional<LeaveEntitlement> granted =
                 entitlementRepository.findByEmployeeIdAndYear(employeeId, year);
 
-        int entitled = granted.map(LeaveEntitlement::getEntitledDays).orElse(defaultAnnualDays);
+        int entitled = granted.map(LeaveEntitlement::getEntitledDays).orElse(policy.defaultAnnualDays());
         int carriedOver = granted.map(LeaveEntitlement::getCarriedOverDays).orElse(0);
 
         var usage = entitlementRepository.findAnnualUsage(employeeId, year);

@@ -1,5 +1,6 @@
 package com.proje.employee.service;
 
+import com.proje.employee.config.LeavePolicyFixture;
 import com.proje.employee.dto.LeaveBalanceResponse;
 import com.proje.employee.entity.Department;
 import com.proje.employee.entity.Employee;
@@ -43,7 +44,8 @@ class LeaveBalanceServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new LeaveBalanceService(entitlements, employees, visibility, DEFAULT_DAYS);
+        service = new LeaveBalanceService(entitlements, employees, visibility,
+                LeavePolicyFixture.withDefaultDays(DEFAULT_DAYS));
     }
 
     /** Kullanilan ve rezerve gunleri veren tek satirlik sonuc. */

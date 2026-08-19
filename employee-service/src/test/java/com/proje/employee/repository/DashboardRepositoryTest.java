@@ -50,6 +50,9 @@ class DashboardRepositoryTest {
         // users.employee_id yabanci anahtari personel silmeyi engeller. Baglanti
         // once koparilir; @DataJpaTest transaction icinde calisip geri
         // alindigi icin gercek hesaplar etkilenmez.
+        // Hak satiri da personele bagli; silinmezse yabanci anahtar
+        // temizligi dusurur. Ayni tuzak V11 ile bir kez yasanmisti.
+        entityManager.createQuery("DELETE FROM LeaveEntitlement").executeUpdate();
         entityManager.createQuery("DELETE FROM LeaveRequest").executeUpdate();
         entityManager.createQuery("UPDATE User u SET u.employee = null").executeUpdate();
         employeeRepository.deleteAllInBatch();

@@ -208,6 +208,11 @@ services:
       PASSWORD_RESET_VALIDITY_MINUTES: ${PASSWORD_RESET_VALIDITY_MINUTES:-30}
       INVITE_VALIDITY_HOURS: ${INVITE_VALIDITY_HOURS:-24}
       PASSWORD_RESET_RESEND_COOLDOWN_SECONDS: ${PASSWORD_RESET_RESEND_COOLDOWN_SECONDS:-120}
+      # Ayni tuzagin dorduncu tekrari: LEAVE_DEFAULT_ANNUAL_DAYS vardi ama
+      # BURADA GECIRILMIYORDU, yani .env'e yazmak hicbir sey yapmiyordu.
+      # Fark edilmemesinin sebebi varsayilanin da 20 olmasi.
+      LEAVE_DEFAULT_ANNUAL_DAYS: ${LEAVE_DEFAULT_ANNUAL_DAYS:-20}
+      LEAVE_CARRY_OVER_CAP: ${LEAVE_CARRY_OVER_CAP:-5}
     depends_on:
       postgres:
         condition: service_healthy
