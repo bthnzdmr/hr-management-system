@@ -1,6 +1,7 @@
 package com.proje.employee.audit;
 
 import com.proje.employee.dto.DepartmentResponse;
+import com.proje.employee.dto.SalaryResponse;
 import com.proje.employee.dto.EmployeeResponse;
 import com.proje.employee.dto.LeaveEntitlementResponse;
 import com.proje.employee.dto.LeaveRequestResponse;
@@ -13,6 +14,7 @@ import com.proje.employee.export.ExportResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Set;
@@ -173,7 +175,7 @@ class AuditDetailTest {
     @Test
     @DisplayName("An entitlement reads as the year, the days and the reason")
     void anEntitlementReadsAsYearDaysAndReason() {
-        assertThat(new LeaveEntitlementResponse(1L, 2026, 26, 3, "Long service award")
+        assertThat(new LeaveEntitlementResponse(1L, "Grace Hopper", 2026, 26, 3, "Long service award")
                 .auditDetail())
                 .isEqualTo("2026 entitlement: 26 days + 3 carried over · Long service award");
     }
@@ -181,7 +183,7 @@ class AuditDetailTest {
     @Test
     @DisplayName("No carry-over is left out rather than written as zero")
     void zeroCarryOverIsLeftOut() {
-        assertThat(new LeaveEntitlementResponse(1L, 2026, 14, 0, "Accrued automatically")
+        assertThat(new LeaveEntitlementResponse(1L, "Grace Hopper", 2026, 14, 0, "Accrued automatically")
                 .auditDetail())
                 .isEqualTo("2026 entitlement: 14 days · Accrued automatically");
     }
@@ -224,7 +226,33 @@ class AuditDetailTest {
         assertThat(leave(LeaveStatus.APPROVED, 6).auditDetail()).doesNotContain("=");
         assertThat(new ExportResult("...", 1, null, true).auditDetail()).doesNotContain("=");
         assertThat(new DepartmentResponse(1L, "Sales", true, 4).auditDetail()).doesNotContain("=");
-        assertThat(new LeaveEntitlementResponse(1L, 2026, 14, 0, "x").auditDetail())
+        assertThat(new LeaveEntitlementResponse(1L, "Grace Hopper", 2026, 14, 0, "x").auditDetail())
                 .doesNotContain("=");
+    }
+
+    // ------------------------------------------------- iz KIMI gosteriyor
+
+    @Test
+    @DisplayName("Every audited response says who it is about")
+    void everyResponseNamesItsSubject() {
+        // Etiket bos kalirsa arayuz "EMPLOYEE #906" gosterir: anlamsiz degil
+        // ama bir arama gerektirir. Denetim izinde "kime" sorusu bir tik
+        // uzakta olmamali -- ozellikle ucrette.
+        assertThat(new SalaryResponse(906L, "Grace Hopper", new BigDecimal("1"))
+                .auditLabel()).isEqualTo("Grace Hopper");
+        assertThat(new LeaveEntitlementResponse(906L, "Grace Hopper", 2026, 14, 0, "x")
+                .auditLabel()).isEqualTo("Grace Hopper");
+        assertThat(employee(true, null, null, null).auditLabel()).isEqualTo("Grace Hopper");
+        assertThat(leave(LeaveStatus.PENDING, 1).auditLabel()).isEqualTo("Grace Hopper");
+        assertThat(new DepartmentResponse(1L, "Sales", true, 4).auditLabel()).isEqualTo("Sales");
+    }
+
+    @Test
+    @DisplayName("The salary label carries the name but never the amount")
+    void theSalaryLabelDoesNotLeakTheAmount() {
+        // Etiket de detay kadar gorunur bir alandir; tutari oraya koymak
+        // detaydan gizlemeyi anlamsiz kilardi.
+        assertThat(new SalaryResponse(906L, "Grace Hopper", new BigDecimal("123456"))
+                .auditLabel()).doesNotContain("123456");
     }
 }

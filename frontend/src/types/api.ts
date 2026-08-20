@@ -153,6 +153,8 @@ export type EmployeeUpdateRequest = EmployeeCreateRequest & { version: number };
 
 export interface SalaryResponse {
   employeeId: number;
+  /** Denetim izi bunu kullaniyor: iz "EMPLOYEE #906" degil, kisinin adini gosterir. */
+  employeeFullName: string;
   // Backend BigDecimal donuyor ve Jackson bunu JSON SAYISI olarak yaziyor.
   // Burada string demek, "degisti mi" karsilastirmasini sessizce bozar:
   // "95000" !== 95000 oldugu icin degismemis maas guncellenmis sayilirdi.

@@ -239,7 +239,7 @@ public class EmployeeService {
             throw new EmployeeNotFoundException(id);
         }
 
-        return new SalaryResponse(employee.getId(), employee.getSalary());
+        return SalaryResponse.of(employee, employee.getSalary());
     }
 
     @Transactional
@@ -261,7 +261,7 @@ public class EmployeeService {
         // compareTo kullanilir: 95000 ile 95000.00 esittir ama equals degildir.
         BigDecimal current = employee.getSalary();
         if (current != null && current.compareTo(request.salary()) == 0) {
-            return new SalaryResponse(employee.getId(), current);
+            return SalaryResponse.of(employee, current);
         }
 
         employee.setSalary(request.salary());
@@ -270,7 +270,7 @@ public class EmployeeService {
         // yalnizca kaydinin guncellendigini ogrenir.
         publish(EmployeeEventType.UPDATED, employee);
 
-        return new SalaryResponse(employee.getId(), employee.getSalary());
+        return SalaryResponse.of(employee, employee.getSalary());
     }
 
     /**

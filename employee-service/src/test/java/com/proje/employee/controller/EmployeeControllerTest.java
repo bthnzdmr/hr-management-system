@@ -275,7 +275,7 @@ class EmployeeControllerTest {
         // Uc seviyesi artik calisani iceri aliyor; HANGI kaydi gorebilecegine
         // servis karar veriyor. Kendi kaydi disinda 404 doner.
         when(employeeService.getSalary(eq(1L), any()))
-                .thenReturn(new SalaryResponse(1L, new BigDecimal("95000.00")));
+                .thenReturn(new SalaryResponse(1L, "Grace Hopper", new BigDecimal("95000.00")));
 
         mockMvc.perform(get("/api/employees/1/salary"))
                 .andExpect(status().isOk());
@@ -288,7 +288,7 @@ class EmployeeControllerTest {
     @DisplayName("payroll specialist reads the salary through its own endpoint")
     void payrollSpecialistReadsSalary() throws Exception {
         when(employeeService.getSalary(eq(1L), any()))
-                .thenReturn(new SalaryResponse(1L, new BigDecimal("95000.00")));
+                .thenReturn(new SalaryResponse(1L, "Grace Hopper", new BigDecimal("95000.00")));
 
         mockMvc.perform(get("/api/employees/1/salary"))
                 .andExpect(status().isOk())

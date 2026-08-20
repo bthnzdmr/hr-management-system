@@ -16,6 +16,7 @@ export interface LeaveEntitlementRequest {
 
 export interface LeaveEntitlement {
   employeeId: number;
+  employeeFullName: string;
   year: number;
   entitledDays: number;
   carriedOverDays: number;

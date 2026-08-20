@@ -80,7 +80,7 @@ describe('EmployeeDetailPage', () => {
     canSeeLeave.mockReturnValue(true);
     vi.mocked(employeeApi.getById).mockResolvedValue(makeEmployee());
     vi.mocked(employeeApi.getDirectReports).mockResolvedValue([]);
-    vi.mocked(employeeApi.getSalary).mockResolvedValue({ employeeId: 5, salary: 95000 });
+    vi.mocked(employeeApi.getSalary).mockResolvedValue({ employeeId: 5, employeeFullName: 'Alan Kay', salary: 95000 });
     vi.mocked(leaveBalanceApi.get).mockResolvedValue({
       employeeId: 5, year: 2026, entitledDays: 14, carriedOverDays: 3,
       usedDays: 4, reservedDays: 1, availableDays: 12, source: 'GRANTED',
@@ -136,7 +136,7 @@ describe('EmployeeDetailPage', () => {
 
   it('writes the salary through its own endpoint', async () => {
     canSeeSalaries.mockReturnValue(true);
-    vi.mocked(employeeApi.updateSalary).mockResolvedValue({ employeeId: 5, salary: 99000 });
+    vi.mocked(employeeApi.updateSalary).mockResolvedValue({ employeeId: 5, employeeFullName: 'Alan Kay', salary: 99000 });
 
     const user = userEvent.setup({ delay: null });
     renderPage();
@@ -170,7 +170,7 @@ describe('EmployeeDetailPage', () => {
 
   it('lets payroll set a salary that was never entered', async () => {
     canSeeSalaries.mockReturnValue(true);
-    vi.mocked(employeeApi.getSalary).mockResolvedValue({ employeeId: 5, salary: null });
+    vi.mocked(employeeApi.getSalary).mockResolvedValue({ employeeId: 5, employeeFullName: 'Alan Kay', salary: null });
 
     renderPage();
 
@@ -223,7 +223,7 @@ describe('EmployeeDetailPage', () => {
   it('saves a new entitlement and shows the recomputed remaining days', async () => {
     canEditEmployees.mockReturnValue(true);
     vi.mocked(leaveEntitlementApi.set).mockResolvedValue({
-      employeeId: 5, year: 2026, entitledDays: 26, carriedOverDays: 0,
+      employeeId: 5, employeeFullName: 'Alan Kay', year: 2026, entitledDays: 26, carriedOverDays: 0,
       note: 'Long service award',
     });
 
