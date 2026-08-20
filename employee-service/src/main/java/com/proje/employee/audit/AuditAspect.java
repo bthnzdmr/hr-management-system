@@ -1,6 +1,7 @@
 package com.proje.employee.audit;
 
 import com.proje.employee.config.CorrelationIdFilter;
+import com.proje.employee.service.AccessScope;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.aspectj.lang.annotation.AfterReturning;
@@ -63,7 +64,7 @@ public class AuditAspect {
                     auditable.targetType(),
                     targetId(joinPoint, result),
                     result instanceof AuditLabel labelled ? labelled.auditLabel() : null,
-                    detail(joinPoint, auditable),
+                    detail(joinPoint, auditable, result),
                     MDC.get(CorrelationIdFilter.MDC_KEY)));
         } catch (RuntimeException e) {
             // Denetim kaydi is islemini DUSURMEMELI: kayit yazilamiyorsa
@@ -133,9 +134,21 @@ public class AuditAspect {
      * (password=***), cunku toString her yerde cagrilir: log, istisna mesaji,
      * denetim kaydi. Sirri hic uretmeyen bir temsil onu her yerde korur.
      */
-    private String detail(JoinPoint joinPoint, Auditable auditable) {
+    private String detail(JoinPoint joinPoint, Auditable auditable, Object result) {
         if (!auditable.includeArguments()) {
             return auditable.summary().isBlank() ? null : auditable.summary();
+        }
+
+        // Cevap kendini anlatabiliyorsa SOZ ONUNDUR ve TEK BASINA yeter:
+        // sonucu bilen taraf odur. `summary` eklenmiyor, cunku durum zaten
+        // cevabin icinde -- "approved Approved · ..." diye tekrarlardi.
+        // Arguman dokumu yalnizca bir geri dususe kaldi.
+        if (result instanceof AuditDetail described) {
+            String sentence = described.auditDetail();
+
+            if (sentence != null && !sentence.isBlank()) {
+                return sentence;
+            }
         }
 
         // Parametre ADLARI da yazilir. Etiketsizken kayit "false, RESIGNED"
@@ -168,8 +181,18 @@ public class AuditAspect {
      *
      * Entity'ler DISLANIR: toString'i olmayaninki kimlik karmasi basar, olani
      * ise butun alanlarini -- ornegin passwordHash -- ize dokebilir.
+     *
+     * IC MAKINE de dislanir. `AccessScope` bir record oldugu icin bu suzgecten
+     * geciyordu ve denetim ekraninda
+     * "kind: ALL · Employee: null · allSalaries: false" gorunuyordu. Bir kapsam
+     * nesnesi kullaniciya hicbir sey soylemez ve okuma aninda duzeltilemez --
+     * orada bilgi YOKTUR. Kaydedilmemesi gereken sey kaydedilmez.
      */
     private static boolean readable(Object arg) {
+        if (arg instanceof AccessScope) {
+            return false;
+        }
+
         Class<?> type = arg.getClass();
 
         return type.isRecord() || type.isEnum() || type.getPackageName().startsWith("java.");

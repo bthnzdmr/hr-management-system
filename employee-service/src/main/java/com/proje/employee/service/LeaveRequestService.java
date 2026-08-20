@@ -213,8 +213,12 @@ public class LeaveRequestService {
         return LeaveRequestResponse.from(leave);
     }
 
-    @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
-            includeArguments = false, summary = "approved")
+    // `includeArguments = false` ve sabit bir `summary` KALDIRILDI: ikisi de
+    // kararin argumanlarda bulunmamasi yuzunden yazilmis gecici cozumdu.
+    // Artik cevabin `status` alani karari tasiyor ve cumleyi kendisi kuruyor.
+    // Arguman dokumu yine bos: id ve not atlaniyor, User bir entity, AccessScope
+    // ic makine olarak disarida.
+    @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST")
     @Transactional
     public LeaveRequestResponse approve(Long id, User decider, AccessScope scope) {
         LeaveRequest leave = load(id);
@@ -225,8 +229,12 @@ public class LeaveRequestService {
         return LeaveRequestResponse.from(leave);
     }
 
-    @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
-            includeArguments = false, summary = "rejected")
+    // `includeArguments = false` ve sabit bir `summary` KALDIRILDI: ikisi de
+    // kararin argumanlarda bulunmamasi yuzunden yazilmis gecici cozumdu.
+    // Artik cevabin `status` alani karari tasiyor ve cumleyi kendisi kuruyor.
+    // Arguman dokumu yine bos: id ve not atlaniyor, User bir entity, AccessScope
+    // ic makine olarak disarida.
+    @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST")
     @Transactional
     public LeaveRequestResponse reject(Long id, String note, User decider, AccessScope scope) {
         LeaveRequest leave = load(id);
@@ -237,8 +245,12 @@ public class LeaveRequestService {
         return LeaveRequestResponse.from(leave);
     }
 
-    @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST",
-            includeArguments = false, summary = "withdrawn")
+    // `includeArguments = false` ve sabit bir `summary` KALDIRILDI: ikisi de
+    // kararin argumanlarda bulunmamasi yuzunden yazilmis gecici cozumdu.
+    // Artik cevabin `status` alani karari tasiyor ve cumleyi kendisi kuruyor.
+    // Arguman dokumu yine bos: id ve not atlaniyor, User bir entity, AccessScope
+    // ic makine olarak disarida.
+    @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST")
     @Transactional
     public LeaveRequestResponse cancel(Long id, AccessScope scope) {
         LeaveRequest leave = load(id);

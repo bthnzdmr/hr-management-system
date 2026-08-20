@@ -130,12 +130,37 @@ function describeField(field: string): string | null {
 }
 
 /**
+ * Detay zaten bir CUMLE mi?
+ *
+ * Sunucu artik okunur cumleler yaziyor ("Left on 19-08-2026 (Resigned)").
+ * Onlari ayristirmak yalnizca zarar verir: `splitFields` en ust seviyedeki
+ * virgullerden boler ve "Roles: HR specialist, Manager" ifadesini ikiye
+ * ayirirdi.
+ *
+ * Olcut "ad=deger" kalibinin YOKLUGU. Ayristirici yalnizca ESKI satirlar icin
+ * duruyor: sunucuda bicimi degistirmek gecmisi geriye donuk duzeltmez ve o
+ * satirlar sonsuza kadar ham kalirdi.
+ */
+function alreadyASentence(detail: string): boolean {
+  return splitFields(detail).every((field) => !field.includes('='));
+}
+
+/**
  * Denetim detayini okunur hale getirir.
  *
  * Bos veya cozulemeyen girdi icin null doner; cagiran taraf "—" gosterir.
  */
 export function describeDetail(detail: string | null): string | null {
   if (!detail || !detail.trim()) return null;
+
+  // Ilk harf yine buyutuluyor: yeni cumleler zaten buyuk harfle basliyor
+  // (yani islem etkisiz), ESKI satirlardaki tek kelimelik ozetler ise
+  // ("approved", "withdrawn") bu sayede duzgun okunmaya devam ediyor.
+  if (alreadyASentence(detail)) {
+    const text = detail.trim();
+
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
 
   const parts = splitFields(detail)
     .map(describeField)

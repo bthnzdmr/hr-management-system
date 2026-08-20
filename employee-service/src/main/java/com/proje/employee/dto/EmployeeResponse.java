@@ -4,6 +4,7 @@ import com.proje.employee.entity.TerminationReason;
 
 import java.time.LocalDate;
 
+import com.proje.employee.audit.AuditDetail;
 import com.proje.employee.audit.AuditLabel;
 
 public record EmployeeResponse(
@@ -37,11 +38,31 @@ public record EmployeeResponse(
         // ayrildigi, devir oraninin dayandigi bilgidir.
         LocalDate terminatedAt,
         TerminationReason terminationReason
-) implements AuditLabel {
+) implements AuditLabel, AuditDetail {
 
     @Override
     public String auditLabel() {
         return firstName + " " + lastName;
+    }
+
+    /**
+     * Kaydin O ANKI hali.
+     *
+     * Ayni cevap tipi IKI eylemde birden kullaniliyor (olusturma ve durum
+     * degisikligi), dolayisiyla cumle bir FIIL degil bir DURUM anlatir --
+     * fiili eylem etiketi zaten soyluyor. "Yeniden aktiflestirildi" de bu
+     * sayede dogru okunur: kayit yine aktif ve unvani yaziyor.
+     */
+    @Override
+    public String auditDetail() {
+        if (!active) {
+            String reason = terminationReason == null ? "" : " (" + AuditDetail.humanise(terminationReason) + ")";
+            return "Left on " + AuditDetail.day(terminatedAt) + reason;
+        }
+
+        String where = jobTitle + " in " + departmentName;
+
+        return managerFullName == null ? where : where + " · reports to " + managerFullName;
     }
 
 }

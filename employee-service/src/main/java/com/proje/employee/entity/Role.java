@@ -10,19 +10,19 @@ package com.proje.employee.entity;
 public enum Role {
 
     /** Kendi kaydini gorur. En temel seviye (employee self-service). */
-    EMPLOYEE,
+    EMPLOYEE("Employee"),
 
     /** Kendi kaydini ve dogrudan astlarini gorur. */
-    MANAGER,
+    MANAGER("Manager"),
 
     /** Tum personeli gorur ve duzenler; ucrete DOKUNAMAZ. */
-    HR_SPECIALIST,
+    HR_SPECIALIST("HR specialist"),
 
     /**
      * Ucret bilgisini okur ve yazar. Personel kaydi ACAMAZ: ayni kisinin hem
      * kayit acip hem ucret atamasi, sahte personel olusturmanin klasik yolu.
      */
-    PAYROLL_SPECIALIST,
+    PAYROLL_SPECIALIST("Payroll specialist"),
 
     /**
      * Hesaplari ve erisimi yonetir. Personel verisini DUZENLEYEMEZ ve maasi
@@ -30,12 +30,32 @@ public enum Role {
      * Rehberi okuyabilir, cunku hesabi personele baglamak icin kimin var
      * oldugunu bilmesi gerekir.
      */
-    SYSTEM_ADMIN,
+    SYSTEM_ADMIN("System administrator"),
 
     /**
      * Makine kimligi. Notification Service bildirim hazirlarken personelin
      * yoneticisini soruyor; bunun icin rehberi okumasi gerekir ama baska
      * hicbir seye ihtiyaci yoktur (en az yetki).
      */
-    SERVICE
+    SERVICE("Service account");
+
+    private final String label;
+
+    Role(String label) {
+        this.label = label;
+    }
+
+    /**
+     * Denetim izine YAZILAN ad.
+     *
+     * Genel bir buyuk-kucuk harf donusumu yetmiyor: `HR_SPECIALIST` boyle
+     * "Hr specialist" olurdu ve kisaltma bozulurdu.
+     *
+     * Ad kayit ANINDA ize yaziliyor ve orada donuyor -- `AuditLabel`daki
+     * kararin aynisi. Arayuzdeki `ROLE_LABELS` ise CANLI veri icindir; ikisi
+     * ayni metinleri tasiyor ve degistirilirse birlikte degistirilmeli.
+     */
+    public String label() {
+        return label;
+    }
 }

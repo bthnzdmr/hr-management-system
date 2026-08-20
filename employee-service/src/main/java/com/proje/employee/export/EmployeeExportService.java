@@ -62,7 +62,7 @@ public class EmployeeExportService {
      */
     @Auditable(action = AuditAction.EMPLOYEES_EXPORTED, targetType = "EMPLOYEE")
     @Transactional
-    public String toCsv(String search, Boolean active, AccessScope scope) {
+    public ExportResult toCsv(String search, Boolean active, AccessScope scope) {
         // Sayfa boyutunu SUNUCU belirliyor, istemci degil. `?size=` ile
         // butun dizini tek cevapta cekmek `max-page-size: 100` ile kapatilmisti
         // ve disari aktarma o kapiyi geri acmamali.
@@ -78,7 +78,7 @@ public class EmployeeExportService {
         List<List<String>> rows = new ArrayList<>(page.getNumberOfElements());
         page.forEach(employee -> rows.add(row(employee)));
 
-        return CsvWriter.toCsv(HEADER, rows);
+        return new ExportResult(CsvWriter.toCsv(HEADER, rows), rows.size(), search, active);
     }
 
     private List<String> row(EmployeeResponse employee) {

@@ -26,6 +26,9 @@ const ACTIONS: { value: AuditAction; label: string; color: 'default' | 'success'
   { value: 'DEPARTMENT_STATUS_CHANGED', label: 'Department status', color: 'default' },
   { value: 'LEAVE_REQUESTED', label: 'Leave recorded', color: 'default' },
   { value: 'LEAVE_DECIDED', label: 'Leave decided', color: 'default' },
+  { value: 'LEAVE_ENTITLEMENT_SET', label: 'Entitlement set', color: 'warning' },
+  // Toplu veri disari cikti: renk bunu bir OLAY olarak isaretliyor.
+  { value: 'EMPLOYEES_EXPORTED', label: 'Directory exported', color: 'error' },
 ];
 
 const LABELS = new Map(ACTIONS.map((a) => [a.value, a]));

@@ -56,7 +56,7 @@ public class ExportController {
                                             @RequestParam(required = false) Boolean active,
                                             Principal principal) {
 
-        String csv = employees.toCsv(search, active, scopes.resolve(principal));
+        String csv = employees.toCsv(search, active, scopes.resolve(principal)).csv();
         String filename = "employees-" + LocalDate.now() + ".csv";
 
         return ResponseEntity.ok()

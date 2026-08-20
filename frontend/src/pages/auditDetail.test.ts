@@ -58,4 +58,18 @@ describe('describeDetail', () => {
     expect(describeDetail(null)).toBeNull();
     expect(describeDetail('   ')).toBeNull();
   });
+
+  it('leaves a sentence written by the server untouched', () => {
+    // Sunucu artik okunur cumleler yaziyor. Ayristirmak yalnizca zarar
+    // verirdi: splitFields en ust seviyedeki virgullerden boler ve rol
+    // listesini ikiye ayirirdi.
+    expect(describeDetail('Active · Roles: HR specialist, Manager · Linked to Ada Lovelace'))
+      .toBe('Active · Roles: HR specialist, Manager · Linked to Ada Lovelace');
+  });
+
+  it('still unpacks an old row written in the machine format', () => {
+    // Sunucuda bicimi degistirmek GECMISI duzeltmez; o satirlar sonsuza
+    // kadar ham kalirdi, bu yuzden ayristirici duruyor.
+    expect(describeDetail('active=false, reason=RESIGNED')).toBe('Deactivated · Resigned');
+  });
 });

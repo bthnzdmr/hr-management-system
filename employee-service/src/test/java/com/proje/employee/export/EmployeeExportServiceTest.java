@@ -51,8 +51,12 @@ class EmployeeExportServiceTest {
                 .thenReturn(new PageImpl<>(found));
     }
 
-    private String export() {
+    private ExportResult result() {
         return service.toCsv(null, null, new AccessScope(AccessScope.Kind.ALL, null, false));
+    }
+
+    private String export() {
+        return result().csv();
     }
 
     @Test
@@ -122,7 +126,7 @@ class EmployeeExportServiceTest {
                         .toList());
         serverReturns(tooMany);
 
-        assertThatThrownBy(this::export)
+        assertThatThrownBy(this::result)
                 .isInstanceOf(ExportTooLargeException.class)
                 .hasMessageContaining("Narrow the search");
     }

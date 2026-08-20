@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 /** Izin istegi cevabi. */
+import com.proje.employee.audit.AuditDetail;
 import com.proje.employee.audit.AuditLabel;
 
 public record LeaveRequestResponse(
@@ -25,11 +26,27 @@ public record LeaveRequestResponse(
         String decidedBy,
         Instant decidedAt,
         Instant createdAt
-) implements AuditLabel {
+) implements AuditLabel, AuditDetail {
 
     @Override
     public String auditLabel() {
         return employeeFullName;
+    }
+
+    /**
+     * Talebin O ANKI hali.
+     *
+     * Karar bilgisi `status` icinde zaten var, bu yuzden `@Auditable`in
+     * `summary` alani (approved / rejected / withdrawn) buraya EKLENMIYOR --
+     * eklenseydi "approved Approved ..." diye tekrarlardi.
+     */
+    @Override
+    public String auditDetail() {
+        String span = AuditDetail.day(startDate) + " - " + AuditDetail.day(endDate);
+        String dayCount = days + (days == 1 ? " day" : " days");
+
+        return AuditDetail.humanise(status) + " · " + AuditDetail.humanise(type)
+                + " leave · " + span + " (" + dayCount + ")";
     }
 
 

@@ -243,8 +243,14 @@ public class EmployeeService {
     }
 
     @Transactional
+    // Detay bilerek TUTARSIZ: "kim, kimin ucretini degistirdi" denetlenmeye
+    // deger ama tutarin kendisi ize dusmemelidir -- kaydi okuyabilen herkes
+    // ucreti de okurdu. Bos birakmak yerine SEBEBI yaziliyor: bos bir hucre
+    // "denetim bozuk" gibi okunur, bu cumle ise bunun bir karar oldugunu
+    // soyler.
     @Auditable(action = AuditAction.SALARY_CHANGED, targetType = "EMPLOYEE",
-            includeArguments = false)
+            includeArguments = false,
+            summary = "Salary updated · amount deliberately not recorded")
     public SalaryResponse updateSalary(Long id, SalaryUpdateRequest request) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException(id));
