@@ -39,6 +39,19 @@
              digerleri ancak 10.1.57'de kapaniyor.
              KALDIRMA KOSULU: Boot'un surum tablosu 10.1.57'yi gectiginde. -->
         <tomcat.version>10.1.57</tomcat.version>
+
+        <!-- CVE-2026-54291: 42.7.4 ile 42.7.11 arasinda `channelBinding=require`
+             baglantilari SESSIZCE duz SCRAM'e dusebiliyor ve ortadaki adam
+             korumasi kayboluyor. CVSSv4'te 8,2; CVSSv3'te 5,9. Kapi YUKSEK
+             olana bakiyor: esik 8 yapilip kirilarak olculdu.
+
+             Bu kurulumda somurulebilir DEGIL: baglanti adreslerinde ne
+             `channelBinding` var ne `sslmode`. Yine de yamali hatta
+             cekiliyor, cunku yama seviyesi bir adim ve acik gercek.
+
+             Surum Boot'un tablosundan geliyordu; override tomcat ve
+             httpclient5'teki desenin ayni. -->
+        <postgresql.version>42.7.12</postgresql.version>
         <!-- CVE-2026-71290 (9.1): HttpClient 5.4-5.6.3 arasinda async istemcide
              TLS sunucu adi dogrulamasi ETKISIZ. Feign ve Eureka istemcisi bu
              kutuphaneyi tasiyor; 5.6.4 duzeltiyor.
