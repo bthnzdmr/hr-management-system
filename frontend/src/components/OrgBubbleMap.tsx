@@ -17,6 +17,13 @@ interface Props {
   /** Departman balonuna tiklandiginda; kisi secmekten AYRI bir eylemdir. */
   onSelectDepartment?: (department: string) => void;
   /**
+   * Aramanin esletirdigi kisiler; `null` ise arama YAPILMIYOR demektir.
+   *
+   * Bos bir kume ile `null` AYNI SEY DEGIL: birincisi "arandi, kimse yok"
+   * (her sey geri cekilir), ikincisi "aranmadi" (hicbir sey degismez).
+   */
+  matchedIds?: Set<number> | null;
+  /**
    * Merkezde kisi yoksa orada duran isaret ve tam adi.
    *
    * Once sabit "HR" yaziliydi ve kapsamdan HABERSIZDI: bir departmana
@@ -52,6 +59,7 @@ const DIMMED = 0.55;
 
 export function OrgBubbleMap({
   roots, colors, selectedId, onSelect, onSelectDepartment, hub, alwaysHub = false,
+  matchedIds = null,
 }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
   const still = useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -143,6 +151,7 @@ export function OrgBubbleMap({
           colors={colors}
           hovered={hovered}
           lit={lit}
+          matchedIds={matchedIds}
           still={still}
           tabStop={entry.node?.id === tabStop}
           selected={entry.node?.id === selectedId}
@@ -187,6 +196,8 @@ interface NodeProps {
   colors: Map<string, Swatch>;
   hovered: number | null;
   lit: Set<number>;
+  /** Arama eslesmeleri; `null` ise arama yapilmiyor. */
+  matchedIds: Set<number> | null;
   still: boolean;
   /** Bu dugum tab sirasindaki TEK durak mi? */
   tabStop: boolean;
@@ -197,7 +208,7 @@ interface NodeProps {
 }
 
 function Node({
-  entry, showHub, hub, colors, hovered, lit, still, tabStop, selected,
+  entry, showHub, hub, colors, hovered, lit, matchedIds, still, tabStop, selected,
   onHover, onSelect, onSelectDepartment,
 }: NodeProps) {
   const theme = useTheme();
@@ -209,7 +220,13 @@ function Node({
   // karsilastirabilmek icin cevresinin gorunur kalmasi gerekir. Deger bir ara
   // %30'a dusmustu; hem karsilastirma kayboluyor hem de grafik ogeleri icin
   // istenen 3:1 kontrast (WCAG 1.4.11) o opaklikta tutmuyor.
-  const dimmed = lit.size > 0 && !onPath;
+  // Iki geri cekme sebebi var ve ayni kanali paylasiyorlar: zincir
+  // vurgulamasi ve arama. Arama aktifken zincir SUS OLUR -- kullanici o an
+  // "kim eslesiyor" sorusunu soruyor, "bu kisi kime bagli" sorusunu degil.
+  const searching = matchedIds !== null;
+  const dimmed = searching
+    ? !(node !== null && matchedIds.has(node.id))
+    : lit.size > 0 && !onPath;
 
   const swatch = node ? colors.get(node.departmentName) : undefined;
 

@@ -13,6 +13,9 @@ import {
 } from '../components/orgScope';
 import type { Department } from '../components/orgScope';
 import { PersonPanel } from '../components/PersonPanel';
+import { OrgSearchField } from '../components/OrgSearchField';
+import { search, splitByScope } from '../components/orgSearch';
+import type { Match } from '../components/orgSearch';
 
 export function OrgChartPage() {
   const [chart, setChart] = useState<OrgChart | null>(null);
@@ -20,6 +23,7 @@ export function OrgChartPage() {
   const [department, setDepartment] = useState<string | null>(null);
   /** Sagdaki panelde gosterilen kisi. */
   const [selected, setSelected] = useState<OrgNode | null>(null);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -107,6 +111,45 @@ export function OrgChartPage() {
     [scoped, selected],
   );
 
+  // Arama BUTUN kadroda calisir, yalnizca cizili kapsamda degil: "bu kisi
+  // nerede" sorusunun cevabi cogu zaman baska bir departmandadir ve arama
+  // yalnizca ekrandakine baksaydi var olma sebebini karsilamazdi.
+  const matches = useMemo(
+    () => (chart ? search(chart.roots, query) : []),
+    [chart, query],
+  );
+
+  // Cizili olanlar semada vurgulanir; digerleri ancak TIKLANIRSA oraya
+  // gecirir. Sema kendiliginden yeniden duzenlenmez.
+  const { inScope, elsewhere } = useMemo(() => {
+    const visible = new Set(scoped.flatMap(function ids(node): number[] {
+      return [node.id, ...node.reports.flatMap(ids)];
+    }));
+
+    return splitByScope(matches, visible);
+  }, [matches, scoped]);
+
+  // `null` = arama yapilmiyor; bos kume = arandi ama kimse eslesmedi. Harita
+  // ikisini FARKLI ele aliyor.
+  const matchedIds = query.trim().length >= 2
+    ? new Set(inScope.map((m) => m.node.id))
+    : null;
+
+  /** Kapsam disindaki bir eslesmeye gecer VE onu secer. */
+  const jumpTo = (match: Match) => {
+    setDepartment(match.node.departmentName);
+    setSelected(match.node);
+  };
+
+  /** Enter: cizili kapsamdaki ilk eslesmeyi secer, yoksa ilk uzaktakine gider. */
+  const selectFirstMatch = () => {
+    if (inScope.length > 0) {
+      setSelected(inScope[0].node);
+      return;
+    }
+    if (elsewhere.length > 0) jumpTo(elsewhere[0]);
+  };
+
   if (error) {
     return <Alert severity="error">{error}</Alert>;
   }
@@ -158,6 +201,10 @@ export function OrgChartPage() {
           )}
         </Paper>
 
+        {/* Arama kutusu rafin YANINDA degil, cizimle ayni sutunda: raf bir
+            SUZGEC (kapsami daraltir), arama ise bir BULMA araci (kapsami
+            asar). Ikisini yan yana koymak ayni sey sanilmalarina yol acardi. */}
+
         {/* Cizim ve panel ORTAK bir sutunda.
 
             Ucu birden md'de satira girseydi -- ilk yazildigi gibi -- panel
@@ -187,6 +234,15 @@ export function OrgChartPage() {
 
           {chart && chart.roots.length > 0 && (
             <Stack spacing={2}>
+              <OrgSearchField
+                query={query}
+                onQueryChange={setQuery}
+                inScope={inScope}
+                elsewhere={elsewhere}
+                onJump={jumpTo}
+                onSelectFirst={selectFirstMatch}
+              />
+
               {/* Buradaki "Click anyone to see where they sit" ipucu KALDIRILDI:
                   sagdaki panel bos haldeyken zaten birebir ayni seyi soyluyor
                   ("Pick anyone in the chart to see where they sit...") ve iki
@@ -208,6 +264,7 @@ export function OrgChartPage() {
                     // tek kokte oraya o kisi oturuyordu -- ayni ekran
                     // departmandan departmana farkli davraniyordu.
                     alwaysHub
+                    matchedIds={matchedIds}
                   />
                 </Box>
               </Fade>
