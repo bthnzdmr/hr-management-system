@@ -28,7 +28,14 @@ final class SystemClient {
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
-    record Response(int status, JsonNode body) {
+    /**
+     * Ham govde de tasiniyor.
+     *
+     * Her cevap JSON DEGIL: CSV aktarma ucu `text/csv` donduruyor ve onu
+     * ayristirmaya calismak istegi patlatirdi. Ham metin, "govde gercekten ne
+     * icerdi" sorusunun tek dogru cevabi.
+     */
+    record Response(int status, JsonNode body, String rawBody) {
     }
 
     Response get(String url, String token) {
@@ -60,9 +67,8 @@ final class SystemClient {
     private Response send(HttpRequest.Builder builder) {
         try {
             HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-            JsonNode body = response.body().isBlank() ? MAPPER.nullNode() : MAPPER.readTree(response.body());
 
-            return new Response(response.statusCode(), body);
+            return new Response(response.statusCode(), parse(response.body()), response.body());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Request interrupted", e);
@@ -70,6 +76,18 @@ final class SystemClient {
             // getMessage() bazi baglanti hatalarinda null doner; toString()
             // en azindan istisnanin turunu soyler.
             throw new IllegalStateException("Request failed: " + e, e);
+        }
+    }
+
+    /** JSON olmayan govde bir HATA DEGIL: ham metin yine de okunabilmeli. */
+    private static JsonNode parse(String body) {
+        if (body == null || body.isBlank()) {
+            return MAPPER.nullNode();
+        }
+        try {
+            return MAPPER.readTree(body);
+        } catch (Exception notJson) {
+            return MAPPER.nullNode();
         }
     }
 

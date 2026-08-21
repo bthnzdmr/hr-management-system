@@ -617,4 +617,142 @@ class SystemEndToEndTest {
         assertThat(response.status()).isEqualTo(200);
         assertThat(response.body()).isNotEmpty();
     }
+
+    // ------------------------------------------------------------ aktarma
+
+    @Test
+    @DisplayName("Exports the directory as a CSV file, without any salary column")
+    void exportsTheDirectoryAsCsv() {
+        // BU TEST BIR SINIF HATAYI YAKALAR. Uc bir kez 500 donuyordu
+        // (`@Transactional(readOnly = true)` + denetim yazmasi) ve 441 birim
+        // testin HICBIRI goremedi: transaction sinirini ilgilendiren bir
+        // davranis, gercek veritabani olmadan dogrulanmis sayilmaz.
+        String token = signIn();
+
+        SystemClient.Response response =
+                client.get(SystemClient.API_URL + "/api/exports/employees?active=true", token);
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.rawBody()).contains("Id,First name,Last name");
+        // Butun tasarim maasi dar bir yetki cemberinde tutuyor; aktarma o
+        // cemberi delen bir arka kapi olamaz.
+        assertThat(response.rawBody().toLowerCase()).doesNotContain("salary");
+    }
+
+    @Test
+    @DisplayName("A cell that looks like a formula leaves the system neutralised")
+    void exportNeutralisesFormulas() {
+        // Zarari veriyi GIREN degil, dosyayi ACAN gorur: elektronik tablo
+        // programlari "=" ile baslayan bir hucreyi FORMUL sayar.
+        String token = signIn();
+        String email = "e2e.formula." + UUID.randomUUID() + "@example.com";
+
+        SystemClient.Response created = client.post(
+                SystemClient.API_URL + "/api/employees", token,
+                """
+                {"firstName":"=cmd|calc","lastName":"Probe","email":"%s","departmentId":1,
+                 "jobTitle":"Engineer","hireDate":"2024-08-01"}
+                """.formatted(email));
+        assertThat(created.status()).isEqualTo(201);
+
+        String csv = client
+                .get(SystemClient.API_URL + "/api/exports/employees?search=e2e.formula", token)
+                .rawBody();
+
+        assertThat(csv).contains("'=cmd|calc");
+        assertThat(csv).doesNotContain(",=cmd|calc");
+    }
+
+    @Test
+    @DisplayName("Only HR may pull the whole directory")
+    void exportIsClosedToOtherRoles() {
+        String adminToken = signIn();
+        String email = "e2e.exporter." + UUID.randomUUID() + "@example.com";
+        createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
+
+        String userToken = signIn(email, "a-long-enough-password").body().get("token").asText();
+
+        assertThat(client.get(SystemClient.API_URL + "/api/exports/employees", userToken).status())
+                .isEqualTo(403);
+    }
+
+    // -------------------------------------------------------- izin hakki
+
+    @Test
+    @DisplayName("An entitlement set by HR shows up in the balance as a granted amount")
+    void entitlementReachesTheBalance() {
+        String token = signIn();
+        String employeeId = createEmployee(token,
+                "e2e.entitlement." + UUID.randomUUID() + "@example.com");
+
+        SystemClient.Response set = client.put(
+                SystemClient.API_URL + "/api/leave-entitlements/" + employeeId + "/2026", token,
+                """
+                {"entitledDays":26,"carriedOverDays":4,"note":"E2E probe"}
+                """);
+        assertThat(set.status()).isEqualTo(200);
+
+        JsonNode balance = client
+                .get(SystemClient.API_URL + "/api/leave-balances/" + employeeId + "?year=2026", token)
+                .body();
+
+        assertThat(balance.get("entitledDays").asInt()).isEqualTo(26);
+        assertThat(balance.get("carriedOverDays").asInt()).isEqualTo(4);
+        // "Verilmis hak" ile "varsayilan" ayni ekranda ayni gorunmemeli.
+        assertThat(balance.get("source").asText()).isEqualTo("GRANTED");
+    }
+
+    // ------------------------------------------------------- denetim izi
+
+    @Test
+    @DisplayName("The audit trail reads as sentences, never as a record dump")
+    void auditDetailIsASentence() {
+        // Detay bir zamanlar Java'nin `Type[a=1, b=2]` dokumuydu ve ekranda
+        // "kind: ALL · Employee: null · allSalaries: false" gorunuyordu.
+        // Bu iddia o bicimin GERI DONMEDIGINI tutuyor.
+        String token = signIn();
+        String employeeId = createEmployee(token,
+                "e2e.audit." + UUID.randomUUID() + "@example.com");
+
+        client.put(SystemClient.API_URL + "/api/leave-entitlements/" + employeeId + "/2027", token,
+                """
+                {"entitledDays":18,"carriedOverDays":0,"note":"Audit sentence probe"}
+                """);
+
+        JsonNode rows = client
+                .get(SystemClient.API_URL + "/api/audit?action=LEAVE_ENTITLEMENT_SET&size=1", token)
+                .body()
+                .get("content");
+
+        assertThat(rows).isNotEmpty();
+        JsonNode newest = rows.get(0);
+
+        assertThat(newest.get("detail").asText())
+                .contains("entitlement:")
+                .doesNotContain("=")
+                .doesNotContain("AccessScope");
+        // Iz KIMI gosterdigini de soylemeli: bos birakilsaydi ekranda
+        // "LEAVE_ENTITLEMENT #906" gorunurdu.
+        assertThat(newest.get("targetLabel").asText()).contains("E2E");
+    }
+
+    @Test
+    @DisplayName("An export is recorded in the trail with how many records left")
+    void exportIsAudited() {
+        // Toplu veri cikisinin asil kontrolu bu satirdir: "kim, ne zaman,
+        // hangi suzgecle, KAC KAYIT indirdi".
+        String token = signIn();
+
+        client.get(SystemClient.API_URL + "/api/exports/employees?active=true", token);
+
+        JsonNode rows = client
+                .get(SystemClient.API_URL + "/api/audit?action=EMPLOYEES_EXPORTED&size=1", token)
+                .body()
+                .get("content");
+
+        assertThat(rows).isNotEmpty();
+        assertThat(rows.get(0).get("detail").asText())
+                .contains("Exported")
+                .contains("employee record");
+    }
 }
