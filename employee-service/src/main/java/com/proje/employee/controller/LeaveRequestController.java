@@ -122,7 +122,7 @@ public class LeaveRequestController {
         return switch (request.status()) {
             case APPROVED -> leaveRequestService.approve(id, currentUser(caller), scope);
             case REJECTED -> leaveRequestService.reject(id, request.note(), currentUser(caller), scope);
-            case CANCELLED -> leaveRequestService.cancel(id, scope);
+            case CANCELLED -> leaveRequestService.cancel(id, currentUser(caller), scope);
             // PENDING dogrulamada zaten reddedildi; switch'in tam olmasi icin.
             case PENDING -> throw new IllegalStateException("Unreachable: validated by the request");
         };

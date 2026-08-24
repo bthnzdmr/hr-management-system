@@ -2,6 +2,7 @@ package com.proje.employee.service;
 
 import com.proje.employee.entity.Department;
 import com.proje.employee.entity.Employee;
+import com.proje.employee.event.OutboxWriter;
 import com.proje.employee.entity.LeaveRequest;
 import com.proje.employee.entity.LeaveStatus;
 import com.proje.employee.entity.LeaveType;
@@ -37,6 +38,9 @@ import static org.mockito.Mockito.when;
 class LeaveDecisionScopeTest {
 
     @Mock
+    private OutboxWriter outbox;
+
+    @Mock
     private LeaveRequestRepository leaveRequests;
 
     @Mock
@@ -57,7 +61,7 @@ class LeaveDecisionScopeTest {
 
     @BeforeEach
     void setUp() {
-        service = new LeaveRequestService(leaveRequests, employees, visibility, balances);
+        service = new LeaveRequestService(leaveRequests, employees, visibility, balances, outbox);
 
         Department department = new Department("Software Development");
         grace = employee(212L, "Grace", "Hopper", department, null);
@@ -217,7 +221,7 @@ class LeaveDecisionScopeTest {
         // cekemez ve yonetici mesgul edilirdi.
         leaveOf(ada);
 
-        assertThatCode(() -> service.cancel(7L,
+        assertThatCode(() -> service.cancel(7L, decider,
                 new AccessScope(AccessScope.Kind.SELF, ada.getId(), false)))
                 .doesNotThrowAnyException();
     }
@@ -227,7 +231,7 @@ class LeaveDecisionScopeTest {
     void othersRequestNeedsAuthority() {
         leaveOf(grace);
 
-        assertThatThrownBy(() -> service.cancel(7L,
+        assertThatThrownBy(() -> service.cancel(7L, decider,
                 new AccessScope(AccessScope.Kind.SELF, ada.getId(), false)))
                 .isInstanceOf(LeaveRequestNotFoundException.class);
     }

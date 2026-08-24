@@ -46,6 +46,12 @@ public class RabbitConfig {
     public static final String ACCOUNT_QUEUE = "account.notification.queue";
     public static final String ACCOUNT_DLQ = "account.notification.dlq";
 
+    // Izin olaylari da AYRI: yine farkli govde sekli, farkli is. Ayrik kuyruk
+    // bir izolasyon karari da -- bozuk bir izin sablonu personel
+    // bildirimlerinin park kuyrugunu doldurmamali.
+    public static final String LEAVE_QUEUE = "leave.notification.queue";
+    public static final String LEAVE_DLQ = "leave.notification.dlq";
+
     // Yalnizca ISLEYEBILDIGIMIZ olay tiplerine abone olunur.
     //
     // Onceden "employee.#" jokeri vardi ve yorumunda "yeni olay tipi eklenince
@@ -64,6 +70,11 @@ public class RabbitConfig {
     private static final List<String> ACCOUNT_ROUTING_KEYS = List.of(
             "account.password-reset-requested",
             "account.invited");
+
+    private static final List<String> LEAVE_ROUTING_KEYS = List.of(
+            "leave.requested",
+            "leave.decided",
+            "leave.cancelled");
 
     @Bean
     TopicExchange employeeExchange() {
@@ -128,6 +139,32 @@ public class RabbitConfig {
     }
 
     @Bean
+    Queue leaveQueue() {
+        return QueueBuilder.durable(LEAVE_QUEUE)
+                .deadLetterExchange(DLX)
+                .deadLetterRoutingKey(LEAVE_DLQ)
+                .build();
+    }
+
+    @Bean
+    Queue leaveDeadLetterQueue() {
+        return QueueBuilder.durable(LEAVE_DLQ).build();
+    }
+
+    @Bean
+    Declarables leaveBindings(Queue leaveQueue, TopicExchange employeeExchange) {
+        return new Declarables(LEAVE_ROUTING_KEYS.stream()
+                .map(key -> BindingBuilder.bind(leaveQueue).to(employeeExchange).with(key))
+                .toList());
+    }
+
+    @Bean
+    Binding leaveDeadLetterBinding(Queue leaveDeadLetterQueue,
+                                   DirectExchange deadLetterExchange) {
+        return BindingBuilder.bind(leaveDeadLetterQueue).to(deadLetterExchange).with(LEAVE_DLQ);
+    }
+
+    @Bean
     Binding deadLetterBinding(Queue deadLetterQueue, DirectExchange deadLetterExchange) {
         return BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange).with(DLQ);
     }
@@ -181,6 +218,11 @@ public class RabbitConfig {
         return ladderFor(ACCOUNT_QUEUE);
     }
 
+    @Bean
+    Declarables leaveRetryLadder() {
+        return ladderFor(LEAVE_QUEUE);
+    }
+
     /**
      * Tuketici kuyruklari retry exchange'ine de baglanir.
      *
@@ -193,10 +235,11 @@ public class RabbitConfig {
      */
     @Bean
     Declarables retryReturnBindings(Queue notificationQueue, Queue accountQueue,
-                                    DirectExchange retryExchange) {
+                                    Queue leaveQueue, DirectExchange retryExchange) {
         return new Declarables(
                 BindingBuilder.bind(notificationQueue).to(retryExchange).with(QUEUE),
-                BindingBuilder.bind(accountQueue).to(retryExchange).with(ACCOUNT_QUEUE));
+                BindingBuilder.bind(accountQueue).to(retryExchange).with(ACCOUNT_QUEUE),
+                BindingBuilder.bind(leaveQueue).to(retryExchange).with(LEAVE_QUEUE));
     }
 
     // Uretici mesaji application/json olarak gonderiyor; bu donusturucu onu

@@ -4,6 +4,7 @@ import com.proje.employee.dto.LeaveBalanceResponse;
 import com.proje.employee.dto.LeaveRequestCreateRequest;
 import com.proje.employee.entity.Department;
 import com.proje.employee.entity.Employee;
+import com.proje.employee.event.OutboxWriter;
 import com.proje.employee.entity.LeaveRequest;
 import com.proje.employee.entity.LeaveStatus;
 import com.proje.employee.entity.LeaveType;
@@ -66,6 +67,9 @@ class LeaveRequestCreationTest {
     private static final long EMPLOYEE_ID = 212L;
 
     @Mock
+    private OutboxWriter outbox;
+
+    @Mock
     private LeaveRequestRepository leaveRequests;
 
     @Mock
@@ -83,7 +87,7 @@ class LeaveRequestCreationTest {
 
     @BeforeEach
     void setUp() {
-        service = new LeaveRequestService(leaveRequests, employees, visibility, balances);
+        service = new LeaveRequestService(leaveRequests, employees, visibility, balances, outbox);
 
         grace = new Employee("Grace", "Hopper", "grace@example.com",
                 new Department("Software Development"), "Engineer", LocalDate.now());

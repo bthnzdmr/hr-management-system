@@ -26,9 +26,9 @@
     {
       "type": "stat",
       "title": "DLQ derinligi",
-      "description": "EN KRITIK GOSTERGE. Retry hakki biten mesaj employee.notification.dlq'ya duser ve orada BEKLER; otomatik yeniden oynatma yoktur. Bu sayi olculmedigi surece 'elle inceleme yeterli' demek, birinin RabbitMQ panelini acmayi hatirlamasi demektir.",
+      "description": "EN KRITIK GOSTERGE. Retry hakki biten mesaj ilgili park kuyruguna duser ve orada BEKLER; otomatik yeniden oynatma yoktur. Bu sayi olculmedigi surece 'elle inceleme yeterli' demek, birinin RabbitMQ panelini acmayi hatirlamasi demektir.",
       "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
-      "targets": [{ "expr": "sum(rabbitmq_queue_messages{queue=\"employee.notification.dlq\"}) or vector(0)", "legendFormat": "DLQ" }],
+      "targets": [{ "expr": "sum(rabbitmq_queue_messages{queue=~\".*\\\\.dlq\"}) or vector(0)", "legendFormat": "DLQ" }],
       "fieldConfig": {
         "defaults": {
           "thresholds": {

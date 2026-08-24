@@ -12,6 +12,9 @@ import com.proje.employee.entity.User;
 import com.proje.employee.exception.EmployeeNotFoundException;
 import com.proje.employee.exception.LeaveRequestNotFoundException;
 import com.proje.employee.exception.LeaveRuleViolationException;
+import com.proje.employee.event.LeaveEvent;
+import com.proje.employee.event.LeaveEventType;
+import com.proje.employee.event.OutboxWriter;
 import com.proje.employee.exception.OverlappingLeaveException;
 import com.proje.employee.repository.EmployeeRepository;
 import com.proje.employee.repository.LeaveRequestRepository;
@@ -28,7 +31,9 @@ import java.time.LocalDate;
 import java.util.Locale;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class LeaveRequestService {
@@ -45,13 +50,16 @@ public class LeaveRequestService {
     private final EmployeeRepository employees;
     private final EmployeeVisibility visibility;
     private final LeaveBalanceService balances;
+    private final OutboxWriter outbox;
 
     public LeaveRequestService(LeaveRequestRepository leaveRequests, EmployeeRepository employees,
-                               EmployeeVisibility visibility, LeaveBalanceService balances) {
+                               EmployeeVisibility visibility, LeaveBalanceService balances,
+                               OutboxWriter outbox) {
         this.leaveRequests = leaveRequests;
         this.employees = employees;
         this.visibility = visibility;
         this.balances = balances;
+        this.outbox = outbox;
     }
 
     /** Yeni izin istegi. */
@@ -77,7 +85,15 @@ public class LeaveRequestService {
         LeaveRequest leave = new LeaveRequest(employee, author, request.type(),
                 request.startDate(), request.endDate(), request.note());
 
-        return LeaveRequestResponse.from(persist(leave, employee));
+        LeaveRequestResponse response = LeaveRequestResponse.from(persist(leave, employee));
+
+        // Ilgilenen taraf KARAR VERECEK kisidir; tuketici maili yoneticiye
+        // yollar. Yoneticisi olmayan personel icin de yayinlaniyor: olay bir
+        // OLGUDUR ve alici bulunamamasi onu yasanmamis kilmaz -- tuketici o
+        // durumu ayri bir sonuc olarak sayiyor.
+        publish(LeaveEventType.REQUESTED, leave, response, author, scope);
+
+        return response;
     }
 
     /**
@@ -227,7 +243,10 @@ public class LeaveRequestService {
         requirePending(leave);
         leave.approve(decider);
 
-        return LeaveRequestResponse.from(leave);
+        LeaveRequestResponse response = LeaveRequestResponse.from(leave);
+        publish(LeaveEventType.DECIDED, leave, response, decider, scope);
+
+        return response;
     }
 
     // `includeArguments = false` ve sabit bir `summary` KALDIRILDI: ikisi de
@@ -243,7 +262,10 @@ public class LeaveRequestService {
         requirePending(leave);
         leave.reject(decider, note);
 
-        return LeaveRequestResponse.from(leave);
+        LeaveRequestResponse response = LeaveRequestResponse.from(leave);
+        publish(LeaveEventType.DECIDED, leave, response, decider, scope);
+
+        return response;
     }
 
     // `includeArguments = false` ve sabit bir `summary` KALDIRILDI: ikisi de
@@ -253,13 +275,21 @@ public class LeaveRequestService {
     // ic makine olarak disarida.
     @Auditable(action = AuditAction.LEAVE_DECIDED, targetType = "LEAVE_REQUEST")
     @Transactional
-    public LeaveRequestResponse cancel(Long id, AccessScope scope) {
+    public LeaveRequestResponse cancel(Long id, User actor, AccessScope scope) {
         LeaveRequest leave = load(id);
         requireCanCancel(leave, scope);
         requirePending(leave);
         leave.cancel();
 
-        return LeaveRequestResponse.from(leave);
+        // Iptal de YAYINLANIR: geri cekmeyi talebin sahibi disinda Ik ve
+        // yonetici de yapabiliyor (`requireCanCancel`), yani kisinin haberi
+        // olmayabilir. Kendi cektigi talebi kendisine bildirmek gurultu
+        // olurdu ve o ayrimi tuketici `actorEmail` ile yapiyor -- olay
+        // OLGUYU tasir, kime gonderilecegini degil.
+        LeaveRequestResponse response = LeaveRequestResponse.from(leave);
+        publish(LeaveEventType.CANCELLED, leave, response, actor, scope);
+
+        return response;
     }
 
     private LeaveRequest load(Long id) {
@@ -286,6 +316,42 @@ public class LeaveRequestService {
     }
 
     /** Ik her istege, yonetici yalnizca DOGRUDAN astininkine karar verir. */
+    /**
+     * Olay IS VERISIYLE AYNI transaction icinde outbox'a yazilir.
+     *
+     * Servis broker'i hic tanimaz; yayini `OutboxRelay` yapar. Ayni transaction
+     * olmasi sart: karar geri alinirsa olay da geri alinmali, yoksa
+     * gerceklesmemis bir olgu duyurulmus olurdu -- ve gonderilmis bir mail geri
+     * alinamaz.
+     *
+     * Gun sayisi YENIDEN HESAPLANMAZ, anlik goruntuden okunur: son gunun dahil
+     * oldugunu soyleyen `+1` iki yerde yasasaydi biri zamanla geride kalirdi.
+     */
+    private void publish(LeaveEventType type, LeaveRequest leave,
+                         LeaveRequestResponse snapshot, User actor, AccessScope scope) {
+        Employee owner = leave.getEmployee();
+        Employee manager = owner.getManager();
+
+        outbox.write(new LeaveEvent(
+                UUID.randomUUID().toString(),
+                type,
+                Instant.now(),
+                snapshot.id(),
+                snapshot.employeeId(),
+                snapshot.employeeFullName(),
+                owner.getEmail(),
+                manager == null ? null : manager.getEmail(),
+                snapshot.type().name(),
+                snapshot.startDate(),
+                snapshot.endDate(),
+                snapshot.days(),
+                snapshot.status().name(),
+                snapshot.note(),
+                snapshot.decisionNote(),
+                scope.employeeId(),
+                actor.getEmail()));
+    }
+
     private void requireCanDecide(LeaveRequest leave, AccessScope scope) {
         Employee owner = leave.getEmployee();
         boolean ownRequest = scope.employeeId() != null

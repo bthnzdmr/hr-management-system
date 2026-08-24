@@ -31,6 +31,10 @@ public class OutboxWriter {
         write(event.eventId(), event.eventType().name(), event.eventType().routingKey(), event);
     }
 
+    public void write(LeaveEvent event) {
+        write(event.eventId(), event.eventType().name(), event.eventType().routingKey(), event);
+    }
+
     private void write(String eventId, String type, String routingKey, Object payload) {
         // MDC BURADA dolu: bu metot istegin ipliginde calisir. Relay ise
         // zamanlayici ipliginde calisir ve oranin MDC'si bos olur -- kimlik
