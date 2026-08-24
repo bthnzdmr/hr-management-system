@@ -889,4 +889,53 @@ class SystemEndToEndTest {
                 SystemClient.API_URL + "/api/employees?search=" + orphan, token);
         assertThat(found.body().get("totalElements").asInt()).isZero();
     }
+    @Test
+    @DisplayName("Tells the manager about a new leave request and the employee about the decision")
+    void leaveDecisionsReachTheirRecipients() {
+        // Bu davranis uzun sure HIC yoktu: kisi izin talep ediyor, karar
+        // veriliyor ve kendisine bir sey bildirilmiyordu.
+        //
+        // Zincirin TAMAMI suruluyor: outbox -> relay -> RabbitMQ -> ayri bir
+        // tuketici kuyrugu -> mail. Birim testler yalnizca uclari tutar.
+        String token = signIn();
+
+        String managerEmail = "e2e.leave.manager." + UUID.randomUUID() + "@example.com";
+        String managerId = createEmployee(token, managerEmail);
+
+        String reportEmail = "e2e.leave.report." + UUID.randomUUID() + "@example.com";
+        SystemClient.Response report = client.post(
+                SystemClient.API_URL + "/api/employees", token,
+                """
+                {"firstName":"E2E","lastName":"Leave","email":"%s","departmentId":1,
+                 "managerId":%s,"jobTitle":"Engineer","hireDate":"2024-08-01"}
+                """.formatted(reportEmail, managerId));
+        assertThat(report.status()).isEqualTo(201);
+        String reportId = report.body().get("id").asText();
+
+        SystemClient.Response created = client.post(
+                SystemClient.API_URL + "/api/leave-requests", token,
+                """
+                {"employeeId":%s,"type":"UNPAID","startDate":"2036-05-04",
+                 "endDate":"2036-05-08","note":"e2e probe"}
+                """.formatted(reportId));
+        assertThat(created.status()).isEqualTo(201);
+
+        // Talep KARAR VERECEK kisiye gider, talep edene degil.
+        awaitMail(managerEmail, "requested leave");
+
+        SystemClient.Response decision = client.put(
+                SystemClient.API_URL + "/api/leave-requests/"
+                        + created.body().get("id").asText() + "/decision",
+                token, """
+                {"status":"APPROVED"}""");
+        assertThat(decision.status()).isEqualTo(200);
+
+        // Karar ise talebin SAHIBINE gider.
+        JsonNode mail = awaitMail(reportEmail, "approved");
+
+        // Tarih bicimi arayuzdekiyle ayni ve yerel ayara bakmiyor; gun sayisi
+        // son gunu DAHIL eder (4-8 Mayis = 5 gun).
+        String body = mail.at("/Content/Body").asText();
+        assertThat(body).contains("04-05-2036").contains("08-05-2036").contains("5 days");
+    }
 }
