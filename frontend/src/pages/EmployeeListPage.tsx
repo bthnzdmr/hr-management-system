@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DownloadIcon from '@mui/icons-material/Download';
+import UploadIcon from '@mui/icons-material/Upload';
 import BlockIcon from '@mui/icons-material/Block';
 import ClearIcon from '@mui/icons-material/Clear';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
@@ -28,6 +29,9 @@ import { useDensity } from '../hooks/useDensity';
 import { InitialsAvatar } from '../components/InitialsAvatar';
 import { PageHeader } from '../components/PageHeader';
 import { exportApi, saveBlob } from '../api/exports';
+import { importApi, rowErrorsOf } from '../api/imports';
+import type { RowError } from '../api/imports';
+import { ImportResultDialog } from '../components/ImportResultDialog';
 import { EmptyState } from '../components/EmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmployeeCard } from '../components/EmployeeCard';
@@ -137,6 +141,42 @@ export function EmployeeListPage() {
 
   const isLoading = status === 'loading';
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<{ errors: RowError[]; imported: number } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * Secilen CSV'yi yukler.
+   *
+   * Ret bir SNACKBAR ile bildirilmiyor: satir gerekceleri oraya sigmaz ve
+   * kullanicinin dosyayi duzeltebilmesi icin hepsini birden gormesi gerekir.
+   */
+  const importCsv = async (file: File) => {
+    setImporting(true);
+
+    try {
+      const report = await importApi.employees(await file.text());
+
+      setResult({ errors: [], imported: report.imported });
+      // Liste TAZELENIR: yeni kayitlar ekranda yoksa kullanici yuklemenin
+      // gercekten olup olmadigini bilemez.
+      dispatch(fetchEmployees({ page, size, search, activeFilter, sortField, sortDirection }));
+    } catch (cause) {
+      const rows = rowErrorsOf(cause);
+
+      if (rows) {
+        setResult({ errors: rows, imported: 0 });
+      } else {
+        // 422 disindaki her sey (403, ag hatasi, bozuk cevap) burada.
+        notify(errorMessage(cause), 'error');
+      }
+    } finally {
+      setImporting(false);
+      // Ayni dosya arka arkaya secilebilsin: temizlenmezse tarayici
+      // "degismedi" deyip olayi hic tetiklemez.
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
 
   /**
    * Aktarma listeyi AYNI suzgeclerle indirir.
@@ -243,6 +283,26 @@ export function EmployeeListPage() {
               disabled={exporting}
             >
               Export CSV
+            </Button>
+            {/* Gorunmez girdi: `<input type="file">` bir dugme gibi
+                bicimlendirilemez, bu yuzden dugme onu tetikliyor. */}
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,text/csv"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void importCsv(file);
+              }}
+            />
+            <Button
+              variant="outlined"
+              startIcon={<UploadIcon />}
+              onClick={() => fileRef.current?.click()}
+              disabled={importing}
+            >
+              Import CSV
             </Button>
             <Button
               variant="contained"
@@ -586,6 +646,13 @@ export function EmployeeListPage() {
           setPendingDeactivation(null);
           if (target) applyStatus(target, false, reason);
         }}
+      />
+
+      <ImportResultDialog
+        open={result !== null}
+        errors={result?.errors ?? []}
+        imported={result?.imported ?? 0}
+        onClose={() => setResult(null)}
       />
     </Stack>
   );

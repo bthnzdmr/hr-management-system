@@ -191,8 +191,14 @@ export function errorMessage(error: unknown): string {
   if (axios.isAxiosError<ProblemDetail>(error)) {
     const problem = error.response?.data;
 
-    if (problem?.errors?.length) {
-      return problem.errors.map((e) => `${e.field}: ${e.message}`).join(' · ');
+    // Yalnizca ALAN hatalari boyle yazilir. `errors` dizisi baska bir sekilde
+    // de gelebiliyor -- ice aktarma reddi `line`/`reason` tasiyor -- ve
+    // kosulsuz eslemek ekrana "undefined: undefined" basardi.
+    const fieldErrors = problem?.errors?.filter(
+      (e) => typeof e?.field === 'string' && typeof e?.message === 'string');
+
+    if (fieldErrors?.length) {
+      return fieldErrors.map((e) => `${e.field}: ${e.message}`).join(' · ');
     }
     if (problem?.detail) {
       return problem.detail;

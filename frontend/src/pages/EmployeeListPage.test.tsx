@@ -8,6 +8,7 @@ import { EmployeeListPage } from './EmployeeListPage';
 import employeesReducer from '../store/employeesSlice';
 import { AuthProvider } from '../auth/AuthContext';
 import { exportApi, saveBlob } from '../api/exports';
+import { importApi } from '../api/imports';
 import { SnackbarProvider } from '../components/SnackbarProvider';
 import { tokenStorage } from '../api/client';
 import { employeeApi } from '../api/employees';
@@ -16,6 +17,14 @@ import type { Employee, Role } from '../types/api';
 vi.mock('../api/exports', () => ({
   exportApi: { employees: vi.fn() },
   saveBlob: vi.fn(),
+}));
+
+// `rowErrorsOf` TAKLIT EDILMIYOR: gercek islev, gercek bir 422 cevabindan
+// satirlari cikarabildigini de sinasin. Taklit edilseydi test yalnizca
+// "cagirdim" derdi.
+vi.mock('../api/imports', async (original) => ({
+  ...(await original<typeof import('../api/imports')>()),
+  importApi: { employees: vi.fn() },
 }));
 
 vi.mock('../api/employees', () => ({
@@ -94,6 +103,9 @@ describe('EmployeeListPage', () => {
     vi.mocked(employeeApi.list).mockResolvedValue(pageOf([makeEmployee()]));
     vi.mocked(employeeApi.getDirectReports).mockResolvedValue([]);
     vi.mocked(employeeApi.changeStatus).mockResolvedValue(makeEmployee({ active: false }));
+    vi.mocked(importApi.employees).mockResolvedValue({
+      imported: 2, errors: [], rejected: false,
+    });
     vi.mocked(exportApi.employees).mockResolvedValue({
       blob: new Blob(['Id,Name'], { type: 'text/csv' }),
       filename: 'employees-2026-08-19.csv',
@@ -409,5 +421,159 @@ describe('EmployeeListPage', () => {
 
     expect(await screen.findByText(/more than the limit of 5000/)).toBeInTheDocument();
     expect(saveBlob).not.toHaveBeenCalled();
+  });
+
+  it('offers no import to a role the import endpoint refuses', async () => {
+    // Sunucu yuklemeyi yalnizca Ik'ya aciyor; kosulsuz bir dugme digerlerini
+    // kacinilmaz bir 403'e goturur.
+    renderPage(['EMPLOYEE']);
+
+    await screen.findByText('Grace Hopper');
+    expect(screen.queryByRole('button', { name: 'Import CSV' })).not.toBeInTheDocument();
+  });
+
+  it('reports how many people a good file added', async () => {
+    renderPage(['HR_SPECIALIST']);
+    await screen.findByText('Grace Hopper');
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(['csv'], 'staff.csv', { type: 'text/csv' }));
+
+    expect(await screen.findByText(/2 people were added/)).toBeInTheDocument();
+  });
+
+  it('shows every rejected line instead of a single message', async () => {
+    // Ret bir SNACKBAR'a sigmaz: kullanicinin dosyayi duzeltebilmesi icin
+    // hepsini birden gormesi gerekir, yoksa onlarca tur atar.
+    vi.mocked(importApi.employees).mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        status: 422,
+        data: {
+          title: 'Import rejected',
+          errors: [
+            { line: 3, reason: 'First name is required' },
+            { line: 5, reason: 'No department named Sales' },
+          ],
+        },
+      },
+    });
+
+    renderPage(['HR_SPECIALIST']);
+    await screen.findByText('Grace Hopper');
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(['bad'], 'staff.csv', { type: 'text/csv' }));
+
+    expect(await screen.findByText(/no row was imported/i)).toBeInTheDocument();
+    expect(screen.getByText('First name is required')).toBeInTheDocument();
+    expect(screen.getByText('No department named Sales')).toBeInTheDocument();
+    // Satir numarasi dosyayla ortusur; kullanici dogrudan o satiri acar.
+    expect(screen.getByText('Line 3')).toBeInTheDocument();
+    expect(screen.getByText('Line 5')).toBeInTheDocument();
+  });
+
+  it('says plainly that nothing was written', async () => {
+    // "3 satir hatali" demek, digerlerinin girdigini sandirirdi.
+    vi.mocked(importApi.employees).mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 422, data: { errors: [{ line: 2, reason: 'Bad' }] } },
+    });
+
+    renderPage(['HR_SPECIALIST']);
+    await screen.findByText('Grace Hopper');
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(['bad'], 'staff.csv', { type: 'text/csv' }));
+
+    expect(await screen.findByText('Nothing was imported')).toBeInTheDocument();
+  });
+
+  it('falls back to a plain message when the failure is not a rejection', async () => {
+    // 403 veya ag hatasi satir gerekcesi TASIMAZ; pencere acilirsa bos
+    // gorunur ve kullanici sebebini hic ogrenemez.
+    vi.mocked(importApi.employees).mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 403, data: { detail: 'Access is denied' } },
+    });
+
+    renderPage(['HR_SPECIALIST']);
+    await screen.findByText('Grace Hopper');
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(['x'], 'staff.csv', { type: 'text/csv' }));
+
+    expect(await screen.findByText('Access is denied')).toBeInTheDocument();
+    expect(screen.queryByText('Nothing was imported')).not.toBeInTheDocument();
+  });
+
+  it('does not mistake a validation error for row reasons', async () => {
+    // `ProblemDetail.errors` BASKA bir sekilde de gelir: dogrulama hatalari
+    // `field`/`message` tasir. Durum kontrolu ve bicim suzgeci olmasaydi
+    // pencere acilir ve BOS gorunurdu.
+    vi.mocked(importApi.employees).mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        status: 400,
+        data: {
+          detail: 'Request contains invalid fields',
+          errors: [{ field: 'email', message: 'Email format is invalid' }],
+        },
+      },
+    });
+
+    renderPage(['HR_SPECIALIST']);
+    await screen.findByText('Grace Hopper');
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(['x'], 'staff.csv', { type: 'text/csv' }));
+
+    // errorMessage alan hatalarini detail'e TERCIH eder; snackbar onu yazar.
+    expect(await screen.findByText(/Email format is invalid/)).toBeInTheDocument();
+    expect(screen.queryByText('Nothing was imported')).not.toBeInTheDocument();
+  });
+
+  it('never reports success when nothing was written', async () => {
+    // 422 ama gerekce cikarilamadi. Bos bir dizi donseydi pencere
+    // "0 kisi eklendi" derdi -- hicbir sey yazilmamisken BASARI mesaji.
+    vi.mocked(importApi.employees).mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 422, data: { detail: 'Import rejected', errors: [] } },
+    });
+
+    renderPage(['HR_SPECIALIST']);
+    await screen.findByText('Grace Hopper');
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(['x'], 'staff.csv', { type: 'text/csv' }));
+
+    expect(await screen.findByText('Import rejected')).toBeInTheDocument();
+    expect(screen.queryByText(/were added/)).not.toBeInTheDocument();
+  });
+
+  it('treats only a rejection as a rejection, whatever the body looks like', async () => {
+    // Kurgu SENTETIK -- bugun hicbir uc 422 disinda `line`/`reason` dondurmez.
+    // Ama tutulan degismez gercek: RET bir PROTOKOL sinyalidir, govdenin
+    // sekli degil. Kurgu olmadan bu muhafiz kirilamiyordu, cunku bicim
+    // suzgeci ayni sonucu veriyordu.
+    vi.mocked(importApi.employees).mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        status: 500,
+        data: {
+          detail: 'Something failed on the server',
+          errors: [{ line: 2, reason: 'looks like a row error but is not one' }],
+        },
+      },
+    });
+
+    renderPage(['HR_SPECIALIST']);
+    await screen.findByText('Grace Hopper');
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(['x'], 'staff.csv', { type: 'text/csv' }));
+
+    expect(await screen.findByText('Something failed on the server')).toBeInTheDocument();
+    expect(screen.queryByText('Nothing was imported')).not.toBeInTheDocument();
   });
 });
