@@ -48,6 +48,19 @@ final class SystemClient {
                 .POST(HttpRequest.BodyPublishers.ofString(json)));
     }
 
+    /**
+     * Govde JSON DEGIL.
+     *
+     * Ice aktarma ucu `text/csv` bekliyor; JSON gonderilseydi Spring istegi
+     * hic eslestirmez ve 415 donerdi -- yani testin olcmek istedigi kod hic
+     * calismazdi.
+     */
+    Response postCsv(String url, String token, String csv) {
+        return send(request(url, token)
+                .header("Content-Type", "text/csv")
+                .POST(HttpRequest.BodyPublishers.ofString(csv)));
+    }
+
     Response put(String url, String token, String json) {
         return send(request(url, token)
                 .header("Content-Type", "application/json")

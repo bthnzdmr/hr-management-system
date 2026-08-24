@@ -755,4 +755,138 @@ class SystemEndToEndTest {
                 .contains("Exported")
                 .contains("employee record");
     }
+
+
+    // ------------------------------------------------------ ice aktarma
+
+    private static final String IMPORT_HEADER =
+            "First name,Last name,Email,Phone,Department,Job title,Hire date,Manager email";
+
+    /** Tek bir CSV satiri; bos alanlar bilerek bos birakiliyor. */
+    private String importRow(String first, String email, String managerEmail) {
+        return String.join(",", first, "Bulk", email, "", "Software Development",
+                "Analyst", "2024-05-01", managerEmail);
+    }
+
+    private SystemClient.Response upload(String token, String... rows) {
+        return client.postCsv(SystemClient.API_URL + "/api/imports/employees", token,
+                IMPORT_HEADER + "\r\n" + String.join("\r\n", rows) + "\r\n");
+    }
+
+    @Test
+    @DisplayName("Loads a whole file of people in one request")
+    void importsAFile() {
+        String token = signIn();
+        String chief = "e2e.import.chief." + UUID.randomUUID() + "@example.com";
+        String report = "e2e.import.report." + UUID.randomUUID() + "@example.com";
+
+        SystemClient.Response response = upload(token,
+                importRow("Chief", chief, ""),
+                importRow("Report", report, chief));
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body().get("imported").asInt()).isEqualTo(2);
+
+        // Yonetici GERCEKTEN baglandi mi? Sayi dogru olsa bile bag kurulmamis
+        // olabilirdi ve o, iki gecisli cozumun tek varlik sebebi.
+        SystemClient.Response found = client.get(
+                SystemClient.API_URL + "/api/employees?search=" + report, token);
+        assertThat(found.body().at("/content/0/managerFullName").asText()).contains("Chief");
+    }
+
+    @Test
+    @DisplayName("One bad line rejects the file and nothing at all is written")
+    void aBadLineWritesNothing() {
+        // BU TESTI YALNIZCA UCTAN UCA YAPABILIR. "Hepsi ya da hicbiri"
+        // transaction sinirinda yasiyor ve taklit edilmis bir repository'de
+        // geri alma diye bir sey yoktur -- ayni ders `readOnly` hatasinda ve
+        // `REQUIRES_NEW` vakasinda alinmisti.
+        String token = signIn();
+        String good = "e2e.import.good." + UUID.randomUUID() + "@example.com";
+
+        SystemClient.Response response = upload(token,
+                importRow("Good", good, ""),
+                ",Missing,e2e.import.bad@example.com,,No Such Dept,Analyst,not-a-date,");
+
+        assertThat(response.status()).isEqualTo(422);
+        assertThat(response.body().get("title").asText()).isEqualTo("Import rejected");
+
+        // GECERLI satir da yazilmamali. Yazilsaydi operator 500 kisilik bir
+        // dosyanin kacinin girdigini bilemezdi.
+        SystemClient.Response found = client.get(
+                SystemClient.API_URL + "/api/employees?search=" + good, token);
+        assertThat(found.body().get("totalElements").asInt()).isZero();
+    }
+
+    @Test
+    @DisplayName("Every rejected line is reported with a number that matches the file")
+    void everyRejectedLineIsNumbered() {
+        // Kullanici dosyayi bir editorde aciyor; numara oradaki satirla
+        // ortusmezse gerekce ise yaramaz. Baslik 1'dir.
+        String token = signIn();
+
+        SystemClient.Response response = upload(token,
+                ",Missing,e2e.import.x@example.com,,Software Development,Analyst,2024-05-01,");
+
+        assertThat(response.status()).isEqualTo(422);
+
+        JsonNode errors = response.body().get("errors");
+        assertThat(errors).isNotEmpty();
+        assertThat(errors.get(0).get("line").asInt()).isEqualTo(2);
+        assertThat(errors.get(0).get("reason").asText()).contains("First name is required");
+    }
+
+    @Test
+    @DisplayName("Only HR may load a file")
+    void importIsClosedToOtherRoles() {
+        String adminToken = signIn();
+        String email = "e2e.importer." + UUID.randomUUID() + "@example.com";
+        createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
+
+        String userToken = signIn(email, "a-long-enough-password").body().get("token").asText();
+
+        assertThat(upload(userToken).status()).isEqualTo(403);
+    }
+
+    @Test
+    @DisplayName("A bulk load is recorded in the trail with how many people arrived")
+    void importIsAudited() {
+        String token = signIn();
+
+        upload(token, importRow("Audited",
+                "e2e.import.audit." + UUID.randomUUID() + "@example.com", ""));
+
+        JsonNode rows = client
+                .get(SystemClient.API_URL + "/api/audit?action=EMPLOYEES_IMPORTED&size=1", token)
+                .body()
+                .get("content");
+
+        assertThat(rows).isNotEmpty();
+        assertThat(rows.get(0).get("detail").asText()).contains("Imported 1 employee");
+    }
+
+    @Test
+    @DisplayName("A file that fails only at the last step still writes nothing")
+    void aLateFailureRollsBackWhatWasWritten() {
+        // BU, TRANSACTION SINIRINI SINAYAN TESTTIR.
+        //
+        // Onceki test yetmiyordu ve bunu OLCEREK gordum: orada bozuk satir
+        // DOGRULAMADA yakalaniyor, yani henuz hicbir sey yazilmamis oluyor ve
+        // `@Transactional` kaldirildiginda bile test geciyordu.
+        //
+        // Yonetici cozumu ise ancak kayitlar YAZILDIKTAN sonra yapilabiliyor.
+        // Butun satirlar gecerli, yalnizca yonetici e-postasi bulunamiyor --
+        // geri alma olmasaydi yoneticisiz YARIM bir yukleme kalirdi.
+        String token = signIn();
+        String orphan = "e2e.import.orphan." + UUID.randomUUID() + "@example.com";
+
+        SystemClient.Response response = upload(token,
+                importRow("Orphan", orphan, "nobody." + UUID.randomUUID() + "@example.com"));
+
+        assertThat(response.status()).isEqualTo(422);
+
+        SystemClient.Response found = client.get(
+                SystemClient.API_URL + "/api/employees?search=" + orphan, token);
+        assertThat(found.body().get("totalElements").asInt()).isZero();
+    }
 }
