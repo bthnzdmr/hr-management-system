@@ -1,6 +1,7 @@
 package com.proje.employee.exception;
 
 import com.proje.employee.export.ExportTooLargeException;
+import com.proje.employee.export.ImportRejectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -146,19 +147,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
-     * Gecersiz sayfalama/siralama parametresi.
-     *
-     * ResponseEntityExceptionHandler bu ikisini kapsamaz; kapsamasaydi
-     * "?sort=olmayanAlan" catch-all'a dusup 500 donerdi -- olculdu. Istemcinin
-     * yazdigi bir alan adi sunucu hatasi degildir.
-     */
-    /**
-     * Siralamasina izin verilmeyen alan.
-     *
-     * Reddedilen alanin adi YALNIZCA loga yazilir; cevaba konsaydi
-     * "salary siralanamaz" mesaji boyle bir alanin varligini dogrulardi.
-     */
-    /**
      * Hiz siniri asildi.
      *
      * 429 doner, 401 DEGIL: arayuzdeki interceptor 401'i "oturum bitti" sayip
@@ -198,12 +186,25 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.UNAUTHORIZED, "Authentication failed", "Invalid credentials");
     }
 
+    /**
+     * Siralamasina izin verilmeyen alan.
+     *
+     * Reddedilen alanin adi YALNIZCA loga yazilir; cevaba konsaydi
+     * "salary siralanamaz" mesaji boyle bir alanin varligini dogrulardi.
+     */
     @ExceptionHandler(InvalidSortPropertyException.class)
     public ProblemDetail handleInvalidSortProperty(InvalidSortPropertyException ex) {
         log.warn("Rejected sorting on a field that is not allowed: {}", ex.getProperty());
         return problem(HttpStatus.BAD_REQUEST, "Invalid sort field", ex.getMessage());
     }
 
+    /**
+     * Gecersiz sayfalama/siralama parametresi.
+     *
+     * ResponseEntityExceptionHandler bu ikisini kapsamaz; kapsamasaydi
+     * "?sort=olmayanAlan" catch-all'a dusup 500 donerdi -- olculdu. Istemcinin
+     * yazdigi bir alan adi sunucu hatasi degildir.
+     */
     @ExceptionHandler({PropertyReferenceException.class, InvalidDataAccessApiUsageException.class})
     public ProblemDetail handleInvalidQueryParameter(Exception ex) {
         log.warn("Rejected an invalid query parameter: {}", ex.getMessage());
@@ -217,6 +218,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * 400 DEGIL -- istek gecerli, cakisan sey mevcut veri hacmi. 413 de degil:
      * o, gelen GOVDENIN buyuklugu icindir.
      */
+    /**
+     * Ice aktarma reddedildi: 422.
+     *
+     * 400 DEGIL -- istek bicimsel olarak GECERLI, reddedilen sey icerigin
+     * anlami. 422 tam olarak bunu soyler.
+     *
+     * Satir gerekceleri `errors` alaninda: dogrulama hatalarinin tasidigi
+     * bicimin aynisi, yani arayuz iki ayri sekil ogrenmek zorunda kalmiyor.
+     */
+    @ExceptionHandler(ImportRejectedException.class)
+    public ProblemDetail handleImportRejected(ImportRejectedException ex) {
+        ProblemDetail detail = problem(HttpStatus.UNPROCESSABLE_ENTITY, "Import rejected",
+                "No row was imported; every problem is listed below");
+        detail.setProperty("errors", ex.report().errors());
+
+        return detail;
+    }
+
     @ExceptionHandler(ExportTooLargeException.class)
     public ProblemDetail handleExportTooLarge(ExportTooLargeException ex) {
         return problem(HttpStatus.CONFLICT, "Export too large", ex.getMessage());

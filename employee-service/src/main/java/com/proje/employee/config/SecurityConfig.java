@@ -242,6 +242,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/exports/**")
                         .hasRole("HR_SPECIALIST")
 
+                        // Ice aktarma TOPLU YAZMADIR ve aktarmadan daha agir:
+                        // tek istekle yuzlerce kayit acar. Ik'ya ait, cunku
+                        // personel kaydi acmak Ik isidir; ucret sutunu de
+                        // bilerek yok -- kaydi acan kisinin ucret atamasi
+                        // sahte personel olusturmanin klasik yolu.
+                        .requestMatchers(HttpMethod.POST, "/api/imports/**")
+                        .hasRole("HR_SPECIALIST")
+
                         // Kural yazilmayan her sey reddedilir.
                         .anyRequest().authenticated())
 

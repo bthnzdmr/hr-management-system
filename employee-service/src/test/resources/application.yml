@@ -54,6 +54,9 @@ app:
   export:
     max-rows: 5000
 
+  import:
+    max-rows: 1000
+
   password-reset:
     validity-minutes: 30
     invite-validity-hours: 24

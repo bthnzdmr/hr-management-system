@@ -1,6 +1,8 @@
 package com.proje.employee.controller;
 
 import com.proje.employee.export.EmployeeExportService;
+import com.proje.employee.export.EmployeeImportService;
+import com.proje.employee.export.ImportReport;
 import com.proje.employee.service.AccessScopeResolver;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -9,6 +11,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,19 +31,22 @@ import java.time.LocalDate;
  * bir kez yasandi; org chart ucunda ayri yol tam bu yuzden secilmisti.
  */
 @RestController
-@RequestMapping("/api/exports")
+@RequestMapping("/api")
 @Tag(name = "Export", description = "Listelerin CSV olarak disari aktarilmasi")
 public class ExportController {
 
     private final EmployeeExportService employees;
+    private final EmployeeImportService imports;
     private final AccessScopeResolver scopes;
 
-    public ExportController(EmployeeExportService employees, AccessScopeResolver scopes) {
+    public ExportController(EmployeeExportService employees, EmployeeImportService imports,
+                            AccessScopeResolver scopes) {
         this.employees = employees;
+        this.imports = imports;
         this.scopes = scopes;
     }
 
-    @GetMapping(value = "/employees", produces = "text/csv")
+    @GetMapping(value = "/exports/employees", produces = "text/csv")
     @Operation(summary = "Personel listesini CSV olarak indirir",
             description = """
                     Suzgecler listeleme ucuyle AYNI; kapsam da aynen uygulanir.
@@ -65,5 +72,27 @@ public class ExportController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
                 .body(csv.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @PostMapping(value = "/imports/employees", consumes = "text/csv")
+    @Operation(summary = "Personel listesini CSV'den yukler",
+            description = """
+                    HEPSI YA DA HICBIRI: tek bir gecersiz satir butun dosyayi
+                    reddeder ve hicbir sey yazilmaz. Kismi yukleme operatoru
+                    bilinmeyen bir duruma birakirdi -- 500 satirin kacinin
+                    girdigi belli olmaz ve tekrar denemek mukerrer kayit
+                    riski tasir.
+
+                    OLAY YAYINLANMAZ: toplu yukleme cogu zaman bir GOC
+                    islemidir ve yuzlerce kisiye yanlislikla "hos geldiniz"
+                    maili gondermek geri alinamaz.
+
+                    Ucret sutunu YOK: kaydi acan kisinin ucret atamasi ayri
+                    bir yetkidir.
+                    """)
+    @ApiResponse(responseCode = "422",
+            description = "Dosya reddedildi; govde satir satir gerekceyi tasir")
+    public ImportReport employees(@RequestBody String csv) {
+        return imports.importFrom(csv);
     }
 }

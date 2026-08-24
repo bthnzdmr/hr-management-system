@@ -224,6 +224,12 @@ app:
   export:
     max-rows: ${EXPORT_MAX_ROWS:5000}
 
+  # Ice aktarma tavani AKTARMADAN DUSUK: okumak ucuz, yazmak degil. Tek
+  # istekte binlerce kayit acmak hem uzun bir transaction hem de geri
+  # alinmasi zor bir hata kaynagidir.
+  import:
+    max-rows: ${IMPORT_MAX_ROWS:1000}
+
   outbox:
     # Yayin gecikmesinin ust siniri: olay en gec bu sure sonra gonderilir.
     poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:2000}

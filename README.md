@@ -540,6 +540,7 @@ Taban adres: `http://localhost:8080`
 | `GET` | `/api/leave-balances/{employeeId}` | Yıllık izin bakiyesi (hak ediş, devir, kullanılan, ayrılmış). Kapsam dışındaki kişi için `404`. Uç bilerek `/api/employees/**` **altında değil** | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `200` |
 | `PUT` | `/api/leave-entitlements/{employeeId}/{year}` | Yıllık izin hakkını elle belirler; gerekçe zorunlu. Idempotent — bütün değerler birden gönderilir. Okuma ucu yoktur, bakiye ucu zaten hakkı ve kaynağını döner | `HR_SPECIALIST` | `200` |
 | `GET` | `/api/exports/employees` | Personel listesini CSV olarak indirir; süzgeçler listeleme ucuyla aynı. Ücret **yok**, kapsam aynen uygulanır, her indirme denetim izine yazılır. Sonuç tavanı aşarsa dosya kırpılmaz, `409` döner | `HR_SPECIALIST` | `200` |
+| `POST` | `/api/imports/employees` | Personel listesini CSV'den yükler (`text/csv`). **Hepsi ya da hiçbiri**: tek geçersiz satır bütün dosyayı reddeder ve `422` ile satır satır gerekçe döner. Olay yayınlanmaz — toplu yükleme çoğu zaman bir göçtür | `HR_SPECIALIST` | `200` |
 | `GET` | `/api/audit` | Denetim izi; aktör, eylem, hedef ve tarihe göre süzülür. Arayüzde **Activity** ekranı | `SYSTEM_ADMIN` | `200` |
 | `GET` | `/api/departments` | Aktif departmanlar, isme göre sıralı | giriş yapmış | `200` |
 | `POST` | `/api/departments` | Yeni departman; ad büyük-küçük harf duyarsız benzersiz | `HR_SPECIALIST` | `201` + `Location` |

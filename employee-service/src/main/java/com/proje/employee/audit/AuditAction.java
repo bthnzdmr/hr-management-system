@@ -43,5 +43,8 @@ public enum AuditAction {
     LEAVE_ENTITLEMENT_SET,
 
     /** Personel listesi CSV olarak disari aktarildi. */
-    EMPLOYEES_EXPORTED
+    EMPLOYEES_EXPORTED,
+
+    /** Personel listesi CSV'den ice aktarildi. */
+    EMPLOYEES_IMPORTED
 }
