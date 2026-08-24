@@ -29,6 +29,9 @@ const ACTIONS: { value: AuditAction; label: string; color: 'default' | 'success'
   { value: 'LEAVE_ENTITLEMENT_SET', label: 'Entitlement set', color: 'warning' },
   // Toplu veri disari cikti: renk bunu bir OLAY olarak isaretliyor.
   { value: 'EMPLOYEES_EXPORTED', label: 'Directory exported', color: 'error' },
+  // Toplu YAZMA: tek istekle yuzlerce kayit acar, bu yuzden aktarma kadar
+  // gorunur isaretleniyor.
+  { value: 'EMPLOYEES_IMPORTED', label: 'Directory imported', color: 'warning' },
 ];
 
 const LABELS = new Map(ACTIONS.map((a) => [a.value, a]));

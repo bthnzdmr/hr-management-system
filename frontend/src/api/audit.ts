@@ -13,7 +13,8 @@ export type AuditAction =
   | 'LEAVE_REQUESTED'
   | 'LEAVE_DECIDED'
   | 'LEAVE_ENTITLEMENT_SET'
-  | 'EMPLOYEES_EXPORTED';
+  | 'EMPLOYEES_EXPORTED'
+  | 'EMPLOYEES_IMPORTED';
 
 export interface AuditEntry {
   id: number;
