@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.Locale;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
@@ -319,7 +320,13 @@ public class LeaveRequestService {
     private void requirePending(LeaveRequest leave) {
         if (!leave.isPending()) {
             throw new LeaveRuleViolationException(
-                    "This request was already " + leave.getStatus().name().toLowerCase());
+                    // Locale.ROOT SART: yerele birakilsaydi Turkce bir
+                    // makinede `I` harfi noktasiz `i`ye donerdi. Bugun
+                    // tesaduefen calisiyor (bu dala dusen durumlar `I`
+                    // icermiyor) ama `I` tasiyan bir durum eklendigi gun
+                    // SESSIZCE bozulurdu.
+                    "This request was already "
+                            + leave.getStatus().name().toLowerCase(Locale.ROOT));
         }
     }
 

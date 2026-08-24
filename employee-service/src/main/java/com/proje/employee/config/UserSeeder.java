@@ -126,7 +126,7 @@ public class UserSeeder {
                       String variables) {
 
         if (email.isBlank() || password.isBlank()) {
-            log.warn("{} not set, {} was not created", variables, label.toLowerCase());
+            log.warn("{} not set, {} was not created", variables, label.toLowerCase(java.util.Locale.ROOT));
             return;
         }
 
