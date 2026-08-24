@@ -213,12 +213,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
-     * Aktarma tavani asildi: 409.
-     *
-     * 400 DEGIL -- istek gecerli, cakisan sey mevcut veri hacmi. 413 de degil:
-     * o, gelen GOVDENIN buyuklugu icindir.
-     */
-    /**
      * Ice aktarma reddedildi: 422.
      *
      * 400 DEGIL -- istek bicimsel olarak GECERLI, reddedilen sey icerigin
@@ -236,6 +230,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return detail;
     }
 
+    /**
+     * Aktarma tavani asildi: 409.
+     *
+     * 400 DEGIL -- istek gecerli, cakisan sey mevcut veri hacmi. 413 de degil:
+     * o, gelen GOVDENIN buyuklugu icindir.
+     */
     @ExceptionHandler(ExportTooLargeException.class)
     public ProblemDetail handleExportTooLarge(ExportTooLargeException ex) {
         return problem(HttpStatus.CONFLICT, "Export too large", ex.getMessage());

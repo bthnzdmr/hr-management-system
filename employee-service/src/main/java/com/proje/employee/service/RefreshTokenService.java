@@ -59,9 +59,8 @@ public class RefreshTokenService {
      *
      * Her yenilemede jeton degistigi icin calinan bir jetonun omru, mesru
      * istemcinin bir sonraki yenilemesine kadardir.
-     */
-    /**
-     * noRollbackFor sart.
+     *
+     * <p><b>noRollbackFor sart.</b>
      *
      * Tekrar kullanim tespit edildiginde once tum oturumlar iptal edilir, sonra
      * istisna firlatilir. Varsayilan davranista RuntimeException transaction'i
