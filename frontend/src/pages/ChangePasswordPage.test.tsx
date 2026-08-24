@@ -116,4 +116,13 @@ describe('ChangePasswordPage', () => {
     // Oturum kapanmamali: parola yanlis yazmak disari atilma sebebi degildir.
     expect(tokenStorage.get()).not.toBeNull();
   });
+  it('shows the password rules before anything is typed', async () => {
+    // Gorunmeyen bir kural, korlemesine carpilan bir kuraldir: kullanici
+    // parolayi yazip gonderdikten SONRA ogrenmemeli.
+    renderPage();
+
+    expect(await screen.findByText(/At least 12 characters/)).toBeInTheDocument();
+    expect(screen.getByText(/common word/)).toBeInTheDocument();
+    expect(screen.getByText(/email address/)).toBeInTheDocument();
+  });
 });

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MIN_PASSWORD_LENGTH, PasswordRules } from '../components/PasswordRules';
 import type { SyntheticEvent } from 'react';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { Alert, Box, Button, Link, Stack, TextField } from '@mui/material';
@@ -6,7 +7,6 @@ import { passwordResetApi } from '../api/passwordReset';
 import { errorMessage } from '../api/client';
 import { AuthLayout } from '../components/AuthLayout';
 
-const MIN_LENGTH = 12;
 
 export function ResetPasswordPage() {
   const [params] = useSearchParams();
@@ -69,8 +69,10 @@ export function ResetPasswordPage() {
             autoComplete="new-password"
             required
             fullWidth
-            helperText={`At least ${MIN_LENGTH} characters`}
+            helperText=" "
           />
+
+          <PasswordRules />
           <TextField
             label="Repeat new password"
             type="password"
@@ -87,7 +89,7 @@ export function ResetPasswordPage() {
             variant="contained"
             fullWidth
             size="large"
-            disabled={submitting || mismatch || password.length < MIN_LENGTH}
+            disabled={submitting || mismatch || password.length < MIN_PASSWORD_LENGTH}
           >
             {submitting ? 'Saving…' : 'Set password'}
           </Button>

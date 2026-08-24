@@ -49,6 +49,7 @@ public class PasswordResetService {
     private final UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordPolicy passwordPolicy;
     private final OutboxWriter outboxWriter;
     private final SecureRandom random = new SecureRandom();
     private final Duration validity;
@@ -64,12 +65,14 @@ public class PasswordResetService {
                                 UserRepository userRepository,
                                 RefreshTokenService refreshTokenService,
                                 PasswordEncoder passwordEncoder,
+                                PasswordPolicy passwordPolicy,
                                 OutboxWriter outboxWriter,
                                 @Value("${app.password-reset.validity-minutes}") long validityMinutes,
                                 @Value("${app.password-reset.invite-validity-hours}") long inviteHours,
                                 @Value("${app.password-reset.resend-cooldown-seconds}") long cooldownSeconds) {
 
-        this(tokenRepository, userRepository, refreshTokenService, passwordEncoder, outboxWriter,
+        this(tokenRepository, userRepository, refreshTokenService, passwordEncoder,
+                passwordPolicy, outboxWriter,
                 validityMinutes, inviteHours, cooldownSeconds, Clock.systemUTC());
     }
 
@@ -78,6 +81,7 @@ public class PasswordResetService {
                          UserRepository userRepository,
                          RefreshTokenService refreshTokenService,
                          PasswordEncoder passwordEncoder,
+                         PasswordPolicy passwordPolicy,
                          OutboxWriter outboxWriter,
                          long validityMinutes,
                          long inviteHours,
@@ -88,6 +92,7 @@ public class PasswordResetService {
         this.userRepository = userRepository;
         this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
+        this.passwordPolicy = passwordPolicy;
         this.outboxWriter = outboxWriter;
         this.validity = Duration.ofMinutes(validityMinutes);
         // Davet daha uzun omurlu: sifirlamada kullanici o an bekliyor, davette
@@ -156,6 +161,13 @@ public class PasswordResetService {
         }
 
         User user = stored.getUser();
+
+        // Jeton TUKETILDIKTEN sonra dogrulaniyor ve bu bilincli: aksi halde
+        // zayif parola denemesi jetonu harcamadan doner ve baglanti sinirsiz
+        // kez denenebilirdi. Istisna transaction'i geri alir, yani jeton da
+        // gecerli kalir -- kullanici ayni baglantiyla tekrar dener.
+        passwordPolicy.validate(request.newPassword(), user.getEmail());
+
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
 
         // Ayni kullanicinin bekleyen DIGER jetonlari da duser: saldirganin daha

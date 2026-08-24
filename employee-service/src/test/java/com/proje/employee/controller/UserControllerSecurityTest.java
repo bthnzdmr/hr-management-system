@@ -5,6 +5,7 @@ import com.proje.employee.config.JwtService;
 import com.proje.employee.config.SecurityConfig;
 import com.proje.employee.config.SecurityProblemWriter;
 import com.proje.employee.exception.GlobalExceptionHandler;
+import com.proje.employee.exception.WeakPasswordException;
 import com.proje.employee.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,10 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
@@ -146,5 +150,29 @@ class UserControllerSecurityTest {
     @DisplayName("A system administrator may list the accounts")
     void systemAdministratorMayListAccounts() throws Exception {
         mockMvc.perform(get("/api/users")).andExpect(status().isOk());
+    }
+    /**
+     * Zayif parola 400 doner, 500 DEGIL.
+     *
+     * Bu tam olarak olculen kusurdu: `@Size(max = 72)` KARAKTER sayiyordu,
+     * BCrypt ise BAYT. 144 baytlik bir parola dogrulamadan gecip encoder'da
+     * patliyor ve catch-all uzerinden **500** donuyordu -- kesinlikle bir
+     * istemci hatasi, sunucu arizasi olarak. 5xx dondurmek izlemeyi de
+     * kirletir: alarm kurulmus bir sistemde olmayan bir ariza bildirilir.
+     */
+    @Test
+    @WithMockUser
+    @DisplayName("Answers a weak password with 400, not 500")
+    void weakPasswordIsAClientError() throws Exception {
+        doThrow(new WeakPasswordException(List.of("Password must be at least 12 characters")))
+                .when(userService).changeOwnPassword(any(), any());
+
+        mockMvc.perform(put("/api/users/me/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"currentPassword":"whatever-it-is","newPassword":"short"}"""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Password not accepted"))
+                .andExpect(jsonPath("$.detail").value("Password must be at least 12 characters"));
     }
 }

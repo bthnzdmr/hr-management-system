@@ -34,6 +34,7 @@ public class UserService {
     private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
     private final PasswordResetService passwordResetService;
+    private final PasswordPolicy passwordPolicy;
     private final UserMapper userMapper;
 
     public UserService(UserRepository userRepository,
@@ -41,12 +42,14 @@ public class UserService {
                        RefreshTokenService refreshTokenService,
                        PasswordEncoder passwordEncoder,
                        PasswordResetService passwordResetService,
+                       PasswordPolicy passwordPolicy,
                        UserMapper userMapper) {
         this.userRepository = userRepository;
         this.employeeRepository = employeeRepository;
         this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
         this.passwordResetService = passwordResetService;
+        this.passwordPolicy = passwordPolicy;
         this.userMapper = userMapper;
     }
 
@@ -243,6 +246,11 @@ public class UserService {
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw new InvalidPasswordException();
         }
+
+        // Politika encode'dan ONCE: BCrypt'in 72 baytlik siniri asilirsa
+        // IllegalArgumentException firlar ve catch-all uzerinden 500 donerdi --
+        // canli olcumde tam olarak bu yasandi.
+        passwordPolicy.validate(request.newPassword(), user.getEmail());
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
 

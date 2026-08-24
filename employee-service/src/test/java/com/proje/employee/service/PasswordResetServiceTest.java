@@ -63,7 +63,7 @@ class PasswordResetServiceTest {
     @BeforeEach
     void setUp() {
         service = new PasswordResetService(tokenRepository, userRepository, refreshTokenService,
-                passwordEncoder, outboxWriter, 30, 24, 120,
+                passwordEncoder, new PasswordPolicy(), outboxWriter, 30, 24, 120,
                 Clock.fixed(NOW, ZoneOffset.UTC));
 
         user = new User(EMAIL, "old-hash", Set.of(Role.EMPLOYEE));
@@ -140,7 +140,7 @@ class PasswordResetServiceTest {
     void confirmChangesPasswordAndRevokesSessions() {
         givenUsableToken();
 
-        service.confirm(new PasswordResetConfirmRequest("raw-token", "a-long-enough-password"));
+        service.confirm(new PasswordResetConfirmRequest("raw-token", "quiet-harbour-lantern"));
 
         assertThat(user.getPasswordHash()).isEqualTo("new-hash");
         // Sifirlamanin amaci zaten budur: baskasinin elindeki her sey gecersiz olsun.
@@ -157,7 +157,7 @@ class PasswordResetServiceTest {
         when(tokenRepository.consumeIfUsable(anyString(), any())).thenReturn(0);
 
         assertThatThrownBy(() -> service.confirm(
-                new PasswordResetConfirmRequest("raw-token", "a-long-enough-password")))
+                new PasswordResetConfirmRequest("raw-token", "quiet-harbour-lantern")))
                 .isInstanceOf(InvalidPasswordResetTokenException.class);
 
         assertThat(user.getPasswordHash()).isEqualTo("old-hash");
@@ -170,7 +170,7 @@ class PasswordResetServiceTest {
         when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.confirm(
-                new PasswordResetConfirmRequest("made-up", "a-long-enough-password")))
+                new PasswordResetConfirmRequest("made-up", "quiet-harbour-lantern")))
                 .isInstanceOf(InvalidPasswordResetTokenException.class);
     }
 

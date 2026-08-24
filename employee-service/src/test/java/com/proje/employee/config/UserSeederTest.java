@@ -1,5 +1,6 @@
 package com.proje.employee.config;
 
+import com.proje.employee.service.PasswordPolicy;
 import com.proje.employee.entity.Role;
 import com.proje.employee.entity.User;
 import com.proje.employee.repository.UserRepository;
@@ -33,8 +34,9 @@ class UserSeederTest {
     @Mock
     private ApplicationArguments arguments;
 
-    @InjectMocks
-    private UserSeeder userSeeder;
+    // GERCEK politika: taklit edilseydi tohumlayicidaki uyari yolu hic
+    // calismaz ve zayif bir parola sessizce gecerdi.
+    private final UserSeeder userSeeder = new UserSeeder(new PasswordPolicy());
 
     @Test
     @DisplayName("Creates the read-only account as an employee, with no elevated role")

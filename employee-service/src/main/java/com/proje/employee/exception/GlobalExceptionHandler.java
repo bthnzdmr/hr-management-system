@@ -83,6 +83,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "Invalid password", ex.getMessage());
     }
 
+    /**
+     * Zayif parola: 400.
+     *
+     * Gerekceler tek cumlede birlesir; arayuz kurallari zaten ONCEDEN
+     * gosterdigi icin cogu durumda tek ihlal olur.
+     */
+    @ExceptionHandler(WeakPasswordException.class)
+    public ProblemDetail handleWeakPassword(WeakPasswordException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Password not accepted", ex.getMessage());
+    }
+
     @ExceptionHandler(InvalidPasswordResetTokenException.class)
     public ProblemDetail handleInvalidPasswordResetToken(InvalidPasswordResetTokenException ex) {
         // 400, 401 degil: arayuzdeki interceptor 401'i "oturum bitti" sayip

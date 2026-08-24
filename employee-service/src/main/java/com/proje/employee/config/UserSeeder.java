@@ -2,7 +2,9 @@ package com.proje.employee.config;
 
 import com.proje.employee.entity.Role;
 import com.proje.employee.entity.User;
+import com.proje.employee.exception.WeakPasswordException;
 import com.proje.employee.repository.UserRepository;
+import com.proje.employee.service.PasswordPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +24,12 @@ public class UserSeeder {
     static final int SEED_ACCOUNTS_FIRST = 1;
 
     private static final Logger log = LoggerFactory.getLogger(UserSeeder.class);
+
+    private final PasswordPolicy passwordPolicy;
+
+    UserSeeder(PasswordPolicy passwordPolicy) {
+        this.passwordPolicy = passwordPolicy;
+    }
 
     // Parolalar migration'a veya koda yazilmaz; ortam degiskeninden okunur.
     @Bean
@@ -136,6 +144,23 @@ public class UserSeeder {
         if (userRepository.existsByEmail(email)) {
             log.info("{} already exists: {}", label, email);
             return;
+        }
+
+        // Politika burada UYARIR, ENGELLEMEZ -- ve ayrim kasitli.
+        //
+        // Kullanicinin parola SECTIGI yollarda ihlal reddedilir, cunku karar o
+        // anda veriliyor. Tohumlayici ise her acilista calisir ve kurallar
+        // zamanla DEGISIR: yarin listeye yeni bir taban kelime eklendiginde,
+        // engelleyen bir tohumlayici calisan bir dagitimi ACILMAZ hale
+        // getirirdi. Yani ceza, parolayi secen kisiye degil o gun dagitim yapan
+        // kisiye kesilirdi.
+        //
+        // Sessiz de kalmiyor: zayif bir yonetici parolasi gorunur olmali.
+        try {
+            passwordPolicy.validate(password, email);
+        } catch (WeakPasswordException ex) {
+            log.warn("{} password does not meet the policy ({}); change it with {}",
+                    label, ex.getMessage(), variables);
         }
 
         userRepository.save(new User(email, passwordEncoder.encode(password), roles));

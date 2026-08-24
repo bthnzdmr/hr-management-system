@@ -59,7 +59,7 @@ class UserServiceTest {
 
     private UserService service() {
         return new UserService(userRepository, employeeRepository, refreshTokenService,
-                passwordEncoder, passwordResetService, userMapper);
+                passwordEncoder, passwordResetService, new PasswordPolicy(), userMapper);
     }
 
     private User user(Long id, String email, Role role, boolean active) {
@@ -228,7 +228,7 @@ class UserServiceTest {
         when(passwordEncoder.matches("wrong", "stored-hash")).thenReturn(false);
 
         assertThatThrownBy(() -> service().changeOwnPassword("ada@example.com",
-                new PasswordChangeRequest("wrong", "a-brand-new-password")))
+                new PasswordChangeRequest("wrong", "quiet-harbour-lantern")))
                 .isInstanceOf(InvalidPasswordException.class);
 
         assertThat(ada.getPasswordHash()).isEqualTo("stored-hash");
@@ -243,10 +243,10 @@ class UserServiceTest {
         User ada = user(1L, "ada@example.com", Role.EMPLOYEE, true);
         signedIn(ada);
         when(passwordEncoder.matches("current-password", "stored-hash")).thenReturn(true);
-        when(passwordEncoder.encode("a-brand-new-password")).thenReturn("new-hash");
+        when(passwordEncoder.encode("quiet-harbour-lantern")).thenReturn("new-hash");
 
         service().changeOwnPassword("ada@example.com",
-                new PasswordChangeRequest("current-password", "a-brand-new-password"));
+                new PasswordChangeRequest("current-password", "quiet-harbour-lantern"));
 
         assertThat(ada.getPasswordHash()).isEqualTo("new-hash");
         verify(refreshTokenService).revokeAllFor(eq(1L), anyString());

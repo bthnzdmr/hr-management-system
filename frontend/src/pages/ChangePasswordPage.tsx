@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MIN_PASSWORD_LENGTH, PasswordRules } from '../components/PasswordRules';
 import type { SyntheticEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Box, Button, Paper, Stack, TextField } from '@mui/material';
@@ -8,7 +9,6 @@ import { useAuth } from '../auth/AuthContext';
 import { PageHeader } from '../components/PageHeader';
 import { useSnackbar } from '../components/SnackbarProvider';
 
-const MIN_PASSWORD_LENGTH = 12;
 
 export function ChangePasswordPage() {
   const navigate = useNavigate();
@@ -68,8 +68,10 @@ export function ChangePasswordPage() {
               label="New password" type="password" value={newPassword} required fullWidth
               slotProps={{ htmlInput: { minLength: MIN_PASSWORD_LENGTH } }}
               onChange={(event) => setNewPassword(event.target.value)}
-              helperText={`At least ${MIN_PASSWORD_LENGTH} characters`}
+              helperText=" "
             />
+
+            <PasswordRules />
 
             <TextField
               label="Repeat new password" type="password" value={confirmation} required fullWidth
