@@ -18,6 +18,7 @@ function renderField(overrides: Partial<Parameters<typeof OrgSearchField>[0]> = 
   const props = {
     query: '',
     onQueryChange: vi.fn(),
+    scopeName: 'Sales',
     inScope: [] as Match[],
     elsewhere: [] as Match[],
     onSelect: vi.fn(),
@@ -32,6 +33,48 @@ function renderField(overrides: Partial<Parameters<typeof OrgSearchField>[0]> = 
 }
 
 describe('OrgSearchField', () => {
+  it('says plainly which matches are outside the department on screen', () => {
+    // SIKAYETIN KENDISI: Sales cizilirken Marketing'li biri de eslesiyordu ve
+    // iki cip satiri birbirinin AYNI goruniyordu -- tek fark sondaki
+    // "· Marketing" ekiydi ve o, "bu kisi baska yerde" demek yerine ek bilgi
+    // gibi okunuyordu. Davranis kayitli bir karar (aramanin butun kadroda
+    // calismasi); bulanik olan SUNUMDU.
+    renderField({
+      query: 'an',
+      scopeName: 'Sales',
+      inScope: [match(1, 'Daniel', 'Anderson', 'Sales')],
+      elsewhere: [match(2, 'Mary', 'Addison', 'Marketing')],
+    });
+
+    expect(screen.getByText('In Sales')).toBeInTheDocument();
+    expect(screen.getByText(/Not in Sales/)).toBeInTheDocument();
+  });
+
+  it('still says where a match sits when nothing on screen matches', () => {
+    // Ic kapsam bos olsa bile UZAK grup basligini tasimali; aksi halde tek
+    // basina duran cipler cizili departmandaymis gibi okunur.
+    renderField({
+      query: 'add',
+      scopeName: 'Sales',
+      inScope: [],
+      elsewhere: [match(2, 'Mary', 'Addison', 'Marketing')],
+    });
+
+    expect(screen.getByText(/Not in Sales/)).toBeInTheDocument();
+  });
+
+  it('drops the headings when there is nothing to tell apart', () => {
+    // Tek grup varken "burada / baska yerde" ayrimi YOK ve baslik gurultudur.
+    renderField({
+      query: 'an',
+      scopeName: 'Sales',
+      inScope: [match(1, 'Daniel', 'Anderson', 'Sales')],
+      elsewhere: [],
+    });
+
+    expect(screen.queryByText('In Sales')).not.toBeInTheDocument();
+  });
+
   it('names the matches that are already on screen, not only the distant ones', () => {
     // OLCULEN BOSLUK: ekrandaki eslesme yalnizca VURGULANIYORDU ve adi ancak
     // etiketi sigdiysa gorunuyordu -- 36 dugumun ~5'inde sigmiyor. Yanindaki
@@ -78,6 +121,7 @@ describe('OrgSearchField', () => {
         onQueryChange={vi.fn()}
         inScope={[match(1, 'Grace', 'Hopper', 'Sales')]}
         elsewhere={[]}
+        scopeName="Sales"
         onSelect={vi.fn()}
         onJump={vi.fn()}
         onSelectFirst={vi.fn()}

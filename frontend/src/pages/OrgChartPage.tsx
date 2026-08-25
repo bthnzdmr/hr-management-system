@@ -237,6 +237,7 @@ export function OrgChartPage() {
               <OrgSearchField
                 query={query}
                 onQueryChange={setQuery}
+                scopeName={department}
                 inScope={inScope}
                 elsewhere={elsewhere}
                 onSelect={(match) => setSelected(match.node)}
