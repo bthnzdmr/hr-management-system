@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type React from 'react';
-import { Box, useMediaQuery, useTheme, Typography } from '@mui/material';
+import { Box, useMediaQuery, useTheme } from '@mui/material';
 import { DRIFT_AMPLITUDE, LINE_GAP, NAME_SIZE, TITLE_SIZE, layoutTree, truncate } from './orgTree';
 import type { TreeLink, TreeNode } from './orgTree';
 import { departmentColors, departmentInitials, fullName, initials, isDepartmentNode } from './orgScope';
@@ -459,69 +459,4 @@ export function useDepartmentColors(names: string[]) {
   const theme = useTheme();
 
   return useMemo(() => departmentColors(names, theme.palette.mode), [names, theme.palette.mode]);
-}
-
-/**
- * Cizimin DOGRUSAL karsiligi.
- *
- * Uzun sure GORUNMEZDI (1px, `clip-path: inset(50%)`) ve yalnizca ekran
- * okuyucu icindi. Olculdu: `Ctrl+F` eslesmeyi BULUYOR ama kirpilmis bir
- * kutuya kaydirdigi icin ekranda hicbir sey gorunmuyor -- yani arama sayaci
- * "1/34" diyor, kullanici bos ekrana bakiyor. Bulunan ama gosterilemeyen bir
- * eslesme, hic bulunmamaktan daha kafa karistiricidir.
- *
- * Gorunur olmasinin ikinci kazanci arastirmada yaziliydi: basarili her
- * radyal gorsellestirmenin yaninda DOGRUSAL bir kacis yolu var. Bizde o yol
- * yalnizca gorunmeyen bu liste ve sagdaki paneldi.
- *
- * Liste TIKLANABILIR DEGIL ve bu bilincli: secim ayri bir karardi ve
- * kullanici "tarayicinin kendi araciyla bul" secenegini acikca sectti.
- * Eklenmesi kolay, ama kapsamin disinda.
- */
-export function OrgOutline({ nodes }: { nodes: OrgNode[] }) {
-  return (
-    <Box>
-      <Typography
-        id="org-outline-heading"
-        variant="subtitle2"
-        sx={{ mb: 1 }}
-      >
-        Reporting structure
-      </Typography>
-
-      <Box
-        sx={{
-          // Yukseklik sinirli ve KENDI ICINDE kayiyor: kadro buyudukce sayfa
-          // uzamasin. Tarayicinin bul-ozelligi kayan kapsayicilarin icine de
-          // kaydiriyor, yani Ctrl+F garantisi bozulmuyor.
-          maxHeight: 260,
-          overflowY: 'auto',
-          fontSize: '0.8125rem',
-          color: 'text.secondary',
-          // Ic ice <ul> girintisi hiyerarsiyi tasiyor; isaretciler
-          // kaldirildi cunku girintinin kendisi zaten yapiyi soyluyor.
-          '& ul': { listStyle: 'none', m: 0, pl: 2 },
-          '& > ul': { pl: 0 },
-          '& li': { py: 0.25 },
-        }}
-      >
-        <TextTree nodes={nodes} labelledBy="org-outline-heading" />
-      </Box>
-    </Box>
-  );
-}
-
-function TextTree({ nodes, labelledBy }: { nodes: OrgNode[]; labelledBy?: string }) {
-  return (
-    // Gorunur bir baslik varken ayrica `aria-label` yazmak ayni metni IKI KEZ
-    // okuturdu; `aria-labelledby` basligin kendisini gosteriyor.
-    <ul aria-labelledby={labelledBy}>
-      {nodes.map((node) => (
-        <li key={node.id}>
-          {`${fullName(node)}, ${node.jobTitle}, ${node.departmentName}`}
-          {node.reports.length > 0 && <TextTree nodes={node.reports} />}
-        </li>
-      ))}
-    </ul>
-  );
 }

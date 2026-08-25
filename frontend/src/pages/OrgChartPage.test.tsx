@@ -22,10 +22,20 @@ function node(id: number, lastName: string, department = 'Sales', reports: OrgNo
   };
 }
 
-/** Cizimin yanindaki gorunmez anahat; agac yapisinin erisilebilir karsiligi. */
-function outline() {
-  // Renk anahtari da bir listedir; iddia ANAHATA daraltilir.
-  return screen.findByRole('list', { name: 'Reporting structure' });
+/**
+ * Cizimdeki kisi dugumleri.
+ *
+ * Erisilebilirlik garantisini artik YALNIZCA cizim tasiyor: yanindaki anahat
+ * listesi kaldirildi cunku tasidigi her sey baska yerde vardi -- hiyerarsi
+ * cizimin kendi `role="tree"` semantiginde, arama tiklanabilir kutuda,
+ * gezinme sagdaki panelde.
+ *
+ * OLCULDU: butun organizasyon kapsaminda DEPARTMAN balonlari da birer
+ * `treeitem`; yalnizca gorunmez merkeze rol verilmiyor. Bir departman
+ * secildiginde o katman hic cizilmez, dolayisiyla sayim yalnizca kisilerdir.
+ */
+function chartPeople() {
+  return screen.findAllByRole('treeitem');
 }
 
 /** Panel tam kayda baglanti verdigi icin yonlendirici baglami sart. */
@@ -49,17 +59,31 @@ function chain() {
 describe('OrgChartPage', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('keeps the reporting line readable as nested text, not only as a drawing', async () => {
-    // Cizim tek basina birakilsaydi agac yapisi ekran okuyucuda ve Ctrl+F'te
-    // tamamen kaybolurdu. Iddia GORUNMEYEN listeye yazilir cunku erisilebilirlik
-    // garantisini veren sey odur.
+  it('exposes the reporting depth on the drawing itself', async () => {
+    // Cizimin yaninda GORUNUR bir anahat listesi vardi ve hiyerarsinin
+    // erisilebilir karsiligini o tasiyor sayiliyordu. Olculdu: cizim zaten tam
+    // bir agac -- `role="tree"`, her dugum `treeitem`, seviye/kardes/konum
+    // bildiriliyor ve ok tuslariyla geziliyor. Liste bir tekrardi ve silindi;
+    // garantiyi tek basina tasiyan sey artik burasi, o yuzden acikca tutuluyor.
     vi.mocked(orgChartApi.get).mockResolvedValue(chain());
 
     renderPage();
 
-    const alpha = within(await outline()).getByText(/Test Alpha/).closest('li');
-    expect(alpha).not.toBeNull();
-    expect(within(alpha as HTMLElement).getByText(/Test Gamma/)).toBeInTheDocument();
+    const root = await screen.findByRole('treeitem', { name: /Test Root/ });
+    const alpha = screen.getByRole('treeitem', { name: /Test Alpha/ });
+    const gamma = screen.getByRole('treeitem', { name: /Test Gamma/ });
+
+    const level = (node: HTMLElement) => Number(node.getAttribute('aria-level'));
+
+    // MUTLAK deger iddia EDILMEZ: merkez ve departman katmani seviyeyi
+    // kaydiriyor ve o bir yerlesim ayrintisi. Tutulan sey garantinin kendisi
+    // -- derinlik BILDIRILIYOR ve zincir boyunca artiyor. SVG'de DOM ic
+    // iceligi hiyerarsiyi ima etmez, bu yuzden acikca bildirilmesi sart.
+    expect(level(root)).toBeGreaterThan(0);
+    expect(level(alpha)).toBe(level(root) + 1);
+    expect(level(gamma)).toBe(level(alpha) + 1);
+
+    expect(root.closest('[role="tree"]')).not.toBeNull();
   });
 
   it('gives every person their own node with an accessible name', async () => {
@@ -103,12 +127,12 @@ describe('OrgChartPage', () => {
 
     await user.click(await screen.findByRole('button', { name: /^Sales/ }));
 
-    const items = within(await outline()).getAllByRole('listitem');
-    expect(items.map((item) => item.textContent)).toEqual([
+    const people = await chartPeople();
+    expect(people.map((item) => item.getAttribute('aria-label'))).toEqual([
       expect.stringContaining('Test SalesHead'),
       expect.stringContaining('Test Rep'),
     ]);
-    expect(within(await outline()).queryByText(/Test Designer/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('treeitem', { name: /Test Designer/ })).not.toBeInTheDocument();
   });
 
   it('shows the person you clicked, without touching the chart', async () => {
