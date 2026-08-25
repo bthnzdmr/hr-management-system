@@ -157,8 +157,10 @@ describe('organisation map labels', () => {
 
   it('labels the great majority of a full organisation', () => {
     // Bir avuc yaprak etiketsiz kalabilir ve bu kabul edilen bir bedeldir --
-    // ama sessizce buyumemeli. Tam ad o dugumlerde de <title>'da, sagdaki
-    // panelde ve gorunmeyen anahat listesinde duruyor.
+    // ama sessizce buyumemeli. Tam ad o dugumlerde de <title>'da ve sagdaki
+    // panelde duruyor; arama kutusu da eslesmeleri ADIYLA listeliyor.
+    // (Anahat listesi kaldirildi; bu esik onun yerini tutan sey degil ama
+    // etiketsiz dugum sayisi buyudukce aramaya bagimlilik da artiyor.)
     //
     // Esik salinim genligine BAGLI: pay 2 x genlik + 6 oldugu icin genligi
     // buyutmek dogrudan etiket kaybettirir. Olculen deger 36'da 31.

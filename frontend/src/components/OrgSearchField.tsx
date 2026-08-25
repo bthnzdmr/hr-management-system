@@ -11,6 +11,9 @@ interface Props {
   inScope: Match[];
   /** Baska departmanlardaki eslesmeler; ancak TIKLANIRSA oraya gecilir. */
   elsewhere: Match[];
+  /** Cizili kapsamdaki bir eslesmeyi secer; sema yerinde kalir. */
+  onSelect: (match: Match) => void;
+  /** Kapsam disindaki bir eslesmeye gider: once departmani degistirir. */
   onJump: (match: Match) => void;
   onSelectFirst: () => void;
 }
@@ -25,7 +28,7 @@ interface Props {
  * hem de grafik ogeleri icin 3:1 kontrast sarti (WCAG 1.4.11) tutmuyor.
  */
 export function OrgSearchField({
-  query, onQueryChange, inScope, elsewhere, onJump, onSelectFirst,
+  query, onQueryChange, inScope, elsewhere, onSelect, onJump, onSelectFirst,
 }: Props) {
   const active = query.trim().length >= MIN_QUERY;
   const total = inScope.length + elsewhere.length;
@@ -74,21 +77,76 @@ export function OrgSearchField({
         )}
       </Box>
 
-      {/* Kapsam disi eslesmeler. Sema KENDILIGINDEN degismez; buradaki
-          tiklama, yeniden duzenlemeyi isteyen ACIK denetimdir. */}
+      {/*
+        Eslesmeler ADIYLA listeleniyor -- ekrandakiler de, baska departmandakiler de.
+        Once yalnizca kapsam DISI olanlar listeleniyordu ve aradaki asimetri
+        savunulamazdi: ekrandaki eslesme yalnizca VURGULANIYOR, adi ise ancak
+        etiketi sigdiysa gorunuyor. Olculdu: 36 dugumun ~5'inde etiket sigmiyor,
+        yani aranan kisi adi hicbir yerde yazmayan bir daire olabiliyordu.
+        Yanindaki anahat listesi bunu ortuyordu; o kaldirilinca bosluk acildi.
+
+        Tiklama iki listede FARKLI is yapiyor ve ayrim etikette gorunuyor:
+        buradaki kisiyi SECER, oteki once o departmana GECER. Sema
+        kendiliginden yeniden duzenlenmez; gecis acik bir denetimdir.
+      */}
+      {active && inScope.length > 0 && (
+        <ChipRow
+          matches={inScope}
+          total={inScope.length}
+          onPick={onSelect}
+          labelOf={(match) => fullName(match.node)}
+        />
+      )}
+
       {active && elsewhere.length > 0 && (
-        <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-          {elsewhere.slice(0, 6).map((match) => (
-            <Chip
-              key={match.node.id}
-              size="small"
-              variant="outlined"
-              clickable
-              onClick={() => onJump(match)}
-              label={`${fullName(match.node)} · ${match.department}`}
-            />
-          ))}
-        </Stack>
+        <ChipRow
+          matches={elsewhere}
+          total={elsewhere.length}
+          onPick={onJump}
+          labelOf={(match) => `${fullName(match.node)} · ${match.department}`}
+        />
+      )}
+    </Stack>
+  );
+}
+
+/** En fazla kac eslesme cip olarak yazilir. */
+const CHIP_LIMIT = 6;
+
+/**
+ * Eslesme cipleri.
+ *
+ * Kirpma SESSIZ DEGIL: sigmayan sayi acikca yaziliyor. Eksik oldugunu
+ * soylemeyen bir liste, eksik listeden kotudur -- ayni ilke izin takviminde
+ * ve organizasyon haritasinda da uygulanmisti.
+ */
+function ChipRow({
+  matches, total, onPick, labelOf,
+}: {
+  matches: Match[];
+  total: number;
+  onPick: (match: Match) => void;
+  labelOf: (match: Match) => string;
+}) {
+  const hidden = total - Math.min(total, CHIP_LIMIT);
+
+  return (
+    <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+      {matches.slice(0, CHIP_LIMIT).map((match) => (
+        <Chip
+          key={match.node.id}
+          size="small"
+          variant="outlined"
+          clickable
+          onClick={() => onPick(match)}
+          label={labelOf(match)}
+        />
+      ))}
+
+      {hidden > 0 && (
+        <Typography variant="caption" sx={{ color: 'text.secondary', alignSelf: 'center' }}>
+          +{hidden} more
+        </Typography>
       )}
     </Stack>
   );

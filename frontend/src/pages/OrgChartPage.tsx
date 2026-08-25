@@ -239,6 +239,7 @@ export function OrgChartPage() {
                 onQueryChange={setQuery}
                 inScope={inScope}
                 elsewhere={elsewhere}
+                onSelect={(match) => setSelected(match.node)}
                 onJump={jumpTo}
                 onSelectFirst={selectFirstMatch}
               />
