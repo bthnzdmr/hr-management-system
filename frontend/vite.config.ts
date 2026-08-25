@@ -5,6 +5,13 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+
+  // Derleme damgasi pakete GOMULUR. Bilerek her derlemede degisiyor: amaci
+  // yeniden uretilebilirlik degil, KIMLIK -- "ekranda gordugum sey hangi
+  // yapi" sorusu tahminle degil okumayla cevaplanabilsin.
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   test: {
     // Testler tarayici API'lerine (localStorage, DOM) ihtiyac duyar;
     // jsdom bunlari Node icinde taklit eder.

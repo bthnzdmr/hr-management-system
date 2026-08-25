@@ -29,6 +29,8 @@ import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import { BUILD_TIME } from '../buildInfo';
+import { formatDateTime } from '../utils/formatDate';
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined';
@@ -437,6 +439,24 @@ export function Layout() {
           </ListItemIcon>
           Sign out
         </MenuItem>
+
+        {/*
+          Derleme damgasi. Menunun DIBINDE ve kucuk: gunluk kullanimda kimsenin
+          okumasi gerekmiyor, ama hata bildiren kisi "hangi yapiyi goruyorum"
+          sorusunu tahmin etmeden cevaplayabilmeli. Arka uc bunu
+          `/actuator/info` ile zaten veriyordu; arayuzde karsiligi yoktu ve
+          bedeli ayni gun iki kez odendi.
+
+          `Divider` DEGIL bir `Box`: ayrac tiklanabilir bir ogeymis gibi
+          okunabiliyor ve bu satir bir eylem degil.
+        */}
+        {BUILD_TIME && (
+          <Box sx={{ px: 2, pt: 1, pb: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+              Build {formatDateTime(BUILD_TIME)}
+            </Typography>
+          </Box>
+        )}
       </Menu>
 
       <Box component="nav" sx={{ width: { md: navWidth }, flexShrink: { md: 0 } }}>

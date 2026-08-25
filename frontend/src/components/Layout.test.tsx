@@ -66,6 +66,23 @@ describe('Layout', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('menuitem', { name: 'Sign out' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Change password' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Notifications' })).toBeInTheDocument();
+  });
+
+  it('says which build is on screen', async () => {
+    // OLCULEN BOSLUK: konteyner bir gun eski bir paketi servis ediyordu, kod
+    // dogruydu ve testler yesildi -- soru ancak konteynerin ici kazilarak
+    // cevaplanabiliyordu. Arka uc bunu `/actuator/info` ile zaten veriyor.
+    //
+    // Damga bir EYLEM DEGIL, o yuzden `menuitem` de degil: menude gezinen
+    // klavye kullanicisi ona ugramamali.
+    const user = userEvent.setup({ delay: null });
+    renderShell(['HR_SPECIALIST']);
+
+    await user.click(screen.getByRole('button', { name: 'Account menu for ada@example.com' }));
+
+    expect(screen.getByText(/^Build /)).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /^Build/ })).not.toBeInTheDocument();
   });
 
   it('offers the account screen to a system administrator', () => {
