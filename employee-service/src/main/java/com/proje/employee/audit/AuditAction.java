@@ -46,5 +46,8 @@ public enum AuditAction {
     EMPLOYEES_EXPORTED,
 
     /** Personel listesi CSV'den ice aktarildi. */
-    EMPLOYEES_IMPORTED
+    EMPLOYEES_IMPORTED,
+
+    /** Kisi kendi bildirim tercihlerini degistirdi. */
+    NOTIFICATION_PREFERENCES_CHANGED
 }

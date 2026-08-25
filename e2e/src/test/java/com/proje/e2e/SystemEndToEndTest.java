@@ -9,6 +9,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,6 +25,19 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   cd e2e && mvn test
  */
 class SystemEndToEndTest {
+
+    /**
+     * Kurgu parolasi POLITIKAYI karsilamak zorunda.
+     *
+     * Onceki deger `"a-long-enough-password"` idi ve parola politikasi
+     * eklendiginde gecersiz hale geldi: icinde yaygin bir taban kelime var.
+     * Bu, politikanin OLCULEBILIR bir sonucu -- kurgu, uretimde gecerli
+     * olmayan bir degeri kullanamaz.
+     */
+    private static final String ACCOUNT_PASSWORD = "quiet-harbour-lantern";
+
+    /** Parola degistirme testleri icin ikinci deger; o da politikayi karsilar. */
+    private static final String SECOND_PASSWORD = "amber-kettle-window";
 
     private static final Duration MAIL_TIMEOUT = Duration.ofSeconds(30);
 
@@ -406,6 +421,25 @@ class SystemEndToEndTest {
         return response.body().get("id").asText();
     }
 
+    /**
+     * Personele BAGLI bir hesap acar ve o hesapla giris yapar.
+     *
+     * Tercih ucunun cevap verebilmesi icin hesabin bir personel kaydi olmasi
+     * sart: tercih personel kimligine baglidir, hesaba degil.
+     */
+    private String accountFor(String token, String email, String employeeId) {
+        SystemClient.Response created = client.post(
+                SystemClient.API_URL + "/api/users", token,
+                """
+                {"email":"%s","roles":["EMPLOYEE"],"employeeId":%s}
+                """.formatted(email, employeeId));
+
+        assertThat(created.status()).isEqualTo(201);
+        acceptInvite(email, ACCOUNT_PASSWORD);
+
+        return signIn(email, ACCOUNT_PASSWORD).body().get("token").asText();
+    }
+
     private void acceptInvite(String email, String password) {
         JsonNode mail = awaitMail(email, "choose a password");
         Matcher found = INVITE_LINK.matcher(mail.at("/Content/Body").asText());
@@ -439,9 +473,9 @@ class SystemEndToEndTest {
     void createdAccountCanSignIn() {
         String adminToken = signIn();
         String email = "e2e.account." + UUID.randomUUID() + "@example.com";
-        createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
+        createAccount(adminToken, email, ACCOUNT_PASSWORD, "EMPLOYEE");
 
-        SystemClient.Response login = signIn(email, "a-long-enough-password");
+        SystemClient.Response login = signIn(email, ACCOUNT_PASSWORD);
         assertThat(login.status()).isEqualTo(200);
 
         String userToken = login.body().get("token").asText();
@@ -458,7 +492,7 @@ class SystemEndToEndTest {
     void neverExposesPasswordHash() {
         String adminToken = signIn();
         String email = "e2e.nohash." + UUID.randomUUID() + "@example.com";
-        createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
+        createAccount(adminToken, email, ACCOUNT_PASSWORD, "EMPLOYEE");
 
         String listed = client.get(SystemClient.API_URL + "/api/users?size=100", adminToken)
                 .body().toString();
@@ -474,9 +508,9 @@ class SystemEndToEndTest {
         // elindeki yenileme jetonuyla oturumunu suresiz surduruyordu.
         String adminToken = signIn();
         String email = "e2e.revoked." + UUID.randomUUID() + "@example.com";
-        String id = createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
+        String id = createAccount(adminToken, email, ACCOUNT_PASSWORD, "EMPLOYEE");
 
-        String refreshToken = signIn(email, "a-long-enough-password")
+        String refreshToken = signIn(email, ACCOUNT_PASSWORD)
                 .body().get("refreshToken").asText();
 
         SystemClient.Response deactivated = client.put(
@@ -486,7 +520,7 @@ class SystemEndToEndTest {
                 """);
         assertThat(deactivated.status()).isEqualTo(200);
 
-        assertThat(signIn(email, "a-long-enough-password").status()).isEqualTo(401);
+        assertThat(signIn(email, ACCOUNT_PASSWORD).status()).isEqualTo(401);
         assertThat(client.post(SystemClient.API_URL + "/api/auth/refresh", null,
                 """
                 {"refreshToken":"%s"}
@@ -498,17 +532,17 @@ class SystemEndToEndTest {
     void passwordChangeEndsSessions() {
         String adminToken = signIn();
         String email = "e2e.password." + UUID.randomUUID() + "@example.com";
-        createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
+        createAccount(adminToken, email, ACCOUNT_PASSWORD, "EMPLOYEE");
 
-        SystemClient.Response login = signIn(email, "a-long-enough-password");
+        SystemClient.Response login = signIn(email, ACCOUNT_PASSWORD);
         String userToken = login.body().get("token").asText();
         String refreshToken = login.body().get("refreshToken").asText();
 
         SystemClient.Response changed = client.put(
                 SystemClient.API_URL + "/api/users/me/password", userToken,
                 """
-                {"currentPassword":"a-long-enough-password","newPassword":"a-different-password"}
-                """);
+                {"currentPassword":"%s","newPassword":"%s"}
+                """.formatted(ACCOUNT_PASSWORD, SECOND_PASSWORD));
         assertThat(changed.status()).isEqualTo(204);
 
         assertThat(client.post(SystemClient.API_URL + "/api/auth/refresh", null,
@@ -516,7 +550,7 @@ class SystemEndToEndTest {
                 {"refreshToken":"%s"}
                 """.formatted(refreshToken)).status()).isEqualTo(401);
 
-        assertThat(signIn(email, "a-different-password").status()).isEqualTo(200);
+        assertThat(signIn(email, SECOND_PASSWORD).status()).isEqualTo(200);
     }
 
     @Test
@@ -524,14 +558,14 @@ class SystemEndToEndTest {
     void rejectsWrongCurrentPassword() {
         String adminToken = signIn();
         String email = "e2e.wrongpass." + UUID.randomUUID() + "@example.com";
-        createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
+        createAccount(adminToken, email, ACCOUNT_PASSWORD, "EMPLOYEE");
 
-        String userToken = signIn(email, "a-long-enough-password").body().get("token").asText();
+        String userToken = signIn(email, ACCOUNT_PASSWORD).body().get("token").asText();
 
         SystemClient.Response response = client.put(
                 SystemClient.API_URL + "/api/users/me/password", userToken,
                 """
-                {"currentPassword":"not-the-password","newPassword":"a-different-password"}
+                {"currentPassword":"not-the-password","newPassword":SECOND_PASSWORD}
                 """);
 
         // 401 DEGIL 400: 401 arayuze "oturum bitti" der ve kullanici parolasini
@@ -588,15 +622,15 @@ class SystemEndToEndTest {
         assertThat(created.status()).isEqualTo(201);
 
         // Parolayi kullanici kendisi belirler; hesap davete kadar giremez.
-        acceptInvite(accountEmail, "a-long-enough-password");
-        assertThat(signIn(accountEmail, "a-long-enough-password").status()).isEqualTo(200);
+        acceptInvite(accountEmail, ACCOUNT_PASSWORD);
+        assertThat(signIn(accountEmail, ACCOUNT_PASSWORD).status()).isEqualTo(200);
 
         client.put(SystemClient.API_URL + "/api/employees/" + employeeId + "/status", adminToken,
                 """
                 {"active":false,"terminationReason":"RESIGNED"}
                 """);
 
-        assertThat(signIn(accountEmail, "a-long-enough-password").status()).isEqualTo(401);
+        assertThat(signIn(accountEmail, ACCOUNT_PASSWORD).status()).isEqualTo(401);
 
         // Yeniden ise alim hesabi KENDILIGINDEN acmaz: erisimi geri vermek
         // bilincli bir karar olmali.
@@ -605,7 +639,7 @@ class SystemEndToEndTest {
                 {"active":true}
                 """);
 
-        assertThat(signIn(accountEmail, "a-long-enough-password").status()).isEqualTo(401);
+        assertThat(signIn(accountEmail, ACCOUNT_PASSWORD).status()).isEqualTo(401);
     }
 
     @Test
@@ -668,9 +702,9 @@ class SystemEndToEndTest {
     void exportIsClosedToOtherRoles() {
         String adminToken = signIn();
         String email = "e2e.exporter." + UUID.randomUUID() + "@example.com";
-        createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
+        createAccount(adminToken, email, ACCOUNT_PASSWORD, "EMPLOYEE");
 
-        String userToken = signIn(email, "a-long-enough-password").body().get("token").asText();
+        String userToken = signIn(email, ACCOUNT_PASSWORD).body().get("token").asText();
 
         assertThat(client.get(SystemClient.API_URL + "/api/exports/employees", userToken).status())
                 .isEqualTo(403);
@@ -841,9 +875,9 @@ class SystemEndToEndTest {
     void importIsClosedToOtherRoles() {
         String adminToken = signIn();
         String email = "e2e.importer." + UUID.randomUUID() + "@example.com";
-        createAccount(adminToken, email, "a-long-enough-password", "EMPLOYEE");
+        createAccount(adminToken, email, ACCOUNT_PASSWORD, "EMPLOYEE");
 
-        String userToken = signIn(email, "a-long-enough-password").body().get("token").asText();
+        String userToken = signIn(email, ACCOUNT_PASSWORD).body().get("token").asText();
 
         assertThat(upload(userToken).status()).isEqualTo(403);
     }
@@ -937,5 +971,63 @@ class SystemEndToEndTest {
         // son gunu DAHIL eder (4-8 Mayis = 5 gun).
         String body = mail.at("/Content/Body").asText();
         assertThat(body).contains("04-05-2036").contains("08-05-2036").contains("5 days");
+    }
+    @Test
+    @DisplayName("Stops sending a notification once the person switches it off")
+    void mutedNotificationsAreNotSent() {
+        // Tercih olay ANINDA okunup yuke konuyor ve karari tuketici veriyor;
+        // zincirin tamami surulmeden bu dogrulanamaz.
+        String token = signIn();
+
+        String personEmail = "e2e.mute." + UUID.randomUUID() + "@example.com";
+        String personId = createEmployee(token, personEmail);
+
+        String accountEmail = "e2e.mute.account." + UUID.randomUUID() + "@example.com";
+        String accountToken = accountFor(token, accountEmail, personId);
+
+        SystemClient.Response off = client.put(
+                SystemClient.API_URL + "/api/notification-preferences/me", accountToken,
+                """
+                {"enabled":[]}""");
+        assertThat(off.status()).isEqualTo(200);
+        assertThat(off.body().get("items")).allMatch(item -> !item.get("enabled").asBoolean());
+
+        SystemClient.Response created = client.post(
+                SystemClient.API_URL + "/api/leave-requests", token,
+                """
+                {"employeeId":%s,"type":"UNPAID","startDate":"2037-09-07",
+                 "endDate":"2037-09-08","note":"muted probe"}
+                """.formatted(personId));
+        assertThat(created.status()).isEqualTo(201);
+
+        client.put(SystemClient.API_URL + "/api/leave-requests/"
+                + created.body().get("id").asText() + "/decision", token, """
+                {"status":"APPROVED"}""");
+
+        // Mailin GELMEDIGINI beklemek dogrudan olculemez: yoklugu bir karar mi
+        // yoksa henuz varmamis mi oldugu ayirt edilemez. Bu yuzden ayni kisiye
+        // KAPATILAMAYAN bir mail tetikleniyor -- o geldiginde boru hattinin
+        // sonraki olaylari da islemis oldugu kesin.
+        client.put(SystemClient.API_URL + "/api/employees/" + personId + "/status", token,
+                """
+                {"active":false,"terminationReason":"RESIGNED"}""");
+
+        awaitMail(personEmail, "deactivated");
+        assertThat(mailSubjectsFor(personEmail)).noneMatch(subject -> subject.contains("approved"));
+    }
+
+    /** Bir adrese dusmus butun mail konulari. */
+    private List<String> mailSubjectsFor(String recipient) {
+        List<String> subjects = new ArrayList<>();
+
+        for (JsonNode message : client
+                .get(SystemClient.MAILHOG_URL + "/api/v2/messages?limit=200", null)
+                .body().get("items")) {
+
+            if (message.at("/Content/Headers/To").toString().contains(recipient)) {
+                subjects.add(message.at("/Content/Headers/Subject").toString());
+            }
+        }
+        return subjects;
     }
 }

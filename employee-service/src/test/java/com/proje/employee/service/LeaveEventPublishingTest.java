@@ -56,6 +56,9 @@ class LeaveEventPublishingTest {
     @Mock
     private OutboxWriter outbox;
 
+    @Mock
+    private NotificationPreferenceService preferences;
+
     private LeaveRequestService service;
     private Employee grace;
     private Employee ada;
@@ -63,7 +66,7 @@ class LeaveEventPublishingTest {
 
     @BeforeEach
     void setUp() {
-        service = new LeaveRequestService(leaveRequests, employees, visibility, balances, outbox);
+        service = new LeaveRequestService(leaveRequests, employees, visibility, balances, outbox, preferences);
 
         Department department = new Department("Software Development");
         grace = employee(212L, "Grace", "Hopper", null);

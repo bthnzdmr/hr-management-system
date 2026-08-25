@@ -41,6 +41,9 @@ class LeaveDecisionScopeTest {
     private OutboxWriter outbox;
 
     @Mock
+    private NotificationPreferenceService preferences;
+
+    @Mock
     private LeaveRequestRepository leaveRequests;
 
     @Mock
@@ -61,7 +64,7 @@ class LeaveDecisionScopeTest {
 
     @BeforeEach
     void setUp() {
-        service = new LeaveRequestService(leaveRequests, employees, visibility, balances, outbox);
+        service = new LeaveRequestService(leaveRequests, employees, visibility, balances, outbox, preferences);
 
         Department department = new Department("Software Development");
         grace = employee(212L, "Grace", "Hopper", department, null);

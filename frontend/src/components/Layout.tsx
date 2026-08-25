@@ -29,6 +29,7 @@ import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined';
 import SupervisorAccountOutlinedIcon from '@mui/icons-material/SupervisorAccountOutlined';
@@ -418,6 +419,12 @@ export function Layout() {
             <LockOutlinedIcon fontSize="small" />
           </ListItemIcon>
           Change password
+        </MenuItem>
+        <MenuItem component={NavLink} to="/account/notifications" onClick={() => setUserMenu(null)}>
+          <ListItemIcon>
+            <NotificationsNoneOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          Notifications
         </MenuItem>
         <MenuItem
           onClick={() => {

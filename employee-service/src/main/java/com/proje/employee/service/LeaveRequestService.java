@@ -8,6 +8,7 @@ import com.proje.employee.entity.Employee;
 import com.proje.employee.entity.LeaveRequest;
 import com.proje.employee.entity.LeaveStatus;
 import com.proje.employee.entity.LeaveType;
+import com.proje.employee.entity.NotificationKind;
 import com.proje.employee.entity.User;
 import com.proje.employee.exception.EmployeeNotFoundException;
 import com.proje.employee.exception.LeaveRequestNotFoundException;
@@ -33,6 +34,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -51,15 +54,18 @@ public class LeaveRequestService {
     private final EmployeeVisibility visibility;
     private final LeaveBalanceService balances;
     private final OutboxWriter outbox;
+    private final NotificationPreferenceService preferences;
 
     public LeaveRequestService(LeaveRequestRepository leaveRequests, EmployeeRepository employees,
                                EmployeeVisibility visibility, LeaveBalanceService balances,
-                               OutboxWriter outbox) {
+                               OutboxWriter outbox,
+                               NotificationPreferenceService preferences) {
         this.leaveRequests = leaveRequests;
         this.employees = employees;
         this.visibility = visibility;
         this.balances = balances;
         this.outbox = outbox;
+        this.preferences = preferences;
     }
 
     /** Yeni izin istegi. */
@@ -332,6 +338,13 @@ public class LeaveRequestService {
         Employee owner = leave.getEmployee();
         Employee manager = owner.getManager();
 
+        // Iki kisinin tercihi TEK sorguda okunuyor; ayri ayri sorulsaydi her
+        // olay iki gidis donus ederdi.
+        Set<Long> people = manager == null
+                ? Set.of(owner.getId())
+                : Set.of(owner.getId(), manager.getId());
+        Map<Long, Set<NotificationKind>> muted = preferences.mutedFor(people);
+
         outbox.write(new LeaveEvent(
                 UUID.randomUUID().toString(),
                 type,
@@ -349,7 +362,16 @@ public class LeaveRequestService {
                 snapshot.note(),
                 snapshot.decisionNote(),
                 scope.employeeId(),
-                actor.getEmail()));
+                actor.getEmail(),
+                names(muted.get(owner.getId())),
+                manager == null ? Set.of() : names(muted.get(manager.getId()))));
+    }
+
+    /** Enum kumesi tel uzerindeki adlara cevrilir; sozlesme JSON'dur. */
+    private Set<String> names(Set<NotificationKind> kinds) {
+        return kinds == null
+                ? Set.of()
+                : kinds.stream().map(Enum::name).collect(java.util.stream.Collectors.toSet());
     }
 
     private void requireCanDecide(LeaveRequest leave, AccessScope scope) {

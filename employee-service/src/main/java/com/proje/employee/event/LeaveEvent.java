@@ -2,6 +2,7 @@ package com.proje.employee.event;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Set;
 
 /**
  * Izin olaylarinin sozlesmesi. `EmployeeEvent` gibi JSON'dur, ortak bir Java
@@ -65,6 +66,19 @@ public record LeaveEvent(
          * Tuketici bunu `employeeEmail` ile KARSILASTIRIR: kisinin kendi
          * yaptigi islemi kendisine bildirmek gurultudur.
          */
-        String actorEmail
+        String actorEmail,
+
+        /**
+         * Alicilarin olay ANINDA susturmus oldugu bildirim turleri.
+         *
+         * Yonetici adresiyle AYNI gerekce: olay bir ANIN olgusudur. Tuketici
+         * tercihi sonradan sorsaydi, kisi olayin yayinlanmasi ile islenmesi
+         * arasinda tercihini degistirdiginde mail o anki tercihe gore giderdi
+         * -- oysa bildirilen sey gecmiste yasanmis bir olay.
+         *
+         * Alan "gonderme" DEMEZ, "susturmustu" der; kararı yine tuketici verir.
+         */
+        Set<String> employeeMuted,
+        Set<String> managerMuted
 ) {
 }

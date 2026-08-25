@@ -70,6 +70,9 @@ class LeaveRequestCreationTest {
     private OutboxWriter outbox;
 
     @Mock
+    private NotificationPreferenceService preferences;
+
+    @Mock
     private LeaveRequestRepository leaveRequests;
 
     @Mock
@@ -87,7 +90,7 @@ class LeaveRequestCreationTest {
 
     @BeforeEach
     void setUp() {
-        service = new LeaveRequestService(leaveRequests, employees, visibility, balances, outbox);
+        service = new LeaveRequestService(leaveRequests, employees, visibility, balances, outbox, preferences);
 
         grace = new Employee("Grace", "Hopper", "grace@example.com",
                 new Department("Software Development"), "Engineer", LocalDate.now());

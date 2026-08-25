@@ -13,6 +13,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Properties;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -48,11 +49,18 @@ class LeaveMailRoutingTest {
 
     private LeaveEvent event(LeaveEventType type, Long actorEmployeeId, String actorEmail,
                              String managerEmail) {
+        return event(type, actorEmployeeId, actorEmail, managerEmail, Set.of(), Set.of());
+    }
+
+    private LeaveEvent event(LeaveEventType type, Long actorEmployeeId, String actorEmail,
+                             String managerEmail, Set<String> employeeMuted,
+                             Set<String> managerMuted) {
         return new LeaveEvent(
                 java.util.UUID.randomUUID(), type, Instant.now(),
                 7L, ADA, "Ada Lovelace", "ada.lovelace@company.test", managerEmail,
                 "ANNUAL", LocalDate.of(2032, 3, 10), LocalDate.of(2032, 3, 15), 6,
-                "PENDING", "dentist", null, actorEmployeeId, actorEmail);
+                "PENDING", "dentist", null, actorEmployeeId, actorEmail,
+                employeeMuted, managerMuted);
     }
 
     private String recipientOfSentMail() throws Exception {
@@ -129,5 +137,76 @@ class LeaveMailRoutingTest {
         assertThat(outcome("sent")).isZero();
         assertThat(outcome("no_recipient")).isZero();
         assertThat(outcome("self_action")).isZero();
+        assertThat(outcome("muted")).isZero();
+    }
+    @Test
+    @DisplayName("Stays quiet when the manager muted leave requests")
+    void mutedManagerGetsNoRequestMail() {
+        service.send(event(LeaveEventType.REQUESTED, ADA, "user@accounts.test",
+                "grace.hopper@company.test", Set.of(), Set.of("LEAVE_REQUEST")));
+
+        verify(mailSender, never()).send(any(MimeMessage.class));
+        // AYRI bir sonuc: "kisi istemedi" ile "alici yok" ayni sey degil ve
+        // ikisi de disaridan mail gitmemesi olarak gorunur.
+        assertThat(outcome("muted")).isEqualTo(1);
+        assertThat(outcome("no_recipient")).isZero();
+    }
+
+    @Test
+    @DisplayName("Reads the preference of whoever receives the mail, not of the other person")
+    void readsTheRecipientsOwnPreference() throws Exception {
+        // Talep maili YONETICIYE gider; personelin susturmasi burada gecersiz.
+        // Yanlis kisinin tercihine bakmak, susturmayi BASKASI adina uygulamak
+        // olurdu -- ve bu, sessizce kaybolan bir mail demektir.
+        service.send(event(LeaveEventType.REQUESTED, ADA, "user@accounts.test",
+                "grace.hopper@company.test",
+                Set.of("LEAVE_REQUEST", "LEAVE_DECISION"), Set.of()));
+
+        assertThat(recipientOfSentMail()).isEqualTo("grace.hopper@company.test");
+        assertThat(outcome("muted")).isZero();
+    }
+
+    @Test
+    @DisplayName("Stays quiet when the employee muted decisions on their own requests")
+    void mutedEmployeeGetsNoDecisionMail() {
+        service.send(event(LeaveEventType.DECIDED, GRACE, "grace@accounts.test", null,
+                Set.of("LEAVE_DECISION"), Set.of()));
+
+        verify(mailSender, never()).send(any(MimeMessage.class));
+        assertThat(outcome("muted")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Muting decisions does not mute requests")
+    void mutingOneKindLeavesTheOther() throws Exception {
+        // Kirilabilirlik: kural "herhangi bir susturma varsa gonderme" olsaydi
+        // bu test duser ve tek bir tercih butun bildirimleri kapatirdi.
+        service.send(event(LeaveEventType.REQUESTED, ADA, "user@accounts.test",
+                "grace.hopper@company.test", Set.of(), Set.of("LEAVE_DECISION")));
+
+        assertThat(recipientOfSentMail()).isEqualTo("grace.hopper@company.test");
+    }
+
+    @Test
+    @DisplayName("Treats an unknown preference name as no preference at all")
+    void unknownPreferenceNameIsHarmless() throws Exception {
+        // Uretici yeni bir tur eklediginde bu servis KIRILMAMALI: karsilastirma
+        // metin uzerinden ve taninmayan bir ad hicbir seyi susturmaz. Enum
+        // olarak cozulseydi butun olay ayristirilamaz olurdu.
+        service.send(event(LeaveEventType.REQUESTED, ADA, "user@accounts.test",
+                "grace.hopper@company.test", Set.of(), Set.of("SOMETHING_NEW")));
+
+        assertThat(recipientOfSentMail()).isEqualTo("grace.hopper@company.test");
+    }
+
+    @Test
+    @DisplayName("Tolerates an event published before preferences existed")
+    void nullPreferenceSetsAreTolerated() throws Exception {
+        // Outbox'ta bekleyen ESKI bir olayda bu alanlar hic yoktur ve `null`
+        // gelir; alan eklemek geriye donuk uyumlu olmali.
+        service.send(event(LeaveEventType.REQUESTED, ADA, "user@accounts.test",
+                "grace.hopper@company.test", null, null));
+
+        assertThat(recipientOfSentMail()).isEqualTo("grace.hopper@company.test");
     }
 }

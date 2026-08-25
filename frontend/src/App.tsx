@@ -47,6 +47,10 @@ const AuditPage = lazy(() =>
   import('./pages/AuditPage').then((m) => ({ default: m.AuditPage })));
 const ChangePasswordPage = lazy(() =>
   import('./pages/ChangePasswordPage').then((m) => ({ default: m.ChangePasswordPage })));
+
+const NotificationPreferencesPage = lazy(() =>
+  import('./pages/NotificationPreferencesPage')
+    .then((m) => ({ default: m.NotificationPreferencesPage })));
 const DashboardPage = lazy(() =>
   import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const OrgChartPage = lazy(() =>
@@ -112,6 +116,7 @@ export default function App() {
 
           {/* Kendi parolasini herkes degistirir. */}
           <Route path="/account/password" element={<ChangePasswordPage />} />
+          <Route path="/account/notifications" element={<NotificationPreferencesPage />} />
 
           {/* Organizasyon semasi da TOPLU yapisal veri: sunucu ayni rolleri
               istiyor, arayuz de ayni yetenegi soruyor. */}

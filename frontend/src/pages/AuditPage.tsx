@@ -32,6 +32,7 @@ const ACTIONS: { value: AuditAction; label: string; color: 'default' | 'success'
   // Toplu YAZMA: tek istekle yuzlerce kayit acar, bu yuzden aktarma kadar
   // gorunur isaretleniyor.
   { value: 'EMPLOYEES_IMPORTED', label: 'Directory imported', color: 'warning' },
+  { value: 'NOTIFICATION_PREFERENCES_CHANGED', label: 'Notification preferences changed', color: 'default' },
 ];
 
 const LABELS = new Map(ACTIONS.map((a) => [a.value, a]));

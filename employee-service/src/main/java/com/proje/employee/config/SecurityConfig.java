@@ -122,6 +122,13 @@ public class SecurityConfig {
                         // yoneticiler parolasini degistirebilirdi.
                         .requestMatchers(HttpMethod.PUT, "/api/users/me/password").authenticated()
 
+                        // Kural ACIKCA yaziliyor. `anyRequest().authenticated()`
+                        // agina birakilsaydi ayni sonucu verirdi ama niyet kodda
+                        // gorunmezdi: bu ucun herkese acik olmasi bir KARAR --
+                        // tercih kisinin kendisine ait ve kapsami servis
+                        // katmani belirliyor.
+                        .requestMatchers("/api/notification-preferences/**").authenticated()
+
                         // Gosterge paneli TOPLU veri gosterir. Kapsami sinirli
                         // bir kullanici (EMPLOYEE, MANAGER) tek tek goremedigi
                         // kisilerin toplamini da gormemeli; kucuk bir grupta

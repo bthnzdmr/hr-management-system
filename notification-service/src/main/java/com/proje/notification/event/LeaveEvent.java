@@ -3,6 +3,7 @@ package com.proje.notification.event;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 import java.time.LocalDate;
 
@@ -37,6 +38,10 @@ public record LeaveEvent(
         String note,
         String decisionNote,
         Long actorEmployeeId,
-        String actorEmail
+        String actorEmail,
+
+        /** Alicilarin olay ANINDA susturmus oldugu bildirim turleri. */
+        Set<String> employeeMuted,
+        Set<String> managerMuted
 ) {
 }

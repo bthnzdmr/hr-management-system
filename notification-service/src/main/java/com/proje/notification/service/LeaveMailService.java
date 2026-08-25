@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Izin olaylarini maile cevirir.
@@ -59,6 +60,7 @@ public class LeaveMailService {
     private final Counter sent;
     private final Counter noRecipient;
     private final Counter selfAction;
+    private final Counter muted;
 
     public LeaveMailService(JavaMailSender mailSender,
                             @Value("${app.mail.from}") String fromAddress,
@@ -71,6 +73,11 @@ public class LeaveMailService {
         this.sent = counter(registry, "sent");
         this.noRecipient = counter(registry, "no_recipient");
         this.selfAction = counter(registry, "self_action");
+
+        // AYRI bir sonuc: "kisi istemedi" ile "alici yok" ayni sey degil.
+        // Ikisi de mail gitmemesiyle sonuclanir ve disaridan ayni gorunur --
+        // tam da bu ayrimi kaybetmemek icin uc sonuc sayilmaya baslanmisti.
+        this.muted = counter(registry, "muted");
     }
 
     private static Counter counter(MeterRegistry registry, String outcome) {
@@ -139,17 +146,42 @@ public class LeaveMailService {
             return Optional.empty();
         }
 
+        // Tercih olay ANINDA okunmustu ve yukte tasiniyor; burada yalnizca
+        // KARAR veriliyor. Alan "gonderme" demiyor, "susturmustu" diyor.
+        if (isMuted(event)) {
+            muted.increment();
+            return Optional.empty();
+        }
+
         return Optional.of(candidate);
     }
 
     /**
-     * Islemi kisinin KENDISI mi yapti?
+     * Alici bu turu susturmus muydu?
      *
-     * Karsilastirma PERSONEL KIMLIGI uzerinden: `actorEmail` bir HESAP
-     * adresidir, `employeeEmail` bir PERSONEL adresi ve ikisi ayni olmak
-     * zorunda degil. Canli olcumde tam da bu yuzden kisi kendi geri cektigi
-     * talepten mail aldi.
+     * <p>Talep maili YONETICIYE gider, dolayisiyla bakilacak tercih de
+     * yoneticinindir; karar ve geri cekilme mailleri personele gider.
+     * Yanlis kisinin tercihine bakmak, susturmayi baskasi adina uygulamak
+     * olurdu.
+     *
+     * <p>Taninmayan bir ad kume ICINDE gelirse zararsizdir: karsilastirma
+     * metin uzerinden ve uretici yeni bir tur eklediginde bu servis
+     * KIRILMAZ -- ayni gerekce `ignoreUnknown` icin de gecerli.
      */
+    private boolean isMuted(LeaveEvent event) {
+        Set<String> preference = switch (event.eventType()) {
+            case REQUESTED -> event.managerMuted();
+            case DECIDED, CANCELLED -> event.employeeMuted();
+        };
+
+        return preference != null && preference.contains(kindOf(event.eventType()));
+    }
+
+    /** Olay tipinin karsiligi olan tercih adi. */
+    private String kindOf(LeaveEventType type) {
+        return type == LeaveEventType.REQUESTED ? "LEAVE_REQUEST" : "LEAVE_DECISION";
+    }
+
     private boolean selfCancelled(LeaveEvent event) {
         return event.actorEmployeeId() != null
                 && event.actorEmployeeId().equals(event.employeeId());
