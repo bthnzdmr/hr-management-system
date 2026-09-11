@@ -2,3 +2,12 @@
 logging:
   level:
     com.proje.notification: debug
+
+# Istemci rehberi KENDI onbellegine ceker ve varsayilani 30 sn. Sunucunun
+# onbellegiyle birlikte en kotu durumda bir dakikaya yakin bir pencere olusuyor
+# ve o pencerede employee-service "yok" gorunuyor. Gelistirmede ve CI'da kisa
+# tutuluyor; uretimde varsayilan kalir, cunku orada pencere bir kez odenir ve
+# sik yoklama Eureka'yi gereksiz mesgul eder.
+eureka:
+  client:
+    registry-fetch-interval-seconds: 5

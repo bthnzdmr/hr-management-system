@@ -5,3 +5,11 @@ eureka:
     # boylece lokalde ne olup bittigi net gorunur. Uretimde ACIK kalmali --
     # kapali oldugunda ag dalgalanmasi saglikli kopyalari da dusurur.
     enable-self-preservation: false
+
+    # Rehber cevabi ONBELLEKLENIR ve varsayilani 30 sn: yeni kaydolan bir servis
+    # o sure boyunca istemcilere GORUNMEZ. Uretimde dogru bir takas (Eureka
+    # yuku duser) ama gelistirmede ve CI'da olculen bir arizaya yol aciyordu --
+    # uctan uca paket yigin kalkar kalkmaz kosuyor ve tuketici, henuz
+    # gormedigi employee-service'e Feign ile ulasamiyor. Sonuc sessiz:
+    # bildirim maili gidiyor, yalnizca yonetici CC'si bos kaliyor.
+    response-cache-update-interval-ms: 3000
