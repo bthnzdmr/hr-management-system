@@ -1,0 +1,29 @@
+# Satir sonu YAPISAL olarak normallestirilir.
+#
+# Depodaki 448 dosyanin tamami zaten LF ile duruyor, ama bu garanti su an her
+# klonlayanin kendi `core.autocrlf` ayarina bagli. Bir katkici farkli bir ayarla
+# CRLF commit'lerse fark butun dosyaya yayilir ve gercek degisiklik kaybolur.
+#
+# `text=auto` ile karar dosyanin KENDISINDE yaziyor: Git metin dosyalarini
+# depoya daima LF olarak yazar, calisma kopyasinda isletim sistemine birakir.
+* text=auto eol=lf
+
+# Ikili dosyalar donusturulmez; donusturulseydi icerikleri bozulurdu.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.jar binary
+*.pdf binary
+
+# Kabuk betikleri ve Maven sarmalayicisi LF olmak ZORUNDA: CRLF ile baslayan
+# bir betik Linux'ta `bad interpreter` verir.
+*.sh text eol=lf
+mvnw text eol=lf
+
+# Windows betikleri ise CRLF ister.
+*.bat text eol=crlf
+*.cmd text eol=crlf

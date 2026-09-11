@@ -2,13 +2,13 @@
 
 > Personel kayıtlarını yöneten bir web uygulaması. Kayıt değiştiğinde bildirim maili, ana uygulamanın içinde değil, **ayrı bir servis** tarafından **mesaj kuyruğu** üzerinden gönderilir.
 
-**Durum:** Sistem uçtan uca çalışıyor. Employee Service (26 REST ucu — üçü dışında hepsi kimlik doğrulaması ister, altı rollü yetkilendirme, transactional outbox, denetim izi), Notification Service (idempotent tüketici, DLQ, Feign, mail) ve React arayüzü hazır; tamamı tek komutla konteynerlerde ayağa kalkıyor.
+**Durum:** Sistem uçtan uca çalışıyor. Employee Service (35 REST ucu — beşi dışında hepsi kimlik doğrulaması ister, altı rollü yetkilendirme, transactional outbox, denetim izi), Notification Service (idempotent tüketici, yeniden deneme merdiveni, DLQ, Feign, mail) ve React arayüzü hazır; tamamı tek komutla konteynerlerde ayağa kalkıyor.
 
 ---
 
 ## İçindekiler
 
-1. [Proje Hakkında](#1-proje-hakkında)
+1. [Proje Hakkında](#1-proje-hakkında) — [Neler yapıyor?](#neler-yapıyor)
 2. [Mimari](#2-mimari)
 3. [Uçtan Uca Akış](#3-uçtan-uca-akış)
 4. [Teknoloji Yığını](#4-teknoloji-yığını)
@@ -23,12 +23,24 @@
 
 ## 1. Proje Hakkında
 
-Sistem iki işi yapar:
+Personel yönetimi için uçtan uca bir sistem: kadro ve organizasyon yapısı, izin süreci, rol bazlı yetkilendirme, denetim izi ve olay tabanlı bildirim.
 
-1. **Personel kayıtlarını yönetir** — listeleme, ekleme, güncelleme, silme. Klasik bir CRUD uygulaması.
-2. **Değişiklikleri bildirir** — bir personel kaydı değiştiğinde, değişiklik bilgilerini içeren bir mail gönderir.
+### Neler yapıyor?
 
-İkinci iş, mimarinin tamamının sebebidir. Mail gönderimi ana uygulamanın içinde yapılsaydı proje sıradan bir CRUD uygulaması olurdu. Ayrı bir servise taşındığı ve iletişim kuyruk üzerinden kurulduğu için ortaya bir **dağıtık sistem** çıkıyor: iki bağımsız uygulama, iki farklı iletişim biçimi (senkron ve asenkron), ve bunların getirdiği problemler (mesaj kaybı, tekrar teslim, servis keşfi).
+| Alan | Yetenekler |
+| --- | --- |
+| **Personel ve organizasyon** | Personel ve departman kaydı, yönetici hiyerarşisi, ayrılış bilgisi · organizasyon haritası (radyal şema, departman katmanı, kişi arama) · gösterge paneli (kadro, devir oranı, aylık işe alım/ayrılış eğrisi) · yöneticiye özel ekip ekranı |
+| **İzin yönetimi** | Talep, onay, gerekçeli ret, geri çekme · çakışan izin veritabanı kısıtıyla engelleniyor · kıdeme göre yıllık hak (İş Kanunu m.53), devir tavanı, günlük tahakkuk işi · takvim görünümü, kişi ve departman süzgeci |
+| **Hesap ve yetki** | JWT + dönen yenileme jetonu (tekrar kullanım tespiti) · altı rol ve satır bazlı kapsam (kim kimin kaydını görür) · davetle hesap açma, parola sıfırlama, parola politikası · giriş hız sınırı |
+| **Bildirim** | Transactional outbox → RabbitMQ → ayrı tüketici servis · personel ve izin olayları, HTML mail · gecikmeli yeniden deneme merdiveni (5 dk / 30 dk / 2 sa) ve DLQ · kişi başına bildirim tercihleri |
+| **Denetim ve izlenebilirlik** | Her yazma işleminin denetim kaydı — kim, ne zaman, ne yaptı, insan diliyle · uçtan uca korelasyon kimliği · Prometheus, Grafana ve Alertmanager ile metrik ve uyarı |
+| **Veri aktarımı** | Personel listesini CSV olarak dışa aktarma (formül enjeksiyonuna karşı nötrleme) · CSV'den içe aktarma (hepsi ya da hiçbiri) |
+
+**Rakamlarla:** 35 REST ucu · 6 rol · 18 Flyway migration'ı · 989 otomatik test (612 arka uç, 343 arayüz, 34 uçtan uca).
+
+### Mimarinin sebebi
+
+Bildirim maili ana uygulamanın içinde gönderilseydi proje sıradan bir CRUD uygulaması olurdu. Ayrı bir servise taşındığı ve iletişim kuyruk üzerinden kurulduğu için ortaya bir **dağıtık sistem** çıkıyor: bağımsız dağıtılabilen uygulamalar, iki farklı iletişim biçimi (senkron ve asenkron), ve bunların getirdiği problemler — mesaj kaybı, tekrar teslim, servis keşfi, nihai tutarlılık.
 
 ---
 
@@ -542,6 +554,8 @@ Taban adres: `http://localhost:8080`
 | `GET` | `/api/exports/employees` | Personel listesini CSV olarak indirir; süzgeçler listeleme ucuyla aynı. Ücret **yok**, kapsam aynen uygulanır, her indirme denetim izine yazılır. Sonuç tavanı aşarsa dosya kırpılmaz, `409` döner | `HR_SPECIALIST` | `200` |
 | `POST` | `/api/imports/employees` | Personel listesini CSV'den yükler (`text/csv`). **Hepsi ya da hiçbiri**: tek geçersiz satır bütün dosyayı reddeder ve `422` ile satır satır gerekçe döner. Olay yayınlanmaz — toplu yükleme çoğu zaman bir göçtür | `HR_SPECIALIST` | `200` |
 | `GET` | `/api/audit` | Denetim izi; aktör, eylem, hedef ve tarihe göre süzülür. Arayüzde **Activity** ekranı | `SYSTEM_ADMIN` | `200` |
+| `GET` | `/api/notification-preferences/me` | Kişinin kendi bildirim tercihleri. Bütün türler listelenir, varsayılan açıktır | giriş yapmış | `200` |
+| `PUT` | `/api/notification-preferences/me` | Tercihleri komple değiştirir (idempotent). Yalnızca `/me` vardır: başkasının bildirimini susturmak, onu ilgilendiren bir olayı gizlemek olurdu. Personel kaydı olmayan hesap `409` alır | giriş yapmış | `200` |
 | `GET` | `/api/departments` | Aktif departmanlar, isme göre sıralı | giriş yapmış | `200` |
 | `POST` | `/api/departments` | Yeni departman; ad büyük-küçük harf duyarsız benzersiz | `HR_SPECIALIST` | `201` + `Location` |
 | `PUT` | `/api/departments/{id}/status` | Aç / kapat (tekrarı etkisiz). İçinde aktif personel varken kapatılamaz | `HR_SPECIALIST` | `200` |
@@ -769,6 +783,18 @@ Belge controller ve DTO sınıflarından üretilir; elle güncellenmez.
 | **6** | Dockerfile'lar, tek komutla ayağa kalkan sistem, uçtan uca testler                    | Parçaların tamamı hazır olmalı                       | ✅        |
 
 Genel kural: **veriyi üreten, tüketenden önce gelir.**
+
+### Faz 6'dan sonra
+
+Altıncı fazın sonunda sistem uçtan uca çalışıyordu; sonrası tek bir plana göre değil, ölçüm ve denetim turlarına göre büyüdü. Özetle:
+
+| Alan | Eklenenler |
+| --- | --- |
+| **Güvenlik ve yetki** | Rol modeli altı role bölündü, satır bazlı kapsam geldi, ücret yetkisi ayrı bir role çıkarıldı · dönen yenileme jetonu · davetle hesap açma, parola sıfırlama, parola politikası · giriş hız sınırı |
+| **İzin modülü** | Talep–karar akışı, veritabanı kısıtıyla çakışma engelleme, kıdeme göre yıllık hak ve tahakkuk işi, takvim görünümü |
+| **Görünürlük** | Gösterge paneli, organizasyon haritası, denetim izi ve ekranı |
+| **İşletilebilirlik** | Uçtan uca korelasyon kimliği, yapılandırılmış günlükleme, ortam profilleri · Prometheus, Grafana, Alertmanager ve uyarı kuralları · gecikmeli yeniden deneme merdiveni · CI, bağımlılık açığı taraması, kapsam ölçümü |
+| **Veri aktarımı** | CSV dışa ve içe aktarma, kişi başına bildirim tercihleri |
 
 ---
 
