@@ -200,6 +200,17 @@
             <artifactId>spring-boot-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Boot 4'te @DataJpaTest dilimi Flyway'i KENDILIGINDEN getirmiyor.
+             Bedeli sessiz ve yalnizca TEMIZ bir veritabaninda gorunuyor:
+             sema hic olusmuyor, Hibernate `validate` "missing table" diyor ve
+             butun dilim testleri patliyor. Gelistirme makinesinde veritabani
+             zaten goc etmis oldugu icin fark edilmiyordu; CI her kosuda sifirdan
+             basladigi icin orada cikti. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway-test</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <!-- @WithMockUser gibi test yardimcilari. -->
         <dependency>
