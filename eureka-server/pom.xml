@@ -23,11 +23,15 @@
         <java.version>17</java.version>
         <!-- Eureka, Spring Cloud ailesinden gelir; surumunu burada sabitliyoruz. -->
         <spring-cloud.version>2025.0.0</spring-cloud.version>
-        <!-- Override GERI KONDU: 10.1.55'te dort CVSS 9.1 var (CVE-2026-53434,
-             CVE-2026-55276, CVE-2026-59083, CVE-2026-59084) ve son ikisi ancak
-             10.1.57'de kapaniyor.
-             KALDIRMA KOSULU: Boot'un surum tablosu 10.1.57'yi gectiginde. -->
-        <tomcat.version>10.1.57</tomcat.version>
+        <!-- Override SURUYOR: 10.1.57'de dort kritik var (CVE-2026-65905 ve
+             CVE-2026-65637 9.8; CVE-2026-65182 ve CVE-2026-68525 9.1) ve
+             dordu de ancak 10.1.58'den itibaren kapaniyor. O surum hic
+             yayimlanmadi; hattin yayimlanan ilk guvenli surumu 10.1.59 ve
+             son yama 10.1.60 secildi.
+             Tomcat 10.1 hatti AKTIF bakimda (10.1.60 yayini 09-09-2026);
+             Spring'in 6.2/6.5 hatlari ise Haziran'da durdu.
+             KALDIRMA KOSULU: Boot'un surum tablosu 10.1.60'i gectiginde. -->
+        <tomcat.version>10.1.60</tomcat.version>
         <!-- CVE-2026-71290 (9.1): async HttpClient'ta TLS sunucu adi
              dogrulamasi etkisiz; 5.6.4 duzeltiyor. -->
         <httpclient5.version>5.6.4</httpclient5.version>

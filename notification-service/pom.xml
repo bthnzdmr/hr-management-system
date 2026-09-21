@@ -27,11 +27,15 @@
         <dependency-check.version>12.1.3</dependency-check.version>
         <!-- Kapsam olcumu. Boot 3.5 bunu surum tablosunda tutmuyor. -->
         <jacoco.version>0.8.15</jacoco.version>
-        <!-- Override GERI KONDU: 10.1.55'te dort CVSS 9.1 var (CVE-2026-53434,
-             CVE-2026-55276, CVE-2026-59083, CVE-2026-59084) ve son ikisi ancak
-             10.1.57'de kapaniyor.
-             KALDIRMA KOSULU: Boot'un surum tablosu 10.1.57'yi gectiginde. -->
-        <tomcat.version>10.1.57</tomcat.version>
+        <!-- Override SURUYOR: 10.1.57'de dort kritik var (CVE-2026-65905 ve
+             CVE-2026-65637 9.8; CVE-2026-65182 ve CVE-2026-68525 9.1) ve
+             dordu de ancak 10.1.58'den itibaren kapaniyor. O surum hic
+             yayimlanmadi; hattin yayimlanan ilk guvenli surumu 10.1.59 ve
+             son yama 10.1.60 secildi.
+             Tomcat 10.1 hatti AKTIF bakimda (10.1.60 yayini 09-09-2026);
+             Spring'in 6.2/6.5 hatlari ise Haziran'da durdu.
+             KALDIRMA KOSULU: Boot'un surum tablosu 10.1.60'i gectiginde. -->
+        <tomcat.version>10.1.60</tomcat.version>
 
         <!-- CVE-2026-54291: 42.7.4 ile 42.7.11 arasinda `channelBinding=require`
              baglantilari SESSIZCE duz SCRAM'e dusebiliyor ve ortadaki adam
