@@ -177,6 +177,17 @@ export function OrgChartPage() {
         </Alert>
       )}
 
+      {/* Kirpma UYARIDIR, bilgi degil: ulasilamayan kisiler bir veri
+          durumudur ve olagan olabilir, ama eksik cizilmis bir sema
+          yanlis okunur. Sessiz kirpma, EKSIK OLDUGUNU SOYLEMEYEN bir
+          sema uretirdi -- CSV aktarmada ve izin takviminde ayni ilke. */}
+      {chart?.truncated && (
+        <Alert severity="warning">
+          This chart is incomplete: only the first {chart.placed} people are drawn. Pick a
+          single department to see its full structure.
+        </Alert>
+      )}
+
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} sx={{ alignItems: 'flex-start' }}>
         <Paper
           sx={{

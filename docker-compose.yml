@@ -215,6 +215,7 @@ services:
       LEAVE_CARRY_OVER_CAP: ${LEAVE_CARRY_OVER_CAP:-5}
       EXPORT_MAX_ROWS: ${EXPORT_MAX_ROWS:-5000}
       IMPORT_MAX_ROWS: ${IMPORT_MAX_ROWS:-1000}
+      ORG_CHART_MAX_NODES: ${ORG_CHART_MAX_NODES:-500}
     depends_on:
       postgres:
         condition: service_healthy

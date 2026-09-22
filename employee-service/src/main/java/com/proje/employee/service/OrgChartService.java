@@ -2,6 +2,7 @@ package com.proje.employee.service;
 
 import com.proje.employee.dto.OrgChartResponse;
 import com.proje.employee.repository.DashboardRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,9 +34,12 @@ public class OrgChartService {
     private static final int MAX_DEPTH = 20;
 
     private final DashboardRepository dashboardRepository;
+    private final int maxNodes;
 
-    public OrgChartService(DashboardRepository dashboardRepository) {
+    public OrgChartService(DashboardRepository dashboardRepository,
+                           @Value("${app.org-chart.max-nodes}") int maxNodes) {
         this.dashboardRepository = dashboardRepository;
+        this.maxNodes = maxNodes;
     }
 
     /**
@@ -45,7 +49,17 @@ public class OrgChartService {
      */
     @Transactional(readOnly = true)
     public OrgChartResponse build() {
-        List<DashboardRepository.OrgNode> rows = dashboardRepository.orgChart(MAX_DEPTH);
+        // Tavandan BIR FAZLA istenir: asildigini anlamanin tek yolu bu.
+        // Tam tavan kadar istenseydi "tam doldu" ile "tastı" ayirt edilemezdi.
+        // Ayni desen CSV disa aktarmada da kullaniliyor.
+        List<DashboardRepository.OrgNode> rows =
+                dashboardRepository.orgChart(MAX_DEPTH, maxNodes + 1);
+
+        boolean truncated = rows.size() > maxNodes;
+        if (truncated) {
+            rows = rows.subList(0, maxNodes);
+        }
+
         long active = dashboardRepository.countActive();
 
         // Sorgu derinlige gore SIRALI donuyor, yani bir dugume ulasildiginda
@@ -80,6 +94,12 @@ public class OrgChartService {
             }
         }
 
-        return new OrgChartResponse(roots, nodes.size(), active - nodes.size());
+        // Kirpildiysa "ulasilamayan" HESAPLANMAZ: cizilmeyenlerin hangisinin
+        // veri kusuru (yoneticisi pasif), hangisinin sinir yuzunden disarida
+        // kaldigi ayirt edilemez. Tahmini bir sayi vermek, olmayan bir
+        // kesinlik uydurmak olurdu.
+        long unreachable = truncated ? 0 : active - nodes.size();
+
+        return new OrgChartResponse(roots, nodes.size(), unreachable, truncated);
     }
 }

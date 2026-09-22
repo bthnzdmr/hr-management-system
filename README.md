@@ -544,7 +544,7 @@ Taban adres: `http://localhost:8080`
 | `PUT` | `/api/employees/{id}/status` | Pasifleştirme / yeniden aktifleştirme (tekrarı etkisiz). Pasifleştirirken `terminationReason` **zorunlu** | `HR_SPECIALIST` | `200` |
 | `GET` | `/api/employees/{id}/salary` | Maaş bilgisi. `PAYROLL_SPECIALIST` herkesinkini, diğerleri **yalnızca kendi** kayıtlarınınkini görür | `PAYROLL_SPECIALIST`, `EMPLOYEE`, `MANAGER` | `200` |
 | `PUT` | `/api/employees/{id}/salary` | Maaş güncelleme | `PAYROLL_SPECIALIST` | `200` |
-| `GET` | `/api/org-chart` | Aktif personelin ağaç yapısı; erişilemeyenler sayılıp bildirilir | `HR_SPECIALIST`, `SYSTEM_ADMIN` | `200` |
+| `GET` | `/api/org-chart` | Aktif personelin ağaç yapısı; erişilemeyenler sayılıp bildirilir, düğüm tavanı aşılırsa `truncated` ile bildirilir | `HR_SPECIALIST`, `SYSTEM_ADMIN` | `200` |
 | `GET` | `/api/leave-requests` | Sayfalı izin listesi. `?status=PENDING&employeeId=42&departmentId=3&from=2026-03-01&until=2026-03-07` — tarih aralığı **örtüşmeye** bakar; süzgeçler kapsamı daraltır, genişletmez | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `200` |
 | `GET` | `/api/leave-requests/{id}` | Tek izin kaydı | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `200` |
 | `POST` | `/api/leave-requests` | Herkes **kendi adına** talep açar; başkası adına yalnızca İK. Çakışan tarih `409` | `EMPLOYEE`, `MANAGER`, `HR_SPECIALIST` | `201` + `Location` |

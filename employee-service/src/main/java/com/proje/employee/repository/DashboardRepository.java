@@ -206,6 +206,16 @@ public interface DashboardRepository extends Repository<Employee, Long> {
      * olmayan bir raporlama cizgisini gosterirdi. Bunun bedeli, yoneticisi
      * pasiflesmis personelin agaca hic girmemesidir -- servis bunu SAYAR ve
      * cevapta ayrica bildirir, sessizce kaybetmez.
+     *
+     * <p>LIMIT, cevabin sinirsiz buyumesini engeller. Projede sayfa tavani,
+     * disa aktarma ve ice aktarma icin ayni kapi zaten kapaliydi; bu uc
+     * ailenin disinda kalmisti.
+     *
+     * <p><b>Kirpma agaci BOZMAZ ve bu siralamanin sonucudur:</b> satirlar
+     * derinlige gore sirali donuyor, yani kesilen her zaman EN DERIN
+     * seviyedir. Bir dugumun yoneticisi tanimi geregi daha sig bir seviyede
+     * ve dolayisiyla listede ONCE gelir -- yoneticisi kesilmis bir cocuk
+     * olusamaz. Sirasiz bir LIMIT bu garantiyi vermezdi.
      */
     @Query(value = """
             WITH RECURSIVE org AS (
@@ -232,8 +242,9 @@ public interface DashboardRepository extends Repository<Employee, Long> {
             FROM org o
             JOIN department d ON d.id = o.department_id
             ORDER BY o.depth, o.last_name, o.first_name
+            LIMIT :limit
             """, nativeQuery = true)
-    List<OrgNode> orgChart(@Param("maxDepth") int maxDepth);
+    List<OrgNode> orgChart(@Param("maxDepth") int maxDepth, @Param("limit") int limit);
 
     /** Agaca girmesi BEKLENEN toplam: farki "ulasilamayan" demektir. */
     @Query(value = "SELECT count(*) FROM employee WHERE is_active", nativeQuery = true)

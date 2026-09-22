@@ -224,6 +224,17 @@ app:
   export:
     max-rows: ${EXPORT_MAX_ROWS:5000}
 
+  # Organizasyon semasinin dugum tavani. Sayfa tavani, disa ve ice aktarma
+  # icin ayni kapi zaten kapaliydi; bu uc ailenin disinda kalmisti.
+  #
+  # Asilirsa istek REDDEDILMEZ, sema cizilir ve EKSIK oldugu bildirilir.
+  # Aktarmadan farkli davranmasinin sebebi: dosya indirilip gidilir ve
+  # kirpilmis bir dosya TAM sanilip karar verilirdi; sema ise kullanicinin
+  # o anda BAKTIGI bir gorunumdur ve 500 kisinin gosterilmesi hala ise
+  # yarar. Ayni ayrim izin takviminde de verilmisti.
+  org-chart:
+    max-nodes: ${ORG_CHART_MAX_NODES:500}
+
   # Ice aktarma tavani AKTARMADAN DUSUK: okumak ucuz, yazmak degil. Tek
   # istekte binlerce kayit acmak hem uzun bir transaction hem de geri
   # alinmasi zor bir hata kaynagidir.

@@ -21,6 +21,15 @@ export interface OrgChart {
    * fark kimseye bildirilmez.
    */
   unreachable: number;
+  /**
+   * Dugum siniri asildi mi.
+   *
+   * `unreachable`den AYRI bir alan cunku ayri bir olgu: biri VERI KUSURU,
+   * digeri CIZIM SINIRI. Sunucu kirpildiginda `unreachable` gondermiyor --
+   * cizilmeyenlerin hangisinin hangi sebeple disarida kaldigi ayirt
+   * edilemez -- bu yuzden arayuz de iki mesaji ayri gosterir.
+   */
+  truncated: boolean;
 }
 
 export const orgChartApi = {

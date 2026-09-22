@@ -49,7 +49,7 @@ class OrgChartControllerSecurityTest {
     private JwtService jwtService;
 
     private void serviceReturnsEmptyChart() {
-        when(orgChartService.build()).thenReturn(new OrgChartResponse(List.of(), 0, 0));
+        when(orgChartService.build()).thenReturn(new OrgChartResponse(List.of(), 0, 0, false));
     }
 
     @Test

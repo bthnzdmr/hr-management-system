@@ -53,6 +53,7 @@ function chain() {
     roots: [node(1, 'Root', 'Sales', [node(2, 'Alpha', 'Sales', [node(3, 'Gamma')])])],
     placed: 3,
     unreachable: 0,
+    truncated: false,
   };
 }
 
@@ -91,6 +92,7 @@ describe('OrgChartPage', () => {
       roots: [node(1, 'Root', 'Sales', [node(2, 'Alpha'), node(3, 'Beta')])],
       placed: 3,
       unreachable: 0,
+    truncated: false,
     });
 
     const { container } = renderPage();
@@ -120,6 +122,7 @@ describe('OrgChartPage', () => {
       ])],
       placed: 4,
       unreachable: 0,
+    truncated: false,
     });
 
     const user = userEvent.setup({ delay: null });
@@ -208,6 +211,7 @@ describe('OrgChartPage', () => {
       ])],
       placed: 3,
       unreachable: 0,
+    truncated: false,
     });
 
     const user = userEvent.setup({ delay: null });
@@ -225,6 +229,7 @@ describe('OrgChartPage', () => {
       roots: [node(1, 'Root')],
       placed: 1,
       unreachable: 3,
+      truncated: false,
     });
 
     renderPage();
@@ -237,6 +242,7 @@ describe('OrgChartPage', () => {
       roots: [node(1, 'Root')],
       placed: 1,
       unreachable: 0,
+    truncated: false,
     });
 
     renderPage();
@@ -246,7 +252,9 @@ describe('OrgChartPage', () => {
   });
 
   it('explains an empty organisation instead of showing a blank card', async () => {
-    vi.mocked(orgChartApi.get).mockResolvedValue({ roots: [], placed: 0, unreachable: 0 });
+    vi.mocked(orgChartApi.get).mockResolvedValue({
+      roots: [], placed: 0, unreachable: 0, truncated: false,
+    });
 
     renderPage();
 
@@ -325,5 +333,29 @@ describe('selection is reversible', () => {
 
     const items = await screen.findAllByRole('treeitem');
     expect(items.filter((item) => item.getAttribute('tabindex') === '0')).toHaveLength(1);
+  });
+
+  it('warns that a truncated chart is incomplete', async () => {
+    // Sessiz kirpma, EKSIK OLDUGUNU SOYLEMEYEN bir sema uretirdi ve
+    // kullanici onu TAM sanardi. Ayni ilke CSV aktarmada ve izin
+    // takviminde de uygulanmisti.
+    vi.mocked(orgChartApi.get).mockResolvedValue({ ...chain(), truncated: true });
+
+    renderPage();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/incomplete/i);
+    expect(alert).toHaveTextContent(/first 3 people/i);
+  });
+
+  it('shows no truncation warning when the whole chart fits', async () => {
+    // Uyarinin kosulsuz cizilmesi daha kotu olurdu: her acilista "eksik"
+    // diyen bir sema, gercekten eksik oldugunda inandirici olmaz.
+    vi.mocked(orgChartApi.get).mockResolvedValue(chain());
+
+    renderPage();
+
+    await screen.findByRole('tree', { name: /Organisation chart/ });
+    expect(screen.queryByText(/incomplete/i)).toBeNull();
   });
 });

@@ -57,6 +57,12 @@ app:
   import:
     max-rows: 1000
 
+  # Testte KUCUK: kirpma davranisini surmek icin 500 kisilik kurgu yazmak
+  # gerekmesin. Sinanan sey ayarin BAGLI oldugu ve kirpmanin dogru
+  # isaretlendigidir, degeri degil.
+  org-chart:
+    max-nodes: 4
+
   password-reset:
     validity-minutes: 30
     invite-validity-hours: 24
