@@ -77,3 +77,8 @@ Desktop.ini
 
 # Bagimlilik agaci hata ayiklamasi sirasinda uretilen gecici sinif yolu dosyasi.
 **/cp.txt
+
+# Veritabani yedekleri. DEPOYA GIRMEZ: dokum butun kisisel veriyi tasir
+# (ad, e-posta, maas, izin gecmisi) ve depo herkese acik. Ayrica parola
+# ozetleri ve yenileme jetonu ozetleri de icinde.
+backups/

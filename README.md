@@ -521,6 +521,30 @@ docker compose down                    # konteynerleri siler, volume'daki veri k
 docker compose --profile full down     # uygulama konteynerleri dahil hepsini durdurur
 ```
 
+### Yedekleme ve geri yükleme
+
+```bash
+set -a && source .env && set +a
+
+ops/backup/backup.sh                                   # ./backups altina yazar
+ops/backup/verify-restore.sh backups/<dosya>.dump      # geri yukleyip DOGRULAR
+```
+
+`backup.sh` her iki veritabanının da `pg_dump --format=custom` dökümünü alır.
+Volume kopyası **kullanılmaz**: çalışan bir PostgreSQL'in veri dizinini
+kopyalamak tutarsız bir yedek üretir ve sürümler arası taşınmaz.
+
+`verify-restore.sh` dökümü **ayrı, geçici bir veritabanına** yükler ve her
+tablonun satır sayısını kaynakla karşılaştırır. Üzerine yazmaz — doğrulama
+tehlikeliyse kimse düzenli yapmaz.
+
+> **Geri yüklenmemiş bir yedek, yedek değildir.** Bozuk olduğu ancak ihtiyaç
+> duyulduğu gün anlaşılır. Doğrulama betiği bozuk bir dökümde `exit 1` verir;
+> ölçülerek denendi.
+
+`backups/` dizini `.gitignore`'dadır: döküm bütün kişisel veriyi, parola
+özetlerini ve yenileme jetonu özetlerini taşır.
+
 ---
 
 ## 7. API Uçları
