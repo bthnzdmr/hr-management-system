@@ -183,7 +183,7 @@ class LeaveDecisionScopeTest {
     @Test
     @DisplayName("An employee may request leave for themselves")
     void employeeRequestsOwnLeave() {
-        when(employees.findById(ada.getId())).thenReturn(java.util.Optional.of(ada));
+        when(employees.findByIdForUpdate(ada.getId())).thenReturn(java.util.Optional.of(ada));
         when(leaveRequests.saveAndFlush(any())).thenAnswer(call -> call.getArgument(0));
         // Yillik izin artik bakiyeye bakiyor; bu test KAPSAMI siniyor, o yuzden
         // bakiye bol verilir ve kural yolun disinda tutulur.
@@ -203,7 +203,7 @@ class LeaveDecisionScopeTest {
     void managerCannotRequestForTheirReport() {
         // Yonetici ASTI adina acamaz: talebi acan ile karar veren ayni kisi
         // olurdu ve "kendi iznine karar veremezsin" kurali bu yoldan atlatilirdi.
-        when(employees.findById(ada.getId())).thenReturn(java.util.Optional.of(ada));
+        when(employees.findByIdForUpdate(ada.getId())).thenReturn(java.util.Optional.of(ada));
 
         var request = new com.proje.employee.dto.LeaveRequestCreateRequest(
                 ada.getId(), LeaveType.ANNUAL,

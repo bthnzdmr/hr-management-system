@@ -1,7 +1,9 @@
 package com.proje.employee.repository;
 
 import com.proje.employee.entity.Employee;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +17,27 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     Optional<Employee> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    /**
+     * Personeli KILITLEYEREK okur.
+     *
+     * Izin hakki bir SATIR kisitiyla korunamaz: `EXCLUDE` tek bir satira
+     * bakar, bakiye ise satirlarin TOPLAMINA. Dolayisiyla "once bakiyeyi oku,
+     * yeterse yaz" klasik bir check-then-act'tir ve OLCULDU: 20 gunluk hakka
+     * sahip birine eszamanli iki 15 gunluk talep gonderildiginde ikisi de
+     * geciyordu -- kimsenin vermedigi 10 gun.
+     *
+     * Kilit PERSONEL satirinda: ayni kisiye gelen talepler sirayla islenir,
+     * FARKLI kisilerin talepleri birbirini hic bekletmez. Bir kisinin izin
+     * talepleri zaten dogasi geregi siralidir, yani bedel yok denecek kadar az.
+     *
+     * Son yonetici kurali ve departman kapatmadaki PESSIMISTIC_WRITE ile ayni
+     * aileden: dogruluk kodun sirasiyla degil veritabaninin garantisiyle
+     * saglanir.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM Employee e WHERE e.id = :id")
+    Optional<Employee> findByIdForUpdate(@Param("id") Long id);
 
     // Sayfalanmaz: bir yoneticinin dogrudan asti kurumsal olarak sinirlidir ve
     // liste bir ekip gorunumu doldurmak icin kullanilir.

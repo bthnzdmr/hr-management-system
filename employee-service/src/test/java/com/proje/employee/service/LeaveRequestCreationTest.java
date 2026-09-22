@@ -113,7 +113,7 @@ class LeaveRequestCreationTest {
     }
 
     private void employeeExists() {
-        when(employees.findById(EMPLOYEE_ID)).thenReturn(Optional.of(grace));
+        when(employees.findByIdForUpdate(EMPLOYEE_ID)).thenReturn(Optional.of(grace));
     }
 
     private void havingAnnualBalance(int available) {
@@ -160,7 +160,7 @@ class LeaveRequestCreationTest {
     @Test
     @DisplayName("An unknown employee is reported as not found, not as a rule violation")
     void unknownEmployeeIsNotFound() {
-        when(employees.findById(EMPLOYEE_ID)).thenReturn(Optional.empty());
+        when(employees.findByIdForUpdate(EMPLOYEE_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.create(sixDayRequest(), author, hrScope()))
                 .isInstanceOf(EmployeeNotFoundException.class);

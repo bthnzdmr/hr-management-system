@@ -73,7 +73,12 @@ public class LeaveRequestService {
     @Transactional
     public LeaveRequestResponse create(LeaveRequestCreateRequest request, User author,
                                        AccessScope scope) {
-        Employee employee = employees.findById(request.employeeId())
+        // KILITLEYEREK okunur ve kilit transaction sonuna kadar tutulur.
+        // Bakiye kontrolu ile yazma arasindaki pencereyi kapatan sey budur:
+        // ayni kisiye gelen ikinci talep, birincinin commit'ini bekler ve
+        // GUNCEL bakiyeyi gorur. Kilit personel satirinda oldugu icin farkli
+        // kisilerin talepleri birbirini bekletmez.
+        Employee employee = employees.findByIdForUpdate(request.employeeId())
                 .orElseThrow(() -> new EmployeeNotFoundException(request.employeeId()));
 
         requireCanRecordFor(employee, scope);
@@ -116,11 +121,15 @@ public class LeaveRequestService {
      * uzere bir karar uretmek olurdu. Ayni gerekceyle cakisan tarih de talep
      * aninda reddediliyor.
      *
-     * BILINEN SINIR: bu kontrol ile yazma arasinda bir pencere var -- iki es
-     * zamanli talep ikisi de "yeter" gorup gecebilir. Tarih cakismasinda bu
-     * pencere `EXCLUDE` kisitiyla kapatilmisti; burada karsiligi yok, cunku
-     * "toplam gun" bir satir kisiti olarak ifade edilemez. Asilma en fazla bir
-     * talep kadar olur ve karar asamasinda gorulur.
+     * Bu kontrol ile yazma arasindaki pencere KAPATILDI. Onceden klasik bir
+     * check-then-act'ti ve olculdu: 20 gunluk hakka eszamanli iki 15 gunluk
+     * talep gonderildiginde IKISI DE geciyordu -- kimsenin vermedigi 10 gun.
+     *
+     * Tarih cakismasinda pencereyi `EXCLUDE` kisiti kapatiyor; burada ayni
+     * sey YAPILAMAZ cunku kisit tek bir SATIRA bakar, bakiye ise satirlarin
+     * TOPLAMINA. Bu yuzden garanti `create` icindeki PESSIMISTIC_WRITE
+     * kilididir: ayni kisiye gelen ikinci talep birincinin commit'ini bekler
+     * ve guncel bakiyeyi gorur.
      */
     private void requireBalanceCovers(LeaveRequestCreateRequest request) {
         if (request.type() != LeaveType.ANNUAL) {

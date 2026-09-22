@@ -102,7 +102,7 @@ class LeaveEventPublishingTest {
     @Test
     @DisplayName("Publishes a request event carrying the manager as a fact, not as an instruction")
     void publishesRequestEvent() {
-        when(employees.findById(218L)).thenReturn(Optional.of(ada));
+        when(employees.findByIdForUpdate(218L)).thenReturn(Optional.of(ada));
         when(balances.balanceFor(any(), anyInt())).thenReturn(
                 new LeaveBalanceResponse(218L, 2032, 20, 0, 0, 0, 20,
                         LeaveBalanceResponse.Source.DEFAULT));
