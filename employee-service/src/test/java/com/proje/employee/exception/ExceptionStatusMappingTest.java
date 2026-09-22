@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -109,6 +110,28 @@ class ExceptionStatusMappingTest {
                 // Ic sinif adi ve Hibernate'in metni disariya sizmamali.
                 .andExpect(jsonPath("$.detail").value(not(containsString("com.proje"))))
                 .andExpect(jsonPath("$.detail").value(not(containsString("unsaved-value"))));
+    }
+
+    @Test
+    @DisplayName("A database deadlock is 409, not 500")
+    void deadlockIsAConflictNotAServerFault() throws Exception {
+        // OLCULDU: cakisan iki izin talebi AYNI ANDA gelince PostgreSQL
+        // `23P01` degil `40P01` (deadlock) uretiyor ve Spring bunu
+        // CannotAcquireLockException'a cevirir -- DataIntegrityViolation'in
+        // ALT SINIFI DEGIL KARDESI. Servisin cakisma yakalayicisi bu yuzden
+        // isliyor ve istek catch-all'a dusup 500 doneuyordu.
+        //
+        // Bu bir ISTEMCI durumudur: iki kullanici ayni kaynaga ayni anda
+        // yazdi. 500 donmek izlemeyi kirletirdi.
+        serviceThrows(new CannotAcquireLockException(
+                "could not execute statement [ERROR: deadlock detected] "
+                        + "[insert into leave_request ...]"));
+
+        mockMvc.perform(get(ANY_EMPLOYEE))
+                .andExpect(status().isConflict())
+                // Veritabaninin kendi metni ve tablo adlari disariya sizmamali.
+                .andExpect(jsonPath("$.detail").value(not(containsString("deadlock"))))
+                .andExpect(jsonPath("$.detail").value(not(containsString("leave_request"))));
     }
 
     @Test

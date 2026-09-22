@@ -4,6 +4,7 @@ import com.proje.employee.export.ExportTooLargeException;
 import com.proje.employee.export.ImportRejectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -267,6 +268,35 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(LeaveRequestNotFoundException.class)
     public ProblemDetail handleLeaveNotFound(LeaveRequestNotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, "Leave request not found", ex.getMessage());
+    }
+
+    /**
+     * Eszamanli iki yazma birbirini kilitledi.
+     *
+     * OLCULDU: cakisan iki izin talebi AYNI ANDA gelince PostgreSQL
+     * `23P01` (dislama ihlali) degil `40P01` (deadlock) uretiyor -- ikisi de
+     * satirini yazip sonra index'i kontrol ediyor ve her biri digerinin
+     * commit'ini bekliyor. Spring bunu `CannotAcquireLockException`'a
+     * cevirir ve o, `DataIntegrityViolationException`'in ALT SINIFI DEGIL
+     * KARDESIDIR; servisin cakisma yakalayicisi bu yuzden isliyordu ve
+     * kullanici <b>500</b> goruyordu.
+     *
+     * <p>Bu bir ISTEMCI durumudur, sunucu arizasi degil: iki kullanici ayni
+     * kaynaga ayni anda yazmaya calisti. 500 donmek izlemeyi kirletirdi --
+     * uyari kurulmus bir sistemde olmayan bir arizayi bildiren alarm
+     * demektir. Ayni karar silinmis hesabin jetonunda da verilmisti.
+     *
+     * <p>Mesaj CAKISMANIN TURUNU SOYLEMEZ ve bu bilincli: deadlock baska
+     * sebeplerle de olusabilir, "zaten izni var" demek YANLIS bir teshis
+     * uydurmak olurdu. Kullaniciya dogru olan tek sey soyleniyor: tekrar
+     * dene. Ikinci denemede kazananin satiri commit edilmis olur ve
+     * cakisma varsa artik DOGRU mesaj doner.
+     */
+    @ExceptionHandler(ConcurrencyFailureException.class)
+    public ProblemDetail handleConcurrencyFailure(ConcurrencyFailureException ex) {
+        log.warn("Concurrent write conflict: {}", ex.getMessage());
+        return problem(HttpStatus.CONFLICT, "Conflicting concurrent change",
+                "Another change to the same record happened at the same time. Please try again.");
     }
 
     // Kod tarafindaki kontrol ile kayit arasindaki yaris durumunda veritabani
