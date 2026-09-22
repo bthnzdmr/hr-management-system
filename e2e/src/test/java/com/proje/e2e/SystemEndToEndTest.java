@@ -1016,6 +1016,38 @@ class SystemEndToEndTest {
         assertThat(mailSubjectsFor(personEmail)).noneMatch(subject -> subject.contains("approved"));
     }
 
+    @Test
+    @DisplayName("The OpenAPI document is actually served, not just the page around it")
+    void openApiDocumentIsServed() {
+        // OLCULMUS GERILEME: Boot 4 gocunden sonra `/v3/api-docs` 500 donuyordu
+        // (springdoc 2.5.0 Spring Framework 6'ya karsi derlenmis ve
+        // ControllerAdviceBean'in kurucusu 7'de degismis -- derleyicinin
+        // goremedigi ikili uyumsuzluk). Swagger sayfasi 200 doneuyordu, yani
+        // "acildi" gibi gorunuyordu; besledigi belge ise hic gelmiyordu.
+        //
+        // HICBIR TEST bunu tutmuyordu ve kirik hali depoya gitti. Sayfanin
+        // acilmasi belgenin geldigi anlamina GELMEZ -- bu test o ayrimi
+        // olcuyor.
+        SystemClient.Response response =
+                client.get(SystemClient.API_URL + "/v3/api-docs", null);
+
+        assertThat(response.status())
+                .describedAs("the OpenAPI document must be generated, not error out")
+                .isEqualTo(200);
+
+        JsonNode document = response.body();
+
+        assertThat(document.get("paths"))
+                .describedAs("a document with no paths is an empty console, not documentation")
+                .isNotEmpty();
+
+        // Authorize dugmesi bu semaya bagli: olmazsa sayfa salt okunur bir
+        // sema goruntuleyicisine doner ve login disinda hicbir uc denenemez.
+        assertThat(document.at("/components/securitySchemes/bearer-jwt").isMissingNode())
+                .describedAs("without the security scheme Swagger UI cannot authorise")
+                .isFalse();
+    }
+
     /** Bir adrese dusmus butun mail konulari. */
     private List<String> mailSubjectsFor(String recipient) {
         List<String> subjects = new ArrayList<>();

@@ -23,8 +23,13 @@
         <java.version>17</java.version>
         <!-- Spring Cloud ayri bir surum ailesidir; kendi tablosu asagida import ediliyor. -->
         <spring-cloud.version>2025.1.3</spring-cloud.version>
-        <!-- springdoc Spring Boot ekibinin urunu degil; parent'in surum tablosunda yok. -->
-        <springdoc.version>2.5.0</springdoc.version>
+        <!-- springdoc Spring Boot ekibinin urunu degil; parent'in surum tablosunda yok.
+             3.x hatti Spring Framework 7 (Boot 4) icindir. 2.5.0 Boot 4 altinda
+             DERLENIYOR ama CALISMIYORDU: /v3/api-docs istegi
+             NoSuchMethodError: ControllerAdviceBean.<init>(Object) ile 500 donuyor,
+             cunku o kurucu Framework 7'de degisti. Swagger sayfasi 200 donduugu
+             icin ariza "acildi" gibi gorunuyordu. Bir e2e testi artik tutuyor. -->
+        <springdoc.version>3.0.0</springdoc.version>
         <!-- jjwt de parent tarafindan yonetilmiyor. -->
         <jjwt.version>0.12.5</jjwt.version>
         <!-- Guvenlik taramasi eklentisi; parent tarafindan yonetilmiyor. -->
