@@ -80,10 +80,17 @@
         </dependency>
 
         <!-- 3) Versiyonlu sema yonetimi.
-             Uygulama acilirken db/migration altindaki SQL dosyalarini sirayla calistirir. -->
+             Uygulama acilirken db/migration altindaki SQL dosyalarini sirayla calistirir.
+
+             CIPLAK flyway-core YETMEZ: Boot 4'te otomatik yapilandirmalar
+             teknoloji bazli modullere bolundu ve Flyway'i calistiran
+             `spring-boot-flyway` bu starter ile geliyor. Olmadigi zaman kutuphane
+             siniflar yolunda DURUYOR ama hic cagrilmiyor; sema olusmuyor ve
+             Hibernate `validate` "missing table" diyerek uygulamayi acilista
+             dusuruyor. Belirti yalnizca TEMIZ bir veritabaninda gorunur. -->
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
 
         <!-- Flyway 10'dan beri veritabani destegi ayri modullerde. Bu modul
