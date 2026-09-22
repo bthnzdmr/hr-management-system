@@ -52,17 +52,20 @@ public class LeaveRequestService {
     private final LeaveRequestRepository leaveRequests;
     private final EmployeeRepository employees;
     private final EmployeeVisibility visibility;
+    private final LeaveAccessRules rules;
     private final LeaveBalanceService balances;
     private final OutboxWriter outbox;
     private final NotificationPreferenceService preferences;
 
     public LeaveRequestService(LeaveRequestRepository leaveRequests, EmployeeRepository employees,
-                               EmployeeVisibility visibility, LeaveBalanceService balances,
+                               EmployeeVisibility visibility, LeaveAccessRules rules,
+                               LeaveBalanceService balances,
                                OutboxWriter outbox,
                                NotificationPreferenceService preferences) {
         this.leaveRequests = leaveRequests;
         this.employees = employees;
         this.visibility = visibility;
+        this.rules = rules;
         this.balances = balances;
         this.outbox = outbox;
         this.preferences = preferences;
@@ -81,7 +84,7 @@ public class LeaveRequestService {
         Employee employee = employees.findByIdForUpdate(request.employeeId())
                 .orElseThrow(() -> new EmployeeNotFoundException(request.employeeId()));
 
-        requireCanRecordFor(employee, scope);
+        rules.requireCanRecordFor(employee, scope);
 
         // Ayrilmis personele izin girilemez. Ayni degismez "ayrilmis personele
         // hesap acilamaz" kuralinin kardesi; kural bir kez yazilir, iki yerde
@@ -145,23 +148,6 @@ public class LeaveRequestService {
             throw new LeaveRuleViolationException(
                     "Not enough annual leave: " + requested + " day(s) requested, "
                             + available + " remaining");
-        }
-    }
-
-    /**
-     * Baskasi adina talep acmak Ik'ya aittir; herkes KENDI adina acabilir.
-     *
-     * Yonetici de ASTI adina acamaz: talebi acan ile karar veren ayni kisi
-     * olurdu ve kendi iznine karar verme yasagi bu yoldan atlatilirdi.
-     */
-    private void requireCanRecordFor(Employee employee, AccessScope scope) {
-        if (scope.isUnrestricted()) {
-            return;
-        }
-
-        if (!employee.getId().equals(scope.employeeId())) {
-            throw new LeaveRuleViolationException(
-                    "You can only request leave for yourself");
         }
     }
 
@@ -238,7 +224,7 @@ public class LeaveRequestService {
 
         // Kapsam disindaki kayit 403 degil 404 doner: 403 "bu kayit var ama
         // goremezsin" der ve id deneyerek kayit sayisi ogrenilebilirdi.
-        if (!canSee(leave, scope)) {
+        if (!rules.canSee(leave, scope)) {
             throw new LeaveRequestNotFoundException(id);
         }
 
@@ -254,7 +240,7 @@ public class LeaveRequestService {
     @Transactional
     public LeaveRequestResponse approve(Long id, User decider, AccessScope scope) {
         LeaveRequest leave = load(id);
-        requireCanDecide(leave, scope);
+        rules.requireCanDecide(leave, scope);
         requirePending(leave);
         leave.approve(decider);
 
@@ -273,7 +259,7 @@ public class LeaveRequestService {
     @Transactional
     public LeaveRequestResponse reject(Long id, String note, User decider, AccessScope scope) {
         LeaveRequest leave = load(id);
-        requireCanDecide(leave, scope);
+        rules.requireCanDecide(leave, scope);
         requirePending(leave);
         leave.reject(decider, note);
 
@@ -292,7 +278,7 @@ public class LeaveRequestService {
     @Transactional
     public LeaveRequestResponse cancel(Long id, User actor, AccessScope scope) {
         LeaveRequest leave = load(id);
-        requireCanCancel(leave, scope);
+        rules.requireCanCancel(leave, scope);
         requirePending(leave);
         leave.cancel();
 
@@ -312,25 +298,6 @@ public class LeaveRequestService {
                 .orElseThrow(() -> new LeaveRequestNotFoundException(id));
     }
 
-    /**
-     * Geri cekmek karar vermek DEGILDIR: kisi kendi talebinden vazgecebilir.
-     *
-     * Onay ve rette "kendi iznine karar veremezsin" kurali gecerlidir; iptalde
-     * degildir, cunku vazgecmek gorevler ayriligini ihlal etmez. Baskasinin
-     * talebini geri cekmek ise karar yetkisi ister.
-     */
-    private void requireCanCancel(LeaveRequest leave, AccessScope scope) {
-        boolean ownRequest = scope.employeeId() != null
-                && leave.getEmployee().getId().equals(scope.employeeId());
-
-        if (ownRequest) {
-            return;
-        }
-
-        requireCanDecide(leave, scope);
-    }
-
-    /** Ik her istege, yonetici yalnizca DOGRUDAN astininkine karar verir. */
     /**
      * Olay IS VERISIYLE AYNI transaction icinde outbox'a yazilir.
      *
@@ -383,36 +350,6 @@ public class LeaveRequestService {
                 : kinds.stream().map(Enum::name).collect(java.util.stream.Collectors.toSet());
     }
 
-    private void requireCanDecide(LeaveRequest leave, AccessScope scope) {
-        Employee owner = leave.getEmployee();
-        boolean ownRequest = scope.employeeId() != null
-                && owner.getId().equals(scope.employeeId());
-
-        // Kendi iznini onaylamak GORUNURLUKTEN once gelir. Once
-        // isUnrestricted() sorulunca kural yalnizca yonetici icin isliyordu:
-        // personele bagli bir Ik uzmani kendi talebini acip kendisi
-        // onaylayabiliyordu. Olculdu.
-        if (ownRequest) {
-            throw new LeaveRuleViolationException("You cannot decide your own leave");
-        }
-
-        if (scope.isUnrestricted()) {
-            return;
-        }
-
-        if (!canSee(leave, scope)) {
-            throw new LeaveRequestNotFoundException(leave.getId());
-        }
-
-        boolean directReport = owner.getManager() != null
-                && owner.getManager().getId().equals(scope.employeeId());
-
-        if (!directReport) {
-            throw new LeaveRuleViolationException(
-                    "Only this person's manager or HR can decide this request");
-        }
-    }
-
     /** Nihai bir istegi tekrar karara baglamak reddedilir. */
     private void requirePending(LeaveRequest leave) {
         if (!leave.isPending()) {
@@ -425,25 +362,6 @@ public class LeaveRequestService {
                     "This request was already "
                             + leave.getStatus().name().toLowerCase(Locale.ROOT));
         }
-    }
-
-    private boolean canSee(LeaveRequest leave, AccessScope scope) {
-        if (scope.isUnrestricted()) {
-            return true;
-        }
-        if (scope.isEmpty()) {
-            return false;
-        }
-
-        Employee owner = leave.getEmployee();
-
-        if (scope.employeeId().equals(owner.getId())) {
-            return true;
-        }
-
-        return scope.includesDirectReports()
-                && owner.getManager() != null
-                && scope.employeeId().equals(owner.getManager().getId());
     }
 
     /**

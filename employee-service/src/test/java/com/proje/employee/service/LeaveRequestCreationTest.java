@@ -90,7 +90,12 @@ class LeaveRequestCreationTest {
 
     @BeforeEach
     void setUp() {
-        service = new LeaveRequestService(leaveRequests, employees, visibility, balances, outbox, preferences);
+        service = new LeaveRequestService(leaveRequests, employees, visibility,
+                // GERCEK kural nesnesi: taklit edilseydi kapsam kurallari
+                // hic calismaz ve bu testler yesil kalirken HICBIR SEY
+                // sinamaz olurdu. Sinifin bagimliligi yok, kurmak bedava.
+                new LeaveAccessRules(),
+                balances, outbox, preferences);
 
         grace = new Employee("Grace", "Hopper", "grace@example.com",
                 new Department("Software Development"), "Engineer", LocalDate.now());
