@@ -13,6 +13,7 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -112,6 +113,51 @@ class EmployeeEventListenerTest {
         assertThatThrownBy(() -> listener.onEmployeeEvent(event(eventId), null))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("smtp down");
+    }
+
+    @Test
+    @DisplayName("Releases the claim when the mail fails, so the retry can deliver it")
+    void releasesTheClaimWhenTheMailFails() {
+        // OLCULMUS HATA. Sahiplenme KENDI transaction'inda commit edilir.
+        // Telafi olmasaydi yeniden teslim "zaten islendi" der ve ACK'lerdi:
+        // mail kaybolur, DLQ'ya bile dusmezdi. Istisnanin disari CIKMASI
+        // (yukaridaki test) tek basina yetmez -- sahiplenme durdugu surece
+        // yeniden teslim hicbir sey gondermez.
+        UUID eventId = UUID.randomUUID();
+        when(eventClaimService.claim(any(), any(), any())).thenReturn(true);
+        doThrow(new RuntimeException("smtp down")).when(mailService).send(any(), any());
+
+        assertThatThrownBy(() -> listener.onEmployeeEvent(event(eventId), null));
+
+        verify(eventClaimService).release(any());
+    }
+
+    @Test
+    @DisplayName("Keeps the claim when the mail succeeds")
+    void keepsTheClaimOnSuccess() {
+        // Telafinin diger yarisi: basarili teslimden sonra sahiplenme
+        // BIRAKILMAMALI, yoksa mukerrer mail engeli ortadan kalkar.
+        UUID eventId = UUID.randomUUID();
+        when(eventClaimService.claim(any(), any(), any())).thenReturn(true);
+
+        listener.onEmployeeEvent(event(eventId), null);
+
+        verify(eventClaimService, never()).release(any());
+    }
+
+    @Test
+    @DisplayName("Treats a lost claim race as a duplicate instead of failing")
+    void losingTheClaimRaceIsNotAFailure() {
+        // claim() birincil anahtar ihlalini DISARI firlatir; dinleyici onu
+        // "baskasi sahiplendi" diye yorumlar. Istisna sizsaydi mesaj bosuna
+        // yeniden teslim edilir ve sonunda DLQ'ya duserdi.
+        UUID eventId = UUID.randomUUID();
+        when(eventClaimService.claim(any(), any(), any()))
+                .thenThrow(new DataIntegrityViolationException("duplicate key"));
+
+        listener.onEmployeeEvent(event(eventId), null);
+
+        verify(mailService, never()).send(any(), any());
     }
 
     @Test
