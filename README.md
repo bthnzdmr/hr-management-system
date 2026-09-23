@@ -155,41 +155,62 @@ Gerekçeleri proje kurallarında kayıtlıdır.
 
 | Teknoloji              | Ne için kullanılıyor                                    | Durum      |
 | ---------------------- | ------------------------------------------------------- | ---------- |
-| Java 17                | Hedef dil sürümü (derleme JDK 21 ile yapılabilir)       | ✅         |
-| Spring Boot 3.2.12     | Uygulama iskeleti, gömülü sunucu, otomatik yapılandırma | ✅         |
-| Spring Cloud 2023.0.5  | Eureka ve Feign'in geldiği sürüm ailesi                 | ✅         |
-| Maven 3.9              | Bağımlılık yönetimi ve derleme                          | ✅         |
-| Spring Data JPA        | Veritabanı erişimi, sorgu üretimi                       | ✅         |
-| Flyway                 | Versiyonlu veritabanı şema yönetimi                     | ✅         |
-| Spring Validation      | Girdi doğrulama (sınırda)                               | ✅         |
-| Spring AOP             | Kesişen ilgiler: metot süre ölçümü                      | ✅         |
-| slf4j                  | Loglama arayüzü, korelasyon kimliği (MDC)               | ✅         |
-| springdoc-openapi      | Swagger arayüzü, API dokümantasyonu                     | ✅         |
-| Actuator               | Sağlık ucu (liveness / readiness)                       | ✅         |
-| Eureka                 | Servis keşfi                                            | ✅         |
-| RabbitMQ (Spring AMQP) | Servisler arası asenkron mesajlaşma                     | ✅ altyapı |
-| Spring Security        | Kimlik doğrulama (JWT) ve rol bazlı yetkilendirme       | ✅         |
-| jjwt                   | JWT üretme ve doğrulama                                 | ✅         |
-| OpenFeign              | Servisler arası deklaratif HTTP çağrısı                 | ✅         |
+| Java 17                  | Hedef bytecode sürümü (derleme JDK 21+ ile yapılabilir)   | ✅ |
+| Spring Boot 4.0.8        | Uygulama iskeleti, gömülü sunucu, otomatik yapılandırma   | ✅ |
+| Spring Cloud 2025.1.3    | Eureka ve Feign'in geldiği sürüm ailesi                   | ✅ |
+| Maven 3.9+               | Bağımlılık yönetimi ve derleme                            | ✅ |
+| Spring Data JPA          | Veritabanı erişimi, sorgu üretimi                         | ✅ |
+| Flyway 11                | Versiyonlu veritabanı şema yönetimi                       | ✅ |
+| Spring Validation        | Girdi doğrulama (sınırda)                                 | ✅ |
+| Spring AOP (AspectJ)     | Kesişen ilgiler: **denetim izi** ve metot süre ölçümü     | ✅ |
+| slf4j + Logback          | Loglama; JSON biçim, korelasyon kimliği (MDC)             | ✅ |
+| springdoc-openapi 3.0.0  | Swagger arayüzü, API dokümantasyonu                       | ✅ |
+| Actuator                 | Sağlık ucu, Prometheus metrikleri                         | ✅ |
+| Micrometer               | Sayaç ve gauge yayını                                     | ✅ |
+| Eureka                   | Servis keşfi                                              | ✅ |
+| RabbitMQ (Spring AMQP)   | Servisler arası asenkron mesajlaşma                       | ✅ |
+| Spring Security          | Kimlik doğrulama (JWT) ve rol bazlı yetkilendirme         | ✅ |
+| jjwt 0.12.5              | JWT üretme ve doğrulama                                   | ✅ |
+| OpenFeign                | Servisler arası deklaratif HTTP çağrısı                   | ✅ |
+| JUnit 5 + Mockito        | Birim ve dilim testleri                                   | ✅ |
+| JaCoCo                   | Test kapsamı ölçümü (eşik **yok**, bilinçli)              | ✅ |
+| OWASP dependency-check   | Bağımlılık açığı taraması (`failBuildOnCVSS=9`)           | ✅ |
+
+> **Sürüm notu:** `tomcat.version` ve benzeri override'lar Boot'un sürüm
+> tablosunu cerrahi olarak geçersiz kılar; her biri `pom.xml` içinde
+> gerekçesiyle yazılıdır. `springdoc` 2.x Boot 4 altında **derleniyor ama
+> çalışmıyordu** — `/v3/api-docs` 500 dönüyordu; bir e2e testi artık tutuyor.
 
 ### Frontend
 
 | Teknoloji          | Ne için kullanılıyor                                           | Durum |
 | ------------------ | -------------------------------------------------------------- | ----- |
-| React + TypeScript | Arayüz ve tip güvenliği                                        | ✅    |
-| MUI                | Hazır bileşenler; özel tema, sayfalı ve sıralanabilir tablo    | ✅    |
-| @fontsource        | Inter + Instrument Sans, kendi sunucumuzdan (CDN yok)          | ✅    |
-| Redux Toolkit      | Sunucu verisi durumu (liste, arama, filtre, sıralama, hata)    | ✅    |
-| Context API        | Oturum, rol ve tema (seyrek değişen, her yerden okunan veri)   | ✅    |
-| Axios              | HTTP istemcisi; interceptor ile merkezi token ve hata yönetimi | ✅    |
+| React 19 + TypeScript 6 | Arayüz ve derleme zamanı tip güvenliği                     | ✅ |
+| Vite 8                  | Derleme ve geliştirme sunucusu                             | ✅ |
+| MUI 9                   | Hazır bileşenler; özel tema, sayfalı ve sıralanabilir tablo | ✅ |
+| MUI X Date Pickers 9    | Tema uyumlu tarih seçici (`dayjs` yalnızca sarmalayıcıda)  | ✅ |
+| @fontsource             | Inter + Instrument Sans, kendi sunucumuzdan (CDN yok)      | ✅ |
+| Redux Toolkit 2.12      | Sık değişen liste durumu (arama, filtre, sıralama, hata)   | ✅ |
+| Context API             | Oturum, rol ve tema (seyrek değişen, her yerden okunan)    | ✅ |
+| React Router 7          | Rota koruması ve URL'de yaşayan süzgeçler                  | ✅ |
+| Axios 1.19              | Interceptor ile merkezî token, tek uçuşlu yenileme         | ✅ |
+| d3-hierarchy 3          | Organizasyon haritasının radyal ağaç yerleşimi             | ✅ |
+| Vitest 4 + Testing Lib  | Bileşen testleri (jsdom)                                   | ✅ |
 
 ### Altyapı
 
 | Teknoloji      | Ne için kullanılıyor                             | Durum |
 | -------------- | ------------------------------------------------ | ----- |
-| PostgreSQL 16  | Personel verisi                                  | ✅    |
-| MailHog        | Geliştirme ortamı sahte SMTP sunucusu            | ✅    |
-| Docker Compose | Altyapı servislerinin tek komutla ayağa kalkması | ✅    |
+| PostgreSQL 16     | İki ayrı veritabanı; `EXCLUDE` kısıtı, `daterange`, özyinelemeli CTE | ✅ |
+| RabbitMQ 3.13     | Olay taşıma; TTL+DLX ile gecikmeli yeniden deneme merdiveni          | ✅ |
+| MailHog           | Geliştirme ortamı sahte SMTP sunucusu                               | ✅ |
+| Docker Compose    | Tek komutla yığın; `full` ve `metrics` profilleri                   | ✅ |
+| Prometheus 2.53   | Metrik toplama (çekme modeli) ve uyarı kuralları                    | ✅ `metrics` |
+| Alertmanager 0.27 | Uyarıların ulaştığı yer — açılan **ve kapanan** uyarı bildirimi      | ✅ `metrics` |
+| Grafana 11.1      | Metrik ve log panoları; veri kaynağı dosyayla sağlanır              | ✅ `metrics` |
+| Loki 3.4          | Log saklama ve sorgulama (yalnızca etiket indeksler)                | ✅ `metrics` |
+| Grafana Alloy 1.7 | Konteyner loglarını okuyup Loki'ye gönderen ajan                    | ✅ `metrics` |
+| GitHub Actions    | CI: `backend`, `frontend`, `e2e`, `security`, `images`              | ✅ |
 
 ---
 
@@ -846,8 +867,10 @@ Altıncı fazın sonunda sistem uçtan uca çalışıyordu; sonrası tek bir pla
 | **Güvenlik ve yetki** | Rol modeli altı role bölündü, satır bazlı kapsam geldi, ücret yetkisi ayrı bir role çıkarıldı · dönen yenileme jetonu · davetle hesap açma, parola sıfırlama, parola politikası · giriş hız sınırı |
 | **İzin modülü** | Talep–karar akışı, veritabanı kısıtıyla çakışma engelleme, kıdeme göre yıllık hak ve tahakkuk işi, takvim görünümü |
 | **Görünürlük** | Gösterge paneli, organizasyon haritası, denetim izi ve ekranı |
-| **İşletilebilirlik** | Uçtan uca korelasyon kimliği, yapılandırılmış günlükleme, ortam profilleri · Prometheus, Grafana, Alertmanager ve uyarı kuralları · gecikmeli yeniden deneme merdiveni · CI, bağımlılık açığı taraması, kapsam ölçümü |
+| **İşletilebilirlik** | Uçtan uca korelasyon kimliği, yapılandırılmış günlükleme, ortam profilleri · Prometheus, Grafana, Alertmanager ve uyarı kuralları · **Loki + Alloy ile log toplama** · gecikmeli yeniden deneme merdiveni · CI (beş iş), bağımlılık açığı taraması, kapsam ölçümü |
 | **Veri aktarımı** | CSV dışa ve içe aktarma, kişi başına bildirim tercihleri |
+| **Dayanıklılık** | **Yedekleme ve geri yükleme doğrulaması** · eşzamanlı yazma çakışmalarında `409` · izin hakkının satır kilidiyle korunması · organizasyon şemasında düğüm tavanı |
+| **Sürüm** | Spring Boot 3.2 → 3.5 → **4.0**, Spring Cloud 2023 → **2025.1** göçleri; her adım bağımlılık taraması ve uçtan uca koşuyla ölçüldü |
 
 ---
 
@@ -860,7 +883,14 @@ HR Management System/
 ├── .env.e2e                    ✅  uçtan uca testlerin ayrı yığını (ad ve portlar)
 ├── .github/workflows/ci.yml    ✅  backend, frontend, uçtan uca, güvenlik ve imaj işleri
 ├── docker/postgres-init/       ✅  ilk kurulumda çalışan veritabanı betikleri
-├── ops/                        ✅  Prometheus ayarı ve Grafana panosu (kod olarak)
+├── ops/                        ✅  isletim yapilandirmasi, kod olarak
+│   ├── prometheus/             ✅  kazima ayari ve uyari kurallari
+│   ├── alertmanager/           ✅  bildirim yonlendirmesi
+│   ├── grafana/                ✅  veri kaynaklari ve panolar
+│   ├── loki/                   ✅  log saklama ayari
+│   ├── alloy/                  ✅  log toplama ajani
+│   ├── rabbitmq/               ✅  metrik eklentisi
+│   └── backup/                 ✅  yedekleme ve geri yukleme dogrulamasi
 ├── README.md                   ✅  bu dosya
 ├── eureka-server/              ✅  servis keşif sunucusu
 │   ├── pom.xml
@@ -880,8 +910,8 @@ HR Management System/
 │       │   ├── exception/      hata sınıfları + merkezî yakalayıcı
 │       │   ├── event/          olay sözleşmesi, outbox yazıcı ve relay
 │       │   └── config/         güvenlik, JWT, aspect, correlation ID filtresi
-│       ├── main/resources/db/migration/   V1__ ... V12__
-│       └── test/               282 test
+│       ├── main/resources/db/migration/   V1__ ... V18__
+│       └── test/               532 test
 ├── notification-service/       ✅  olayları dinleyip mail gönderen servis
 │   ├── pom.xml
 │   └── src/
@@ -893,8 +923,8 @@ HR Management System/
 │       │   ├── repository/     veritabanı erişimi
 │       │   ├── event/          olay sözleşmesinin tüketici tarafı
 │       │   └── config/         kuyruk, DLX ve DLQ tanımları
-│       ├── main/resources/db/migration/   V1__
-│       └── test/               32 test
+│       ├── main/resources/db/migration/   V1__ ... V2__
+│       └── test/               104 test
 └── frontend/                   ✅  React + TypeScript arayüz
     ├── package.json
     └── src/
