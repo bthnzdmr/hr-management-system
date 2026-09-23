@@ -91,3 +91,53 @@ groups:
           severity: critical
         annotations:
           summary: "{{ $labels.job }} kazinamiyor"
+
+  - name: service-health
+    rules:
+      # OLCULEN BOSLUK: 5xx orani PANODA vardi ama UYARISI YOKTU.
+      #
+      # Bu, DLQ olayinin birebir aynisi: orada da mesajlar Prometheus'ta
+      # gorunuyordu ve kimseye bildirilmedigi icin 16 tanesi gunlerce
+      # bekledi. Gorunur olmak, BILDIRILMEK degildir.
+      #
+      # `or vector(0)` YEDEGI SART: hic 5xx olmadiginda seri BOS doner ve
+      # "hata yok" ile "olculmuyor" ayni gorunur. Ayni yedek panodaki iki
+      # gostergede de var.
+      - alert: ServerErrorRate
+        expr: >
+          (sum by (job) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+            or vector(0))
+          > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} sunucu hatasi donduruyor ({{ $value | printf \"%.2f\" }}/sn)"
+          description: >
+            5xx bir ISTEMCI hatasi degildir: istek gecerliydi ve sistem onu
+            karsilayamadi. Esik sifir DEGIL -- dagitim sirasindaki tek tuk
+            hata gurultu uretir ve gurultulu uyari, gormezden gelinen uyaridir.
+
+      # Havuz TUKENMESI, havuz DOLULUGU degil.
+      #
+      # Olculdu: 200 eszamanli istekte bile sifir hata alindi, cunku her
+      # istek baglantiyi yalnizca birkac ms tutuyor. Ama Tomcat 200 iplik
+      # ile 10 baglanti icin yarisabiliyor; istek suresi uzarsa kuyruk
+      # 3 saniyelik zaman asimina dayanir ve o an 500 doneriz.
+      #
+      # `timeout_total` tam olarak o ani sayar: bekleyip ALAMAYAN istek.
+      # `pending` (bekleyen) degil, cunku beklemek normaldir.
+      - alert: ConnectionPoolExhausted
+        expr: >
+          (sum by (job) (increase(hikaricp_connections_timeout_total[10m]))
+            or vector(0))
+          > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} veritabani baglantisi alamiyor"
+          description: >
+            Havuz tukenmis ve istekler zaman asimina ugruyor. Ya sorgular
+            yavasladi ya da es zamanli istek sayisi havuzun tasiyabilecegini
+            asti. Esik SIFIR: bir istegin baglanti alamamasi zaten arizadir.
