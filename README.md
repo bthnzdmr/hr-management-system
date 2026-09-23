@@ -36,7 +36,9 @@ Personel yönetimi için uçtan uca bir sistem: kadro ve organizasyon yapısı, 
 | **Denetim ve izlenebilirlik** | Her yazma işleminin denetim kaydı — kim, ne zaman, ne yaptı, insan diliyle · uçtan uca korelasyon kimliği · Prometheus, Grafana ve Alertmanager ile metrik ve uyarı |
 | **Veri aktarımı** | Personel listesini CSV olarak dışa aktarma (formül enjeksiyonuna karşı nötrleme) · CSV'den içe aktarma (hepsi ya da hiçbiri) |
 
-**Rakamlarla:** 35 REST ucu · 6 rol · 20 Flyway migration'ı · 1016 otomatik test (636 arka uç, 345 arayüz, 35 uçtan uca).
+**Rakamlarla:** 35 REST ucu · 6 rol · 20 Flyway migration'ı · **1000'in üzerinde** otomatik test (arka uç birim ve dilim testleri, arayüz bileşen testleri, uçtan uca kara kutu koşusu).
+
+> Buradaki sayılar bir testle korunuyor ([`ReadmeStaysTrueTest`](employee-service/src/test/java/com/proje/employee/ReadmeStaysTrueTest.java)): uç, rol veya migration eklenip README güncellenmezse derleme kırılır. Test sayısı **kasıtlı olarak yaklaşık** — onu gate'lemek döngüsel olurdu ve her yeni testte yanlış alarm üretirdi.
 
 ### Mimarinin sebebi
 
