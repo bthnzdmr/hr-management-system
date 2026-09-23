@@ -666,14 +666,17 @@ verisidir ve seçim kutusunu doldurmak için kullanılır. Büyüyebilen listele
 Bir hesap **birden fazla rol** taşıyabilir; aynı kişi hem İK uzmanı hem sistem
 yöneticisi olabilir.
 
-| Rol | Personel okuma | Yazma | Maaş | Hesaplar |
-|---|---|---|---|---|
-| `EMPLOYEE` | yalnızca kendi kaydı | – | yalnızca kendi ücreti | – |
-| `MANAGER` | kendi kaydı + doğrudan astları | – | yalnızca kendi ücreti | – |
-| `HR_SPECIALIST` | hepsi | ✅ | – | – |
-| `PAYROLL_SPECIALIST` | hepsi | – | ✅ okur **ve** yazar | – |
-| `SYSTEM_ADMIN` | rehber (maaşsız) | – | – | ✅ |
-| `SERVICE` | rehber (maaşsız) | – | – | – |
+| Rol | Personel okuma | Yazma | Maaş | İzin | Hesaplar |
+|---|---|---|---|---|---|
+| `EMPLOYEE` | yalnızca kendi kaydı | – | yalnızca kendi ücreti | kendi talebi | – |
+| `MANAGER` | kendi kaydı + doğrudan astları | – | yalnızca kendi ücreti | astlarına karar verir | – |
+| `HR_SPECIALIST` | hepsi | ✅ | – | ✅ hepsi | – |
+| `PAYROLL_SPECIALIST` | hepsi | – | ✅ okur **ve** yazar | – | – |
+| `SYSTEM_ADMIN` | rehber (maaşsız) | – | – | – | ✅ |
+| `SERVICE` | rehber (maaşsız) | – | – | – | – |
+
+Kapsam dışındaki bir kayıt `403` değil **`404`** döner: `403` "bu kayıt var ama
+göremezsin" der ve id deneyerek kaç kişi olduğu öğrenilebilirdi.
 
 **Neden ücret ayrı bir rolde?** Aynı rol hem personel kaydı açıp hem ücret
 belirleyebilseydi, tek kişi olmayan birini işe alıp ona maaş bağlayabilirdi.
@@ -683,6 +686,11 @@ toplanacaksa bu bilinçli bir karar olmalı ve iki rol birden verilir.
 **Neden `SYSTEM_ADMIN` maaşı göremiyor?** Erişimi yöneten kişinin ücret bilgisine
 ihtiyacı yoktur. Rehberi okuyabilir çünkü hesabı personele bağlamak için kimin var
 olduğunu bilmesi gerekir.
+
+**Neden `SYSTEM_ADMIN` ve `PAYROLL_SPECIALIST` izin göremiyor?** İzin **iş
+verisidir**, kimlik verisi değil — rol modelinin bütün gerekçesi buydu. Erişimi
+yöneten kişinin bir çalışanın izin geçmişine, ücreti girenin ise ne zaman tatile
+çıktığına ihtiyacı yoktur.
 
 **`SERVICE` neden ayrı bir rol?** Notification Service, bildirim hazırlarken
 personelin yöneticisini sorar. `EMPLOYEE` verilseydi personel kaydı olmadığı için
