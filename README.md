@@ -36,7 +36,7 @@ Personel yönetimi için uçtan uca bir sistem: kadro ve organizasyon yapısı, 
 | **Denetim ve izlenebilirlik** | Her yazma işleminin denetim kaydı — kim, ne zaman, ne yaptı, insan diliyle · uçtan uca korelasyon kimliği · Prometheus, Grafana ve Alertmanager ile metrik ve uyarı |
 | **Veri aktarımı** | Personel listesini CSV olarak dışa aktarma (formül enjeksiyonuna karşı nötrleme) · CSV'den içe aktarma (hepsi ya da hiçbiri) |
 
-**Rakamlarla:** 35 REST ucu · 6 rol · 18 Flyway migration'ı · 989 otomatik test (612 arka uç, 343 arayüz, 34 uçtan uca).
+**Rakamlarla:** 35 REST ucu · 6 rol · 20 Flyway migration'ı · 1016 otomatik test (636 arka uç, 345 arayüz, 35 uçtan uca).
 
 ### Mimarinin sebebi
 
