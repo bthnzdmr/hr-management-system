@@ -1,0 +1,111 @@
+{
+  "uid": "hr-logs",
+  "title": "HR · Loglar",
+  "tags": ["hr", "logs"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Servis",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki-uid" },
+        "query": "label_values(service)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "search",
+        "label": "Satirda ara",
+        "type": "textbox",
+        "query": "",
+        "current": { "text": "", "value": "" },
+        "description": "Korelasyon kimligi buraya yazilir. Kimlik ETIKET DEGIL -- yuksek kardinalite Loki indeksini sisirirdi -- bu yuzden satir suzgeciyle aranir."
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Seviyeye gore satir hizi",
+      "description": "Once 'ne zaman bozuldu' sorulur. Bir ERROR sicramasi, asagidaki akista nereye bakilacagini soyler.",
+      "datasource": { "type": "loki", "uid": "loki-uid" },
+      "gridPos": { "h": 7, "w": 16, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "bars", "stacking": { "mode": "normal" }, "fillOpacity": 70 },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "ERROR" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "WARN" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (level) (count_over_time({service=~\"$service\", stack=~\".+\"} |= \"$search\" [$__auto]))",
+          "legendFormat": "{{level}}"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Son 1 saatte ERROR",
+      "description": "Sifir olmasi beklenir. Sifir degilse asagidaki akista korelasyon kimligi bulunup aranir.",
+      "datasource": { "type": "loki", "uid": "loki-uid" },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["sum"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service=~\"$service\", level=\"ERROR\"} [$__range]))"
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "Akis",
+      "description": "Bir satirdaki korelasyon kimligine tiklamak, o istegin BUTUN izini acar -- iki servis boyunca, kronolojik. Baglanti Loki veri kaynagindaki derivedFields ile uretiliyor.",
+      "datasource": { "type": "loki", "uid": "loki-uid" },
+      "gridPos": { "h": 17, "w": 24, "x": 0, "y": 7 },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=~\"$service\"} |= \"$search\""
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+// Alloy: konteyner loglarini okur, ayristirir ve Loki'ye gonderir.
+//
+// NEDEN ALLOY, PROMTAIL DEGIL?
+// Promtail uzun sure varsayilan ajandi ve YAML'i daha basit; ancak Grafana
+// onu kullanimdan kaldirma yoluna soktu ve yeni is Alloy'a gidiyor.
+// Projenin kurali acik: "kullanilan surum icin guncel, kullanimdan
+// kaldirilmamis API". Bugun basit olani secmek, yarin gocmek demek.
+//
+// NEDEN DOCKER LOGGING DRIVER DEGIL?
+// Docker'in loki eklentisi de mumkundu ama host'a `docker plugin install`
+// gerektiriyor -- emir kipiyle, elle, makineye ozgu bir kurulum. Bu proje
+// "once su dugmeye bas" diye anlatilan kurulumu belge saymiyor; veri
+// kaynagi ve pano dosyayla saglaniyor, ajan da oyle.
+
+logging {
+  level = "warn"   // Ajanin kendi gurultusu toplanan loglara karismasin.
+}
+
+// ── Kesif ────────────────────────────────────────────────────────────────
+discovery.docker "all" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Yalnizca ACIKCA ISARETLENMIS konteynerler toplanir.
+//
+// Compose PROJE ADINA gore suzmek cazipti ve YANLIS olurdu: proje adi
+// dizinden turer, dolayisiyla depo baska bir klasore klonlandiginda ajan
+// SESSIZCE hicbir sey toplamaz. Toplanmadigi fark edilmeyen log, hic
+// olmayandan kotudur.
+//
+// Etiket ayrica NIYETI de gorunur kiliyor: compose dosyasina bakan kisi
+// hangi servisin loglandigini okuyabiliyor.
+discovery.relabel "marked" {
+  targets = discovery.docker.all.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_hr_logs"]
+    regex         = "collect"
+    action        = "keep"
+  }
+
+  // Servis adi compose'dan gelir; konteyner adindan turetmek STACK_PREFIX
+  // degisince ("hr-e2e-...") ayni servisi iki ayri ada bolerdi.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  // Yigin ayrimi: gelistirme ve e2e ayni makinede birlikte kosuyor ve
+  // loglari karismamali.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "stack"
+  }
+}
+
+loki.source.docker "marked" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.marked.output
+  forward_to = [loki.process.parse.receiver]
+}
+
+// ── Ayristirma ───────────────────────────────────────────────────────────
+loki.process "parse" {
+  forward_to = [loki.write.default.receiver]
+
+  // Uretim bicimi: tek satir JSON. Satir JSON DEGILSE bu asama sessizce
+  // hicbir sey cikarmaz ve satir oldugu gibi gecer -- veritabani ve broker
+  // loglari da boyle akar.
+  stage.json {
+    expressions = {
+      level         = "level",
+      correlationId = "correlationId",
+      logger        = "logger",
+    }
+  }
+
+  // Gelistirme bicimi: "10:30:15.123 INFO  [abc-123] com.proje... : mesaj".
+  // ANSI renk kodu seviyeden ONCE gelebilir (%highlight), o yuzden istege
+  // bagli olarak atlaniyor. JSON asamasi calistiysa burada eslesme olmaz
+  // ve onceki deger korunur.
+  stage.regex {
+    expression = "^\\d{2}:\\d{2}:\\d{2}\\.\\d{3} (?:\\x1b\\[[0-9;]*m)?(?P<level>[A-Z]+)"
+  }
+
+  // Seviye buyuk harfe cekilir: Spring "INFO", bazi imajlar "info" basar ve
+  // ikisi AYRI etiket degeri olurdu -- `level="ERROR"` sorgusu bir kismini
+  // kacirirdi.
+  //
+  // ETIKETLENMEDEN ONCE calismak zorunda: stage.labels o anki degeri alir,
+  // sonradan yapilan bir donusum etikete islemez.
+  stage.template {
+    source   = "level"
+    template = "{{ ToUpper .Value }}"
+  }
+
+  // ETIKETE YALNIZCA `level` CIKAR.
+  //
+  // Loki her benzersiz etiket kombinasyonu icin ayri bir "stream" acar ve
+  // indeksi etiketler uzerinden kurar. `correlationId` etiket yapilsaydi
+  // her istek yeni bir stream acardi -- yuz binlerce stream, sisen indeks,
+  // kullanilamaz hale gelen sorgu. Bu, Loki'de en bilinen kurulum hatasi.
+  //
+  // Korelasyon kimligi SATIRIN ICINDE duruyor ve LogQL satir suzgeciyle
+  // aranabiliyor:  {service="employee-service"} |= "abc-123"
+  // Yani kaybolmuyor; yalnizca indekse girmiyor.
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+}
+
+// ── Gonderim ─────────────────────────────────────────────────────────────
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

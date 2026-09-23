@@ -14,6 +14,11 @@ services:
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: ${STACK_PREFIX:-hr}-rabbitmq
+    # Alloy yalnizca ISARETLI konteynerleri toplar. Proje adina gore
+    # suzmek dizin adina bagli olurdu ve depo baska bir klasore
+    # klonlandiginda ajan SESSIZCE hicbir sey toplamazdi.
+    labels:
+      hr.logs: "collect"
     # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
     restart: unless-stopped
     ports:
@@ -45,6 +50,11 @@ services:
   postgres:
     image: postgres:16
     container_name: ${STACK_PREFIX:-hr}-postgres
+    # Alloy yalnizca ISARETLI konteynerleri toplar. Proje adina gore
+    # suzmek dizin adina bagli olurdu ve depo baska bir klasore
+    # klonlandiginda ajan SESSIZCE hicbir sey toplamazdi.
+    labels:
+      hr.logs: "collect"
     # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
     restart: unless-stopped
     ports:
@@ -76,6 +86,11 @@ services:
   mailhog:
     image: mailhog/mailhog:v1.0.1
     container_name: ${STACK_PREFIX:-hr}-mailhog
+    # Alloy yalnizca ISARETLI konteynerleri toplar. Proje adina gore
+    # suzmek dizin adina bagli olurdu ve depo baska bir klasore
+    # klonlandiginda ajan SESSIZCE hicbir sey toplamazdi.
+    labels:
+      hr.logs: "collect"
     # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
     restart: unless-stopped
     ports:
@@ -105,6 +120,11 @@ services:
     build: ./eureka-server
     image: hr/eureka-server:1.0.0
     container_name: ${STACK_PREFIX:-hr}-eureka
+    # Alloy yalnizca ISARETLI konteynerleri toplar. Proje adina gore
+    # suzmek dizin adina bagli olurdu ve depo baska bir klasore
+    # klonlandiginda ajan SESSIZCE hicbir sey toplamazdi.
+    labels:
+      hr.logs: "collect"
     # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
     restart: unless-stopped
     profiles: ["full"]
@@ -137,6 +157,11 @@ services:
     build: ./employee-service
     image: hr/employee-service:1.0.0
     container_name: ${STACK_PREFIX:-hr}-employee-service
+    # Alloy yalnizca ISARETLI konteynerleri toplar. Proje adina gore
+    # suzmek dizin adina bagli olurdu ve depo baska bir klasore
+    # klonlandiginda ajan SESSIZCE hicbir sey toplamazdi.
+    labels:
+      hr.logs: "collect"
     # Zarif kapanma icin sure taniyin: Docker'in varsayilani 10 sn ve
     # uygulama 20 sn'lik bir kapanma butcesi istiyor. Kisa kalsaydi JVM
     # isini bitiremeden SIGKILL yer ve zarif kapanma kagit uzerinde kalirdi.
@@ -241,6 +266,11 @@ services:
     build: ./notification-service
     image: hr/notification-service:1.0.0
     container_name: ${STACK_PREFIX:-hr}-notification-service
+    # Alloy yalnizca ISARETLI konteynerleri toplar. Proje adina gore
+    # suzmek dizin adina bagli olurdu ve depo baska bir klasore
+    # klonlandiginda ajan SESSIZCE hicbir sey toplamazdi.
+    labels:
+      hr.logs: "collect"
     # Zarif kapanma icin sure taniyin: Docker'in varsayilani 10 sn ve
     # uygulama 20 sn'lik bir kapanma butcesi istiyor. Kisa kalsaydi JVM
     # isini bitiremeden SIGKILL yer ve zarif kapanma kagit uzerinde kalirdi.
@@ -313,6 +343,11 @@ services:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
     image: hr/frontend:1.0.0
     container_name: ${STACK_PREFIX:-hr}-frontend
+    # Alloy yalnizca ISARETLI konteynerleri toplar. Proje adina gore
+    # suzmek dizin adina bagli olurdu ve depo baska bir klasore
+    # klonlandiginda ajan SESSIZCE hicbir sey toplamazdi.
+    labels:
+      hr.logs: "collect"
     # Makine yeniden baslarsa sistem de kalksin; elle durdurulduysa kalksin diye degil.
     restart: unless-stopped
     profiles: ["full"]
@@ -388,6 +423,58 @@ services:
           cpus: "0.25"
           memory: 256M
 
+  # ---------------------------------------------------------------------
+  # Log yigini. Metrikle AYNI profilde: bir arizada once "ne zaman bozuldu"
+  # (metrik) sonra "neden bozuldu" (log) sorulur ve ikisi ayni zaman
+  # ekseninde olmazsa iki ayri sekmede el yordamiyla hizalanir.
+  # ---------------------------------------------------------------------
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: ${STACK_PREFIX:-hr}-loki
+    restart: unless-stopped
+    profiles: ["metrics"]
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./ops/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    # PORT YAYIMLANMIYOR: Loki'nin kimlik dogrulamasi yok (auth_enabled:
+    # false) ve butun loglari servis eder -- korelasyon kimlikleri, e-posta
+    # adresleri, yigin izleri. Sorgu Grafana uzerinden, ag icinden yapilir.
+    # Ayni gerekceyle servislerin yonetim portu da yayimlanmiyor.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  # Konteyner loglarini okuyup Loki'ye gonderen ajan.
+  #
+  # KENDI LOGUNU TOPLAMAZ: `hr.logs` etiketi verilmedi. Verilseydi ajanin
+  # her gonderim satiri yeni bir log satiri uretir ve o da toplanirdi --
+  # kendini besleyen bir dongu.
+  alloy:
+    image: grafana/alloy:v1.7.5
+    container_name: ${STACK_PREFIX:-hr}-alloy
+    restart: unless-stopped
+    profiles: ["metrics"]
+    command:
+      - "run"
+      - "--storage.path=/var/lib/alloy/data"
+      - "/etc/alloy/config.alloy"
+    volumes:
+      - ./ops/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # Docker soketi SALT OKUNUR baglanir. Yazilabilir bir soket, konteyner
+      # icinden host uzerinde root yetkisiyle yeni konteyner acmak demektir.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    depends_on:
+      - loki
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
   grafana:
     image: grafana/grafana:11.1.0
     container_name: ${STACK_PREFIX:-hr}-grafana
@@ -416,6 +503,8 @@ services:
           memory: 512M
 
 volumes:
+  loki-data:
+  alloy-data:
   prometheus-data:
   # Susturma (silence) kayitlari ve bildirim gecmisi burada durur: konteyner
   # yeniden basladiginda susturulmus bir uyari tekrar bildirilmesin.

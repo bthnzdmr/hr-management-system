@@ -1,0 +1,28 @@
+# Log veri kaynagi. Prometheus'la ayni gerekce: kurulum dosyayla saglanir,
+# elle degil -- "once su dugmeye bas" diye anlatilan bir kurulum belge
+# degildir ve gozden gecirilemez.
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    # Varsayilan Prometheus kalir: pano acildiginda once "ne zaman bozuldu"
+    # sorulur, log ikinci adimdir.
+    isDefault: false
+    editable: false
+    jsonData:
+      # Korelasyon kimligi loglarda GORUNUR bir baglantiya donusur.
+      # Kimlik ETIKET DEGIL (yuksek kardinalite Loki indeksini sisirirdi),
+      # bu yuzden satir icinden yakalanip ayni veri kaynaginda arama
+      # baglantisi uretiliyor: bir hata satirindan o istegin butun izine
+      # tek tikla gecilir.
+      derivedFields:
+        - name: correlationId
+          matcherType: regex
+          matcherRegex: '"correlationId":"([^"]+)"'
+          url: '${__value.raw}'
+          datasourceUid: loki-uid
+          urlDisplayLabel: 'Bu istegin butun izi'
+    uid: loki-uid

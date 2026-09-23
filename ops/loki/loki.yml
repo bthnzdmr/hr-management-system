@@ -1,0 +1,78 @@
+# Loki: log toplama ve sorgulama.
+#
+# NEDEN LOKI, ELASTICSEARCH DEGIL?
+# Elasticsearch log satirinin TAMAMINI indeksler; guclu ama pahali -- bu
+# olcekte gigabaytlarca RAM ve uc konteyner (ES + Logstash + Kibana) demek.
+# Loki yalnizca ETIKETLERI indeksler, satirin kendisini sikistirip saklar ve
+# aramayi tarayarak yapar. Bedeli: tam metin aramasi daha yavas. Kazanci:
+# tek konteyner, dusuk bellek ve SORGU ARAYUZU ZATEN VAR -- Grafana kurulu.
+#
+# "Yiginda karsiligi olan bir sey icin yeni bagimlilik ekleme" kuralinin
+# uygulamasi: metrik ve log ayni panelde, ayni zaman ekseninde.
+
+auth_enabled: false   # Tek kiracili kurulum; kimlik dogrulama vekilin isi.
+
+server:
+  http_listen_port: 3100
+  # Gurultuyu kes: Loki varsayilanda her istegi INFO ile loglar ve kendi
+  # loglari toplanan loglarla karisir.
+  log_level: warn
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    # TSDB + v13: Loki 3.x'in guncel semasi. Eski boltdb-shipper artik
+    # onerilmiyor ve yeni kurulumlarda kullanilmamali.
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  # Gecmise donuk satir KABUL EDILIR. Varsayilan pencere dar ve konteyner
+  # yeniden baslatildiginda birikmis satirlar "too far behind" ile SESSIZCE
+  # atilir -- toplanmadigi fark edilmeyen log, hic olmayandan kotudur.
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+
+  # Tek bir servisin log patlamasi butun boru hattini tikamasin.
+  ingestion_rate_mb: 8
+  ingestion_burst_size_mb: 16
+
+  # Etiket sayisi SINIRLI: her benzersiz etiket kombinasyonu ayri bir
+  # "stream" acar ve yuksek kardinalite Loki'yi kullanilamaz hale getirir.
+  # Korelasyon kimligi bu yuzden ETIKET DEGIL, satirin icinde (bkz. alloy.river).
+  max_label_names_per_series: 12
+
+  # Saklama: metrikle ayni gerekce -- log bir ARSIV degil, hata ayiklama
+  # penceresidir. Denetim izi zaten veritabaninda ve kalicidir.
+  retention_period: 336h
+
+compactor:
+  working_directory: /loki/compactor
+  # Saklama suresi ancak compactor silerse GECERLIDIR. Yazilmasaydi
+  # retention_period yalnizca sorgulari sinirlar, diski doldurmayi surdururdu.
+  retention_enabled: true
+  delete_request_store: filesystem
+
+# Kural degerlendirme kapali: uyarilar Prometheus'ta ve Alertmanager'a
+# oradan gidiyor. Ikinci bir uyari kaynagi, iki ayri yerden bakmak demektir.
+ruler:
+  alertmanager_url: http://alertmanager:9093
+
+analytics:
+  reporting_enabled: false

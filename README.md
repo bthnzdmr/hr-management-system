@@ -208,6 +208,9 @@ Gerekçeleri proje kurallarında kayıtlıdır.
 | MailHog paneli       | 8025  | http://localhost:8025                        | ✅       |
 | Prometheus paneli    | 9091  | http://localhost:9091 (`metrics` profili)    | ✅       |
 | Grafana              | 3000  | http://localhost:3000 (`metrics` profili)    | ✅       |
+| Alertmanager         | 9093  | http://localhost:9093 (`metrics` profili)    | ✅       |
+| Loki                 | 3100  | yayımlanmaz — Grafana üzerinden sorgulanır    | ❌       |
+| Alloy (log ajanı)    | —     | yayımlanmaz                                   | ❌       |
 
 Notification Service'in dışarıya açık bir ucu yoktur, bu yüzden portu
 yayımlanmaz. Servislerin **yönetim portu 9090**'dır ve o da yayımlanmaz —
@@ -494,10 +497,10 @@ alıp `NVD_API_KEY` olarak tanımlamak bunu ciddi biçimde kısaltır.
 Arayüz tarafında karşılığı `npm audit`. CI'da tarama haftalık koşar — bir
 bağımlılığın açığı kodla değil zamanla ortaya çıkar.
 
-### Metrikler ve panolar (opsiyonel)
+### Metrikler, loglar ve panolar (opsiyonel)
 
-Prometheus ve Grafana **ayrı bir profilde** durur: günlük geliştirme döngüsüne
-iki konteyner daha yüklememek için opt-in.
+Metrik ve log yığını **ayrı bir profilde** durur: günlük geliştirme döngüsüne
+beş konteyner daha yüklememek için opt-in.
 
 ```bash
 docker compose --profile full --profile metrics up -d
@@ -506,12 +509,38 @@ docker compose --profile full --profile metrics up -d
 | Ne | Adres |
 |---|---|
 | Prometheus | http://localhost:9091 (uyarılar: `/alerts`) |
-| Grafana | http://localhost:3000 |
+| Grafana | http://localhost:3000 — panolar: **HR System**, **HR · Loglar** |
+| Alertmanager | http://localhost:9093 |
 
 Veri kaynağı ve pano dosyayla sağlanır ([ops/](ops/)), elle değil: "önce şu
 düğmeye bas" diye anlatılan bir kurulum belge değildir. Servislerin metrik ucu
 yönetim portundadır (9090) ve **dışarı yayımlanmaz** — metrik masum görünür ama
-uç desenlerini ve hata oranlarını sızdırır.
+uç desenlerini ve hata oranlarını sızdırır. Loki de aynı sebeple
+yayımlanmaz: kimlik doğrulaması yoktur ve bütün log satırlarını servis eder.
+
+**Log akışı:** Alloy konteyner çıktılarını okur → Loki saklar → Grafana
+sorgular. Yalnızca `hr.logs: "collect"` etiketli konteynerler toplanır;
+compose proje adına göre süzmek dizin adına bağlı olurdu ve depo başka bir
+klasöre klonlandığında ajan **sessizce** hiçbir şey toplamazdı.
+
+Korelasyon kimliği **etiket değildir** — Loki her benzersiz etiket
+kombinasyonu için ayrı bir "stream" açar ve her isteğe bir etiket vermek
+indeksi kullanılamaz hale getirir. Kimlik satırın içinde durur ve satır
+süzgeciyle aranır:
+
+```
+{service="employee-service"} |= "abc-123"
+```
+
+Ölçüldü: tek bir kimlikle yapılan izin talebi **7 satır / 2 servis** döndürüyor
+— kapsam çözümü, erişim kuralı, bakiye, tercih okuma, outbox yayını ve
+tüketicinin aynı `eventId` ile devralması. Asenkron sınır geçiliyor, iz
+kopmuyor.
+
+> Üretici taraf başarılı işlemde `DEBUG` basar; `INFO`'da yalnızca tüketici
+> satırı görünür. Bu bilinçli — boş bir sistem dakikada 417 satır üretiyordu
+> ve gürültü, çıkan bir hatayı görünmez kılar. Başarılı yazmanın kalıcı kaydı
+> **denetim izindedir**, logda değil.
 
 ### Durdurma
 
